@@ -8,7 +8,7 @@ interface CacheEntry {
 
 // Global server-side memory cache
 const quoteCache: Record<string, CacheEntry> = {};
-const CACHE_DURATION = 15000; // 15 seconds cache duration
+const CACHE_DURATION = 60000; // 60 seconds cache duration
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);

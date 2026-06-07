@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { createChart, ColorType, UTCTimestamp, AreaSeries } from 'lightweight-charts';
+import { createChart, ColorType, UTCTimestamp, AreaSeries, LineSeries } from 'lightweight-charts';
 import { useStockStore } from '@/store/useStockStore';
 import axios from 'axios';
 
@@ -21,6 +21,7 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
   const { theme } = useStockStore();
   const [data, setData] = useState<ChartPoint[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showSMA, setShowSMA] = useState(false);
 
   // Fetch chart data on symbol or range changes
   useEffect(() => {
@@ -104,6 +105,43 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
 
 
     areaSeries.setData(formattedData);
+
+    // Calculate and Overlay SMA (20-day)
+    if (showSMA && data.length >= 5) {
+      const smaData = [];
+      for (let i = 0; i < data.length; i++) {
+        if (i < 19) {
+          // Average of available prices for the initial points
+          let sum = 0;
+          for (let j = 0; j <= i; j++) {
+            sum += data[j].value;
+          }
+          smaData.push({
+            time: data[i].time as UTCTimestamp,
+            value: parseFloat((sum / (i + 1)).toFixed(2))
+          });
+        } else {
+          // 20-day rolling average
+          let sum = 0;
+          for (let j = i - 19; j <= i; j++) {
+            sum += data[j].value;
+          }
+          smaData.push({
+            time: data[i].time as UTCTimestamp,
+            value: parseFloat((sum / 20).toFixed(2))
+          });
+        }
+      }
+
+      const smaSeries = chart.addSeries(LineSeries, {
+        color: '#6366f1', // Indigo-500
+        lineWidth: 2,
+        priceLineVisible: false,
+        lastValueVisible: false,
+      });
+      smaSeries.setData(smaData);
+    }
+
     chart.timeScale().fitContent();
 
     // Resize Observer for Responsiveness
@@ -120,12 +158,11 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
 
     resizeObserver.observe(container);
 
-    // Cleanup
     return () => {
       resizeObserver.disconnect();
       chart.remove();
     };
-  }, [data, theme, isPositive, loading, range]);
+  }, [data, theme, isPositive, loading, range, showSMA]);
 
   if (loading) {
     return (
@@ -147,7 +184,20 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
   }
 
   return (
-    <div className="w-full relative">
+    <div className="w-full relative flex flex-col gap-3">
+      {!symbol.startsWith('^') && (
+        <div className="flex items-center gap-2 self-end text-xs font-bold text-text-secondary select-none z-10">
+          <label className="flex items-center gap-1.5 cursor-pointer hover:text-text-primary transition-colors">
+            <input
+              type="checkbox"
+              checked={showSMA}
+              onChange={(e) => setShowSMA(e.target.checked)}
+              className="rounded border-border text-profit focus:ring-profit/20 h-3.5 w-3.5"
+            />
+            <span>SMA-20 Overlay</span>
+          </label>
+        </div>
+      )}
       <div ref={chartContainerRef} className="w-full h-[260px] sm:h-[380px]" />
     </div>
   );

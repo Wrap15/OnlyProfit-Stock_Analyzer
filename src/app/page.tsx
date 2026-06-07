@@ -3,10 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import { useStockStore } from '@/store/useStockStore';
 import StockCard from '@/components/StockCard';
-import axios from 'axios';
+import StockLogo from '@/components/StockLogo';
+import { apiClient as axios } from '@/lib/apiClient';
 import MutualFundCard from '@/components/MutualFundCard';
-import SipCalculator from '@/components/SipCalculator';
-import { ArrowUpRight, ArrowDownRight, Star, Sparkles, LayoutGrid, Search, BookOpen } from 'lucide-react';
+import ThematicBaskets from '@/components/ThematicBaskets';
+import { ArrowUpRight, ArrowDownRight, Star, Sparkles, LayoutGrid, Search, BookOpen, Activity } from 'lucide-react';
 import Link from 'next/link';
 
 interface MarketGainerLoser {
@@ -29,6 +30,12 @@ const MONITOR_SYMBOLS = [
 
 const TRENDING_SYMBOLS = ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'TATAMOTORS.NS', 'HDFCBANK.NS', 'JIOFIN.NS', 'SBIN.NS', 'BHARTIAIRTEL.NS'];
 
+// Tickertape-style Curated Collections
+const BLUE_CHIP_SYMBOLS = ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'HDFCBANK.NS', 'ICICIBANK.NS', 'SBIN.NS', 'LT.NS', 'ITC.NS'];
+const HIGH_GROWTH_SYMBOLS = ['TATAMOTORS.NS', 'JIOFIN.NS', 'ADANIENT.NS', 'ADANIPORTS.NS', 'MARUTI.NS', 'M&M.NS'];
+const DIVIDEND_SYMBOLS = ['COALINDIA.NS', 'BPCL.NS', 'ONGC.NS', 'POWERGRID.NS', 'ITC.NS'];
+const DEBT_FREE_SYMBOLS = ['TCS.NS', 'INFY.NS', 'WIPRO.NS', 'HCLTECH.NS', 'ITC.NS', 'NESTLEIND.NS'];
+
 type TabType = 'watchlist' | 'trending' | 'explore';
 
 export default function Home() {
@@ -37,28 +44,14 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('trending');
   const [searchFilter, setSearchFilter] = useState('');
+  const [activeCollection, setActiveCollection] = useState<'all' | 'bluechip' | 'growth' | 'dividend' | 'debtfree'>('all');
 
   // Mutual Funds States
   const [activeMFCategory, setActiveMFCategory] = useState<string>('all');
   const [mutualFunds, setMutualFunds] = useState<any[]>([]);
   const [mfLoading, setMFLoading] = useState<boolean>(true);
 
-  // SIP Calculator State Bindings
-  const [calExpectedReturn, setCalExpectedReturn] = useState<number | null>(null);
-  const [calFundName, setCalFundName] = useState<string | null>(null);
 
-  const handleUseRate = (rate: number, name: string) => {
-    setCalExpectedReturn(rate);
-    setCalFundName(name);
-    
-    // Smooth scroll to the calculator
-    setTimeout(() => {
-      const calcElement = document.getElementById('sip-calculator-section');
-      if (calcElement) {
-        calcElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    }, 100);
-  };
 
   useEffect(() => {
     async function fetchMutualFunds() {
@@ -117,8 +110,36 @@ export default function Home() {
       changePercent: q.regularMarketChangePercent
     }));
 
-  // Filtering explore list
+  // Compute most active stocks by trading volume
+  const mostActive = [...marketQuotes]
+    .filter(q => !q.symbol.startsWith('^'))
+    .sort((a, b) => b.regularMarketVolume - a.regularMarketVolume)
+    .slice(0, 5)
+    .map(q => ({
+      symbol: q.symbol,
+      name: q.shortName,
+      price: q.regularMarketPrice,
+      changePercent: q.regularMarketChangePercent,
+      volume: q.regularMarketVolume
+    }));
+
+  const formatVolume = (num: number) => {
+    if (!num) return '0';
+    if (num >= 10000000) { // 1 Crore
+      return `${(num / 10000000).toFixed(2)} Cr`;
+    } else if (num >= 100000) { // 1 Lakh
+      return `${(num / 100000).toFixed(2)} L`;
+    }
+    return num.toLocaleString('en-IN');
+  };
+
+  // Filtering explore list based on search and collection filters
   const filteredExploreSymbols = MONITOR_SYMBOLS.filter(sym => {
+    if (activeCollection === 'bluechip' && !BLUE_CHIP_SYMBOLS.includes(sym)) return false;
+    if (activeCollection === 'growth' && !HIGH_GROWTH_SYMBOLS.includes(sym)) return false;
+    if (activeCollection === 'dividend' && !DIVIDEND_SYMBOLS.includes(sym)) return false;
+    if (activeCollection === 'debtfree' && !DEBT_FREE_SYMBOLS.includes(sym)) return false;
+
     const quote = marketQuotes.find(q => q.symbol === sym);
     const name = quote?.shortName || sym;
     return sym.toLowerCase().includes(searchFilter.toLowerCase()) || name.toLowerCase().includes(searchFilter.toLowerCase());
@@ -225,18 +246,42 @@ export default function Home() {
           {/* TAB 3: EXPLORE ALL STOCKS */}
           {activeTab === 'explore' && (
             <div className="space-y-4 animate-fade-in gpu-layer">
-              {/* Internal search filter for easy explore navigation */}
-              <div className="relative max-w-xs">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                  <Search className="h-4 w-4 text-text-secondary" />
+              {/* Search and Curated Collections Pills */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="relative max-w-xs w-full">
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                    <Search className="h-4 w-4 text-text-secondary" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search explore list..."
+                    value={searchFilter}
+                    onChange={(e) => setSearchFilter(e.target.value)}
+                    className="w-full h-9 pl-9 pr-4 rounded-xl border border-border bg-card text-xs text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-1 focus:ring-profit/20 focus:border-profit transition-all duration-200"
+                  />
                 </div>
-                <input
-                  type="text"
-                  placeholder="Filter 30+ stocks..."
-                  value={searchFilter}
-                  onChange={(e) => setSearchFilter(e.target.value)}
-                  className="w-full h-9 pl-9 pr-4 rounded-xl border border-border bg-card text-xs text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-1 focus:ring-profit/20 focus:border-profit transition-all duration-200"
-                />
+
+                <div className="flex overflow-x-auto scrollbar-none max-w-full gap-1.5 p-1 bg-card border border-border/70 rounded-xl">
+                  {[
+                    { id: 'all', label: 'All Stocks' },
+                    { id: 'bluechip', label: 'Blue Chips' },
+                    { id: 'growth', label: 'High Growth' },
+                    { id: 'dividend', label: 'High Dividend' },
+                    { id: 'debtfree', label: 'Debt Free' }
+                  ].map((col) => (
+                    <button
+                      key={col.id}
+                      onClick={() => setActiveCollection(col.id as any)}
+                      className={`px-3.5 py-1.5 rounded-lg text-[10px] font-black shrink-0 transition-all duration-200 ${
+                        activeCollection === col.id
+                          ? 'bg-profit/10 text-profit border border-profit/15 shadow-sm'
+                          : 'text-text-secondary hover:text-text-primary hover:bg-background border border-transparent'
+                      }`}
+                    >
+                      {col.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {filteredExploreSymbols.length > 0 ? (
@@ -255,7 +300,7 @@ export default function Home() {
 
         </div>
 
-        {/* Right Column: Gainers & Losers (Grid Column Span 1) */}
+        {/* Right Column: Gainers, Losers & Most Active (Grid Column Span 1) */}
         <div className="space-y-6">
           
           {/* Top Gainers Card */}
@@ -295,14 +340,17 @@ export default function Home() {
                   <Link
                     key={stock.symbol}
                     href={`/stock/${stock.symbol}`}
-                    className="flex items-center justify-between p-2.5 rounded-xl hover:bg-background transition-colors group"
+                    className="flex items-center justify-between p-2 rounded-xl hover:bg-background transition-colors group"
                   >
-                    <div className="min-w-0">
-                      <div className="font-bold text-xs text-text-primary group-hover:text-profit transition-colors">
-                        {stock.symbol.split('.')[0]}
-                      </div>
-                      <div className="text-[10px] text-text-secondary truncate max-w-[120px] font-medium">
-                        {stock.name}
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <StockLogo symbol={stock.symbol} size="sm" />
+                      <div className="min-w-0">
+                        <div className="font-bold text-xs text-text-primary group-hover:text-profit transition-colors truncate">
+                          {stock.symbol.split('.')[0]}
+                        </div>
+                        <div className="text-[10px] text-text-secondary truncate max-w-[100px] font-medium">
+                          {stock.name}
+                        </div>
                       </div>
                     </div>
                     <div className="flex flex-col items-end shrink-0">
@@ -356,14 +404,17 @@ export default function Home() {
                   <Link
                     key={stock.symbol}
                     href={`/stock/${stock.symbol}`}
-                    className="flex items-center justify-between p-2.5 rounded-xl hover:bg-background transition-colors group"
+                    className="flex items-center justify-between p-2 rounded-xl hover:bg-background transition-colors group"
                   >
-                    <div className="min-w-0">
-                      <div className="font-bold text-xs text-text-primary group-hover:text-loss transition-colors">
-                        {stock.symbol.split('.')[0]}
-                      </div>
-                      <div className="text-[10px] text-text-secondary truncate max-w-[120px] font-medium">
-                        {stock.name}
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <StockLogo symbol={stock.symbol} size="sm" />
+                      <div className="min-w-0">
+                        <div className="font-bold text-xs text-text-primary group-hover:text-loss transition-colors truncate">
+                          {stock.symbol.split('.')[0]}
+                        </div>
+                        <div className="text-[10px] text-text-secondary truncate max-w-[100px] font-medium">
+                          {stock.name}
+                        </div>
                       </div>
                     </div>
                     <div className="flex flex-col items-end shrink-0">
@@ -376,6 +427,73 @@ export default function Home() {
                     </div>
                   </Link>
                 ))}
+              </div>
+            )}
+          </div>
+
+          {/* Most Active Stocks Card */}
+          <div className="rounded-2xl border border-border bg-card p-5 shadow-soft dark:shadow-soft-dark">
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-border/50">
+              <div className="flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-500">
+                  <Activity className="h-4 w-4" />
+                </div>
+                <h3 className="font-extrabold text-sm text-text-primary tracking-tight">
+                  Most Active Stocks
+                </h3>
+              </div>
+              <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">
+                Volume
+              </span>
+            </div>
+
+            {loading ? (
+              <div className="space-y-3 py-2">
+                {[1, 2, 3, 4, 5].map(i => (
+                  <div key={i} className="flex justify-between items-center p-1">
+                    <div className="space-y-1.5 flex-1 max-w-[60%]">
+                      <div className="h-3.5 w-16 animate-shimmer rounded" />
+                      <div className="h-2.5 w-28 animate-shimmer rounded" />
+                    </div>
+                    <div className="flex flex-col items-end space-y-1.5 shrink-0">
+                      <div className="h-3.5 w-16 animate-shimmer rounded" />
+                      <div className="h-2.5 w-10 animate-shimmer rounded" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-1 animate-fade-in">
+                {mostActive.map((stock) => {
+                  const isStockPositive = stock.changePercent >= 0;
+                  return (
+                    <Link
+                      key={stock.symbol}
+                      href={`/stock/${stock.symbol}`}
+                      className="flex items-center justify-between p-2 rounded-xl hover:bg-background transition-colors group"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <StockLogo symbol={stock.symbol} size="sm" />
+                        <div className="min-w-0">
+                          <div className="font-bold text-xs text-text-primary group-hover:text-profit transition-colors truncate">
+                            {stock.symbol.split('.')[0]}
+                          </div>
+                          <div className="text-[10px] text-text-secondary truncate max-w-[100px] font-medium">
+                            Vol: {formatVolume(stock.volume)}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end shrink-0">
+                        <span className="text-xs font-bold text-text-primary">
+                          ₹{stock.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </span>
+                        <span className={`text-[10px] font-extrabold flex items-center gap-0.5 mt-0.5 ${isStockPositive ? 'text-profit' : 'text-loss'}`}>
+                          {isStockPositive ? '+' : ''}{stock.changePercent.toFixed(2)}%
+                        </span>
+                      </div>
+                    </Link>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -453,7 +571,7 @@ export default function Home() {
         ) : mutualFunds.length > 0 ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {mutualFunds.map((fund) => (
-              <MutualFundCard key={fund.code} fund={fund} onUseRate={handleUseRate} />
+              <MutualFundCard key={fund.code} fund={fund} />
             ))}
           </div>
         ) : (
@@ -463,9 +581,9 @@ export default function Home() {
         )}
       </div>
 
-      {/* SIP & Lumpsum Calculator Section */}
-      <div className="mt-12 pt-10 border-t border-border/60">
-        <SipCalculator expectedReturn={calExpectedReturn} fundName={calFundName} />
+      {/* Thematic Stock Baskets Section (Smallcases mock) */}
+      <div id="thematic-baskets" className="mt-12 pt-10 border-t border-border/60">
+        <ThematicBaskets />
       </div>
 
       <script

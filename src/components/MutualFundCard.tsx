@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import MiniSparkline from './MiniSparkline';
 import { Shield, Sparkles, Layers, TrendingUp, Compass } from 'lucide-react';
 
@@ -17,10 +18,9 @@ interface MutualFundData {
 
 interface MutualFundCardProps {
   fund: MutualFundData;
-  onUseRate?: (rate: number, name: string) => void;
 }
 
-export default function MutualFundCard({ fund, onUseRate }: MutualFundCardProps) {
+export default function MutualFundCard({ fund }: MutualFundCardProps) {
   const isPositive = fund.oneYearReturn >= 0;
 
   // Resolve category icon and theme color
@@ -65,68 +65,63 @@ export default function MutualFundCard({ fund, onUseRate }: MutualFundCardProps)
   return (
     <div className="flex flex-col w-full rounded-2xl border border-border bg-card p-5 shadow-soft dark:shadow-soft-dark hover:shadow-premium dark:hover:shadow-premium-dark hover:border-profit/20 hover:scale-[1.01] active:scale-[0.99] transition-all duration-200 overflow-hidden animate-fade-in gpu-layer">
       
-      {/* Header Info */}
-      <div className="flex items-start justify-between gap-2.5">
-        <div className="flex items-center gap-3 min-w-0">
-          {/* Category Avatar Icon */}
-          <div className={`flex h-9 w-9 items-center justify-center rounded-xl border ${config.bgColor}`}>
-            {config.icon}
+      <Link href={`/mutualfund/${fund.code}`} className="group flex flex-col flex-grow cursor-pointer">
+        {/* Header Info */}
+        <div className="flex items-start justify-between gap-2.5">
+          <div className="flex items-center gap-3 min-w-0">
+            {/* Category Avatar Icon */}
+            <div className={`flex h-9 w-9 items-center justify-center rounded-xl border ${config.bgColor}`}>
+              {config.icon}
+            </div>
+            <div className="min-w-0">
+              <h3 className="font-extrabold text-sm text-text-primary tracking-tight truncate group-hover:text-profit transition-colors duration-200">
+                {fund.name.replace(' - Growth', '')}
+              </h3>
+              <span className={`inline-block text-[9px] font-black uppercase tracking-wider mt-1 px-2 py-0.5 rounded-md border ${config.bgColor} ${config.textColor}`}>
+                {fund.categoryLabel}
+              </span>
+            </div>
           </div>
-          <div className="min-w-0">
-            <h3 className="font-extrabold text-sm text-text-primary tracking-tight truncate group-hover:text-profit">
-              {fund.name.replace(' - Growth', '')}
-            </h3>
-            <span className={`inline-block text-[9px] font-black uppercase tracking-wider mt-1 px-2 py-0.5 rounded-md border ${config.bgColor} ${config.textColor}`}>
-              {fund.categoryLabel}
+        </div>
+
+        {/* NAV Display Section */}
+        <div className="mt-5 flex items-baseline justify-between">
+          <div>
+            <span className="block text-[10px] font-extrabold text-text-secondary uppercase tracking-wider">Net Asset Value (NAV)</span>
+            <div className="text-xl font-black text-text-primary tracking-tight mt-0.5">
+              ₹{fund.nav.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            </div>
+          </div>
+          
+          {/* CAGR Return Badge */}
+          <div className="text-right">
+            <span className="block text-[10px] font-extrabold text-text-secondary uppercase tracking-wider">3Y Return (cagr)</span>
+            <span className="inline-flex items-center mt-1 px-2 py-0.5 rounded-lg bg-profit/10 text-profit border border-profit/15 text-xs font-black">
+              {fund.threeYearReturn.toFixed(2)}% p.a.
             </span>
           </div>
         </div>
-      </div>
 
-      {/* NAV Display Section */}
-      <div className="mt-5 flex items-baseline justify-between">
-        <div>
-          <span className="block text-[10px] font-extrabold text-text-secondary uppercase tracking-wider">Net Asset Value (NAV)</span>
-          <div className="text-xl font-black text-text-primary tracking-tight mt-0.5">
-            ₹{fund.nav.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+        {/* Sparkline Visual History */}
+        <div className="flex items-end justify-between mt-6 pt-3 border-t border-border/30">
+          <div className="flex flex-col">
+            <span className="text-[10px] font-extrabold text-text-secondary uppercase tracking-wider">
+              1Y Return
+            </span>
+            <span className={`text-xs font-black mt-0.5 ${fund.oneYearReturn >= 0 ? 'text-profit' : 'text-loss'}`}>
+              {fund.oneYearReturn >= 0 ? '+' : ''}{fund.oneYearReturn.toFixed(2)}%
+            </span>
           </div>
+          
+          {fund.sparkline.length > 0 && (
+            <div className="h-8 w-24 opacity-85 hover:opacity-100 transition-opacity">
+              <MiniSparkline data={fund.sparkline} isPositive={isPositive} width={96} height={32} />
+            </div>
+          )}
         </div>
-        
-        {/* CAGR Return Badge */}
-        <div className="text-right">
-          <span className="block text-[10px] font-extrabold text-text-secondary uppercase tracking-wider">3Y Return (cagr)</span>
-          <span className="inline-flex items-center mt-1 px-2 py-0.5 rounded-lg bg-profit/10 text-profit border border-profit/15 text-xs font-black">
-            {fund.threeYearReturn.toFixed(2)}% p.a.
-          </span>
-        </div>
-      </div>
+      </Link>
 
-      {/* Sparkline Visual History */}
-      <div className="flex items-end justify-between mt-6 pt-3 border-t border-border/30">
-        <div className="flex flex-col">
-          <span className="text-[10px] font-extrabold text-text-secondary uppercase tracking-wider">
-            1Y Return
-          </span>
-          <span className={`text-xs font-black mt-0.5 ${fund.oneYearReturn >= 0 ? 'text-profit' : 'text-loss'}`}>
-            {fund.oneYearReturn >= 0 ? '+' : ''}{fund.oneYearReturn.toFixed(2)}%
-          </span>
-        </div>
-        
-        {fund.sparkline.length > 0 && (
-          <div className="h-8 w-24 opacity-85 hover:opacity-100 transition-opacity">
-            <MiniSparkline data={fund.sparkline} isPositive={isPositive} width={96} height={32} />
-          </div>
-        )}
-      </div>
 
-      {onUseRate && (
-        <button
-          onClick={() => onUseRate(fund.threeYearReturn, fund.name)}
-          className="mt-4 w-full py-2 bg-profit/5 hover:bg-profit/10 active:scale-[0.98] border border-profit/15 hover:border-profit/30 text-profit font-black text-[11px] rounded-xl flex items-center justify-center gap-1.5 transition-all duration-200"
-        >
-          <TrendingUp className="h-3.5 w-3.5 animate-pulse" /> Use in SIP Calculator
-        </button>
-      )}
 
     </div>
   );

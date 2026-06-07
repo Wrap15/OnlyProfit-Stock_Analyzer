@@ -6,9 +6,10 @@ import { HelpCircle, TrendingUp } from 'lucide-react';
 interface SipCalculatorProps {
   expectedReturn?: number | null;
   fundName?: string | null;
+  isSidebar?: boolean;
 }
 
-export default function SipCalculator({ expectedReturn, fundName }: SipCalculatorProps) {
+export default function SipCalculator({ expectedReturn, fundName, isSidebar = false }: SipCalculatorProps) {
   const [calculatorMode, setCalculatorMode] = useState<'sip' | 'lumpsum'>('sip');
   
   // Inputs
@@ -89,7 +90,9 @@ export default function SipCalculator({ expectedReturn, fundName }: SipCalculato
   return (
     <div 
       id="sip-calculator-section" 
-      className="w-full rounded-3xl border border-border bg-card p-6 md:p-8 shadow-soft dark:shadow-soft-dark hover:border-profit/10 transition-all duration-300 animate-fade-in gpu-layer"
+      className={`w-full rounded-3xl border border-border bg-card shadow-soft dark:shadow-soft-dark hover:border-profit/10 transition-all duration-300 animate-fade-in gpu-layer ${
+        isSidebar ? 'p-5' : 'p-6 md:p-8'
+      }`}
     >
       {/* Title */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/40 pb-5 mb-6">
@@ -152,10 +155,10 @@ export default function SipCalculator({ expectedReturn, fundName }: SipCalculato
       )}
 
       {/* Main Form & Output Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+      <div className={isSidebar ? 'flex flex-col gap-6' : 'grid grid-cols-1 lg:grid-cols-12 gap-8 items-center'}>
         
-        {/* Left Side: Inputs (Col Span 7) */}
-        <div className="lg:col-span-7 space-y-6">
+        {/* Left Side: Inputs */}
+        <div className={isSidebar ? 'space-y-6' : 'lg:col-span-7 space-y-6'}>
           
           {/* Input 1: Investment Amount */}
           <div className="space-y-2">
@@ -252,8 +255,12 @@ export default function SipCalculator({ expectedReturn, fundName }: SipCalculato
 
         </div>
 
-        {/* Right Side: Visualizations & Output (Col Span 5) */}
-        <div className="lg:col-span-5 flex flex-col sm:flex-row items-center justify-around gap-6 p-6 rounded-2xl bg-background/50 border border-border/60">
+        {/* Right Side: Visualizations & Output */}
+        <div className={
+          isSidebar 
+            ? 'flex flex-col items-center gap-6 p-5 rounded-2xl bg-background/50 border border-border/60'
+            : 'lg:col-span-5 flex flex-col sm:flex-row items-center justify-around gap-6 p-6 rounded-2xl bg-background/50 border border-border/60'
+        }>
           
           {/* Doughnut Chart */}
           <div className="relative flex items-center justify-center h-32 w-32 shrink-0">

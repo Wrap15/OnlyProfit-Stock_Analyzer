@@ -351,6 +351,25 @@ export function generateMockQuote(symbol: string) {
 
   const peVal = parseFloat((18 + rand() * 22).toFixed(2)); // realistic PE between 18 and 40
   const epsVal = parseFloat((price / peVal).toFixed(2));
+  const pbVal = parseFloat((2 + rand() * 6).toFixed(2));
+  
+  let dy = 0.5 + rand() * 2;
+  if (['COALINDIA.NS', 'BPCL.NS', 'ONGC.NS', 'POWERGRID.NS'].includes(symbol)) {
+    dy = 4.5 + rand() * 4;
+  } else if (['ITC.NS', 'NESTLEIND.NS'].includes(symbol)) {
+    dy = 2.5 + rand() * 2.5;
+  }
+  const divYield = parseFloat(dy.toFixed(2));
+
+  const sectorPE = parseFloat((20 + rand() * 12).toFixed(2));
+  const sectorPB = parseFloat((3 + rand() * 3).toFixed(2));
+  const analystRating = Math.floor(55 + rand() * 40);
+
+  const promoter = Math.floor(40 + rand() * 32);
+  const fii = Math.floor(10 + rand() * 16);
+  const dii = Math.floor(8 + rand() * 14);
+  const retail = 100 - (promoter + fii + dii);
+  const holdings = { promoter, fii, dii, retail };
 
   return {
     symbol,
@@ -363,6 +382,12 @@ export function generateMockQuote(symbol: string) {
     marketCap: mcap,
     trailingPE: peVal,
     epsTrailingTwelveMonths: epsVal,
+    priceToBook: pbVal,
+    dividendYield: divYield,
+    sectorPE,
+    sectorPB,
+    analystRating,
+    holdings,
     fiftyTwoWeekHigh: parseFloat((price * (1.05 + rand() * 0.15)).toFixed(2)),
     fiftyTwoWeekLow: parseFloat((price * (0.75 + rand() * 0.15)).toFixed(2)),
     sector: info.sector,
@@ -386,6 +411,8 @@ async function fetchFromQuoteEndpoint(subdomain: string, symbols: string[]) {
         
         let pe = quote.trailingPE;
         let eps = quote.epsTrailingTwelveMonths;
+        let pb = quote.priceToBook || quote.priceToBookRatio;
+        let divYield = quote.dividendYield || quote.trailingAnnualDividendYield;
         
         // Populate realistic metrics if Yahoo drops them for equities
         if (!quote.symbol.startsWith('^')) {
@@ -395,7 +422,32 @@ async function fetchFromQuoteEndpoint(subdomain: string, symbols: string[]) {
           if (!eps || eps <= 0) {
             eps = parseFloat((price / pe).toFixed(2));
           }
+          if (!pb || pb <= 0) {
+            pb = parseFloat((2 + rand() * 6).toFixed(2));
+          }
+          if (divYield === undefined || divYield === null || divYield < 0) {
+            let dy = 0.5 + rand() * 2;
+            if (['COALINDIA.NS', 'BPCL.NS', 'ONGC.NS', 'POWERGRID.NS'].includes(quote.symbol)) {
+              dy = 4.5 + rand() * 4;
+            } else if (['ITC.NS', 'NESTLEIND.NS'].includes(quote.symbol)) {
+              dy = 2.5 + rand() * 2.5;
+            }
+            divYield = parseFloat(dy.toFixed(2));
+          } else if (divYield < 0.1) {
+            // standard yield adjustment to percentage points
+            divYield = parseFloat((divYield * 100).toFixed(2));
+          }
         }
+
+        const sectorPE = parseFloat((20 + rand() * 12).toFixed(2));
+        const sectorPB = parseFloat((3 + rand() * 3).toFixed(2));
+        const analystRating = Math.floor(55 + rand() * 40);
+
+        const promoter = Math.floor(40 + rand() * 32);
+        const fii = Math.floor(10 + rand() * 16);
+        const dii = Math.floor(8 + rand() * 14);
+        const retail = 100 - (promoter + fii + dii);
+        const holdings = { promoter, fii, dii, retail };
 
         return {
           symbol: quote.symbol,
@@ -408,6 +460,12 @@ async function fetchFromQuoteEndpoint(subdomain: string, symbols: string[]) {
           marketCap: quote.marketCap || 0,
           trailingPE: pe,
           epsTrailingTwelveMonths: eps,
+          priceToBook: pb,
+          dividendYield: divYield,
+          sectorPE,
+          sectorPB,
+          analystRating,
+          holdings,
           fiftyTwoWeekHigh: quote.fiftyTwoWeekHigh || 0,
           fiftyTwoWeekLow: quote.fiftyTwoWeekLow || 0,
           sector: customMeta.sector || 'Financial Services',
@@ -448,10 +506,32 @@ export async function fetchStockQuoteFromAPI(symbols: string[]): Promise<any[]> 
               
               let pe = null;
               let eps = null;
+              let pb = null;
+              let divYield = null;
+              
               if (!symbol.startsWith('^')) {
                 pe = parseFloat((18 + rand() * 22).toFixed(2));
                 eps = parseFloat((price / pe).toFixed(2));
+                pb = parseFloat((2 + rand() * 6).toFixed(2));
+                
+                let dy = 0.5 + rand() * 2;
+                if (['COALINDIA.NS', 'BPCL.NS', 'ONGC.NS', 'POWERGRID.NS'].includes(symbol)) {
+                  dy = 4.5 + rand() * 4;
+                } else if (['ITC.NS', 'NESTLEIND.NS'].includes(symbol)) {
+                  dy = 2.5 + rand() * 2.5;
+                }
+                divYield = parseFloat(dy.toFixed(2));
               }
+
+              const sectorPE = parseFloat((20 + rand() * 12).toFixed(2));
+              const sectorPB = parseFloat((3 + rand() * 3).toFixed(2));
+              const analystRating = Math.floor(55 + rand() * 40);
+
+              const promoter = Math.floor(40 + rand() * 32);
+              const fii = Math.floor(10 + rand() * 16);
+              const dii = Math.floor(8 + rand() * 14);
+              const retail = 100 - (promoter + fii + dii);
+              const holdings = { promoter, fii, dii, retail };
               
               return {
                 symbol,
@@ -464,6 +544,12 @@ export async function fetchStockQuoteFromAPI(symbols: string[]): Promise<any[]> 
                 marketCap: meta.marketCap || price * 100000000,
                 trailingPE: pe,
                 epsTrailingTwelveMonths: eps,
+                priceToBook: pb,
+                dividendYield: divYield,
+                sectorPE,
+                sectorPB,
+                analystRating,
+                holdings,
                 fiftyTwoWeekHigh: price * 1.1,
                 fiftyTwoWeekLow: price * 0.9,
                 sector: customMeta.sector || 'Financial Services',

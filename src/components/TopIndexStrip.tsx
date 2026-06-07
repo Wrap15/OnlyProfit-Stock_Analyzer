@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { apiClient as axios } from '@/lib/apiClient';
 import MiniSparkline from './MiniSparkline';
 import Link from 'next/link';
 

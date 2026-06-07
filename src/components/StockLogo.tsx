@@ -61,7 +61,7 @@ export default function StockLogo({ symbol, size = 'md' }: StockLogoProps) {
   const [imgError, setImgError] = useState(false);
 
   const cleanTicker = symbol.split('.')[0].replace('^', '').toUpperCase();
-  const logoUrl = `https://assets-netstorage.groww.in/stock-assets/logos/${cleanTicker}.png`;
+  const logoUrl = `https://assets.tickertape.in/stock-logos/${cleanTicker}.png`;
 
   const sizeClasses = {
     sm: 'h-7 w-7 text-[9px] rounded-lg',

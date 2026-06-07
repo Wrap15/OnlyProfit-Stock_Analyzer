@@ -13,6 +13,14 @@ const MONITOR_SYMBOLS = [
   'HINDALCO.NS', 'JIOFIN.NS'
 ];
 
+const MUTUAL_FUNDS = [
+  '118778', '125497', '130503', '122639', '118955',
+  '120843', '118650', '120334', '120823', '118989',
+  '127042', '120505', '120716', '119063', '120620'
+];
+
+const BASKETS = ['tata', 'it', 'banking', 'energy'];
+
 export default function sitemap(): MetadataRoute.Sitemap {
   const routes = [
     {
@@ -30,5 +38,19 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.8,
   }));
 
-  return [...routes, ...stockRoutes];
+  const fundRoutes = MUTUAL_FUNDS.map((code) => ({
+    url: `${BASE_URL}/mutualfund/${code}`,
+    lastModified: new Date(),
+    changeFrequency: 'weekly' as const,
+    priority: 0.7,
+  }));
+
+  const basketRoutes = BASKETS.map((id) => ({
+    url: `${BASE_URL}/basket/${id}`,
+    lastModified: new Date(),
+    changeFrequency: 'weekly' as const,
+    priority: 0.7,
+  }));
+
+  return [...routes, ...stockRoutes, ...fundRoutes, ...basketRoutes];
 }

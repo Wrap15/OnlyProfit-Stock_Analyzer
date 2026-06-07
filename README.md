@@ -169,5 +169,34 @@ The app will serve the optimized production build locally on port `3000`.
 
 ---
 
+## 🔌 Integrating Official Tickertape & Smallcase APIs
+
+To transition this simulated platform into a live production application with stock transactions, basket order execution, and official Tickertape/Smallcase metrics, you can utilize the following official developer gateway paths:
+
+### 1. smallcase Gateway SDK
+The **smallcase Gateway** provides developer interfaces to allow transactional baskets (smallcases) inside third-party applications:
+- **Developer Documentation**: [developers.gateway.smallcase.com](https://developers.gateway.smallcase.com/)
+- **Core Integrations**:
+  - **Basket Orders**: Place multiple stock and ETF orders in a single transaction (custom baskets).
+  - **smallcase Transactions**: Enable buying, rebalancing, and tracking of smallcases directly through users' broker accounts (Zerodha, Groww, Angel One, Upstox, etc.).
+  - **Holdings Import**: Sync and display existing users' equity portfolios.
+- **Client-Side Setup**: Set up the gateway using the official Javascript SDK:
+  ```javascript
+  import { SmallcaseGateway } from '@smallcase/gateway-js';
+  
+  // Initialize with your unique Gateway credential parameters
+  SmallcaseGateway.init({
+    gatewayName: 'YOUR_GATEWAY_NAME',
+    environment: 'production', // or 'sandbox'
+  });
+  ```
+
+### 2. Tickertape Widgets & Screens
+Tickertape does not expose raw public API keys for their screener data. However, they provide official embedding tools:
+- **Tickertape Web Components**: Embed specific stock performance cards or transaction buttons directly inside component views using Tickertape web integration scripts.
+- **Data screener alternatives**: To build a custom stock screener (similar to Tickertape's filters for P/E ratio, market cap, and dividend yield), developers use broker APIs like **Kite Connect (Zerodha)**, **Upstox Developer API**, or financial data providers (like Alpha Vantage, RapidAPI NSE feeds, or custom stock scrapers) to query raw fundamentals.
+
+---
+
 ## 🔒 Simulation & Education Disclaimer
 OnlyProfit is a **pure tracking and simulation platform** built for educational analysis. It does not interface with securities brokers, process real-world stock market transactions, or provide financial advice. Prices and details are retrieved from public Yahoo Finance feeds and may be delayed.

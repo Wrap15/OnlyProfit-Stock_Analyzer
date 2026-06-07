@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
+import TopGreetingBanner from "@/components/TopGreetingBanner";
 import TopIndexStrip from "@/components/TopIndexStrip";
 import GlobalLoadingBar from "@/components/GlobalLoadingBar";
 import Link from "next/link";
@@ -71,6 +72,7 @@ export default function RootLayout({
       </head>
       <body className="bg-background text-foreground min-h-screen flex flex-col">
         <GlobalLoadingBar />
+        <TopGreetingBanner />
         <Navbar />
         <TopIndexStrip />
         <main className="flex-grow">
@@ -79,10 +81,10 @@ export default function RootLayout({
         
         <footer className="border-t border-border bg-card/65 backdrop-blur-md pt-10 pb-6 text-text-secondary select-none font-semibold mt-auto">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-8 pb-8 border-b border-border/40">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-8 pb-8 border-b border-border/40">
               
               {/* Brand and Description */}
-              <div className="space-y-3 col-span-1 md:col-span-2">
+              <div className="space-y-3 col-span-1 sm:col-span-2 md:col-span-2">
                 <div className="flex items-center gap-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-profit text-white shadow-md shadow-profit/25">
                     <TrendingUp className="h-4.5 w-4.5" />
@@ -91,13 +93,13 @@ export default function RootLayout({
                     OnlyProfit
                   </span>
                 </div>
-                <p className="text-xs text-text-secondary font-medium leading-relaxed max-w-sm">
-                  Advanced stock analysis simulator for Indian equities. Get instant interactive charts, real-time metrics, and custom watchlists built with speed and elegance.
-                </p>
+                <div className="text-xs sm:text-sm text-text-secondary font-medium leading-relaxed max-w-xl">
+                  <span className="text-profit font-extrabold">OnlyProfit</span> provides data, information & content for Indian stocks, mutual funds & indices. Advanced stock analysis simulator for the Indian equity Market. Get instant interactive charts, real-time metrics, and custom watchlists built with speed and elegance.
+                </div>
               </div>
 
               {/* Navigation Quick Links */}
-              <div className="space-y-3">
+              <div className="space-y-3 col-span-1">
                 <h4 className="text-xs font-black text-text-primary uppercase tracking-wider">Features</h4>
                 <ul className="space-y-2 text-xs font-medium">
                   <li>
@@ -112,8 +114,23 @@ export default function RootLayout({
                 </ul>
               </div>
 
+              {/* Learn & Share Tips */}
+              <div className="space-y-3 col-span-1">
+                <h4 className="text-xs font-black text-text-primary uppercase tracking-wider">Learn & Share</h4>
+                <ul className="space-y-3 text-[11px] font-medium leading-relaxed">
+                  <li>
+                    <span className="text-profit font-extrabold block text-[9px] uppercase tracking-wider">P/E Valuation</span>
+                    PE ratio compares price to earnings. Lower ratios can indicate undervalued stocks; high P/Es signal growth expectations.
+                  </li>
+                  <li>
+                    <span className="text-profit font-extrabold block text-[9px] uppercase tracking-wider">Compound SIP Yields</span>
+                    SIP investments leverage rupee-cost averaging and compound returns. Apply CAGR yields to predict future values.
+                  </li>
+                </ul>
+              </div>
+
               {/* simulated data safety notices */}
-              <div className="space-y-3">
+              <div className="space-y-3 col-span-1">
                 <h4 className="text-xs font-black text-text-primary uppercase tracking-wider">Disclaimer</h4>
                 <p className="text-[11px] text-text-secondary font-medium leading-relaxed">
                   OnlyProfit is a simulated tracking tool. We do not process orders, transactions, or financial advice. Simulated rates might differ from real-time trading terminals.
@@ -127,9 +144,14 @@ export default function RootLayout({
               <p>© 2026 OnlyProfit Stock Market Analysis. Designed for Indian Equities. All simulation rights reserved.</p>
               <div className="flex items-center gap-1.5 font-bold">
                 <span>Designed & Built with passion by</span> 
-                <span className="px-2 py-0.5 rounded-full bg-profit/10 text-profit border border-profit/15 text-[10px] uppercase font-black tracking-wider hover:bg-profit hover:text-white transition-colors duration-300">
-                  DHAVAL PANCHAL 💜
-                </span>
+                <a 
+                  href="https://my-portfolio-nine-eta-63.vercel.app/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-2 py-0.5 rounded-full bg-profit/10 text-profit border border-profit/15 text-[10px] uppercase font-black tracking-wider hover:bg-profit hover:text-white transition-colors duration-300 flex items-center gap-1"
+                >
+                  DHAVAL PANCHAL <span className="animate-pulse inline-block">💜</span>
+                </a>
               </div>
             </div>
 

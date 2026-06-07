@@ -5,8 +5,32 @@ import Link from 'next/link';
 import { Star } from 'lucide-react';
 import { useStockStore } from '@/store/useStockStore';
 import MiniSparkline from './MiniSparkline';
-import axios from 'axios';
+import { apiClient as axios } from '@/lib/apiClient';
 import StockLogo from './StockLogo';
+
+function getVolatility(symbol: string): { label: string; className: string } {
+  const clean = symbol.split('.')[0].toUpperCase();
+  const lowVol = ['RELIANCE', 'TCS', 'INFY', 'HDFCBANK', 'ITC', 'HINDUNILVR', 'KOTAKBANK', 'SUNPHARMA', 'LT', 'ASIANPAINT'];
+  const medVol = ['TATAMOTORS', 'SBIN', 'ICICIBANK', 'AXISBANK', 'BHARTIAIRTEL', 'M&M', 'MARUTI', 'JSWSTEEL', 'TATASTEEL', 'TITAN'];
+  const highVol = ['ADANIENT', 'ADANIPORTS', 'JIOFIN', 'BPCL', 'COALINDIA', 'ONGC', 'POWERGRID', 'ULTRACEMCO', 'GRASIM'];
+
+  if (lowVol.includes(clean)) {
+    return { label: 'Low Volatility', className: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' };
+  } else if (medVol.includes(clean)) {
+    return { label: 'Medium Volatility', className: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' };
+  } else if (highVol.includes(clean)) {
+    return { label: 'High Volatility', className: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20' };
+  } else {
+    const hash = clean.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    if (hash % 3 === 0) {
+      return { label: 'Low Volatility', className: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' };
+    } else if (hash % 3 === 1) {
+      return { label: 'Medium Volatility', className: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' };
+    } else {
+      return { label: 'High Volatility', className: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20' };
+    }
+  }
+}
 
 interface StockCardProps {
   symbol: string;
@@ -22,6 +46,7 @@ export default function StockCard({ symbol }: StockCardProps) {
     chart: number[];
     pe: number | null;
     eps: number | null;
+    sector: string;
   } | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -31,13 +56,11 @@ export default function StockCard({ symbol }: StockCardProps) {
     async function fetchData() {
       try {
         setLoading(true);
-        // Fetch quote
         const quoteRes = await axios.get(`/api/stock/quote?symbols=${symbol}`);
         const quote = quoteRes.data?.[0];
 
         if (!quote) throw new Error('No quote returned');
 
-        // Fetch chart for sparkline
         const chartRes = await axios.get(`/api/stock/chart?symbol=${encodeURIComponent(symbol)}&range=1d`);
         const chartPoints = (chartRes.data || []).map((pt: any) => pt.value);
 
@@ -48,7 +71,8 @@ export default function StockCard({ symbol }: StockCardProps) {
           changePercent: quote.regularMarketChangePercent || 0,
           chart: chartPoints,
           pe: quote.trailingPE,
-          eps: quote.epsTrailingTwelveMonths
+          eps: quote.epsTrailingTwelveMonths,
+          sector: quote.sector || 'Financial Services'
         });
       } catch (err) {
         console.error(`Failed to fetch card data for ${symbol}`, err);
@@ -118,6 +142,8 @@ export default function StockCard({ symbol }: StockCardProps) {
 
   const isPositive = data.changePercent >= 0;
 
+  const volatility = getVolatility(symbol);
+
   return (
     <Link href={`/stock/${symbol}`} className="block w-full animate-fade-in">
       
@@ -127,20 +153,30 @@ export default function StockCard({ symbol }: StockCardProps) {
         <div className="flex items-center gap-3 min-w-0 max-w-[55%]">
           <StockLogo symbol={symbol} size="sm" />
           <div className="flex flex-col min-w-0">
-            <div className="flex items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1">
               <span className="font-extrabold text-xs text-text-primary truncate">{symbol.split('.')[0]}</span>
               {!symbol.startsWith('^') && (
                 <span className="text-[7px] font-bold px-1 rounded bg-background border border-border text-text-secondary uppercase select-none">
                   EQ
                 </span>
               )}
+              {!symbol.startsWith('^') && (
+                <span className={`text-[7px] font-bold px-1 rounded border ${volatility.className} uppercase select-none`}>
+                  {volatility.label.split(' ')[0]}
+                </span>
+              )}
             </div>
             <span className="text-[10px] text-text-secondary truncate mt-0.5">{data.name}</span>
-            {data.pe && (
-              <span className="mt-1 text-[8px] font-extrabold text-text-secondary/90 bg-background px-1.5 py-0.5 rounded border border-border/60 self-start">
-                P/E: {data.pe.toFixed(1)}
+            <div className="flex gap-1 mt-1 flex-wrap">
+              <span className="text-[8px] font-medium px-1 py-0.5 rounded bg-background border border-border text-text-secondary max-w-[80px] truncate">
+                {data.sector}
               </span>
-            )}
+              {data.pe && (
+                <span className="text-[8px] font-extrabold text-text-secondary/90 bg-background px-1.5 py-0.5 rounded border border-border/60">
+                  P/E: {data.pe.toFixed(1)}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -179,10 +215,20 @@ export default function StockCard({ symbol }: StockCardProps) {
                     EQ
                   </span>
                 )}
+                {!symbol.startsWith('^') && (
+                  <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded border ${volatility.className} select-none uppercase tracking-wider`}>
+                    {volatility.label}
+                  </span>
+                )}
               </div>
               <p className="text-xs text-text-secondary truncate max-w-[120px] sm:max-w-[140px] font-medium mt-1">
                 {data.name}
               </p>
+              <div className="mt-1">
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-background border border-border/60 text-text-secondary">
+                  {data.sector}
+                </span>
+              </div>
             </div>
           </div>
           <button

@@ -215,6 +215,21 @@ input[type="range"]::-moz-range-thumb:hover {
   transform: scale(1.2);
 }
 
+/* Blinking heart animation */
+@keyframes heart-blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.15;
+  }
+}
+
+.animate-heart-blink {
+  animation: heart-blink 1.2s ease-in-out infinite;
+}
+
+
 
 
 

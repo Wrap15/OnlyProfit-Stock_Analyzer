@@ -143,14 +143,16 @@ export default function RootLayout({
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 text-[11px] font-semibold text-text-secondary">
               <p>© 2026 OnlyProfit Stock Market Analysis. Designed for Indian Equities. All simulation rights reserved.</p>
               <div className="flex items-center gap-1.5 font-bold">
-                <span>Designed & Built with passion by</span> 
+                <span>Designed & Built with</span>
+                <span className="animate-heart-blink inline-block text-[12px]">💜</span>
+                <span>by</span>
                 <a 
                   href="https://my-portfolio-nine-eta-63.vercel.app/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-2 py-0.5 rounded-full bg-profit/10 text-profit border border-profit/15 text-[10px] uppercase font-black tracking-wider hover:bg-profit hover:text-white transition-colors duration-300 flex items-center gap-1"
                 >
-                  DHAVAL PANCHAL <span className="animate-pulse inline-block">💜</span>
+                  DHAVAL PANCHAL
                 </a>
               </div>
             </div>

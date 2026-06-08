@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Search, Sun, Moon, TrendingUp, X, ArrowLeft } from 'lucide-react';
+import { Search, Sun, Moon, TrendingUp, X, ArrowLeft, GitCompare } from 'lucide-react';
 import { useStockStore } from '@/store/useStockStore';
 import axios from 'axios';
 
@@ -16,7 +16,7 @@ interface SearchResult {
 
 export default function Navbar() {
   const router = useRouter();
-  const { theme, toggleTheme } = useStockStore();
+  const { theme, toggleTheme, addToRecentSearches } = useStockStore();
   const [mounted, setMounted] = useState(false);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -91,6 +91,7 @@ export default function Navbar() {
     setQuery('');
     setShowDropdown(false);
     setIsMobileSearchOpen(false);
+    addToRecentSearches(symbol);
     router.push(`/stock/${symbol}`);
   };
 
@@ -101,15 +102,16 @@ export default function Navbar() {
           <div className="flex h-16 items-center justify-between gap-4">
             
             {/* Logo Section */}
-            <Link href="/" className="flex items-center gap-2 group shrink-0">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-profit text-white shadow-lg shadow-profit/20 group-hover:scale-105 transition-transform duration-200">
-                <TrendingUp className="h-5 w-5" />
+            <Link href="/" className="flex items-center gap-2.5 group shrink-0 select-none">
+              <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white shadow-md shadow-emerald-500/10 group-hover:shadow-emerald-500/20 group-hover:scale-105 transition-all duration-300">
+                <div className="absolute inset-0 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 opacity-20 blur-sm group-hover:opacity-45 transition-opacity" />
+                <TrendingUp className="h-5 w-5 relative z-10" />
               </div>
               <div className="hidden xs:block sm:block">
-                <span className="text-base sm:text-xl font-extrabold tracking-tight bg-gradient-to-r from-text-primary to-profit bg-clip-text text-transparent">
+                <span className="text-base sm:text-lg font-black tracking-tight bg-gradient-to-r from-text-primary via-emerald-600 to-teal-500 bg-clip-text text-transparent dark:from-white dark:to-emerald-400 block -mb-0.5">
                   OnlyProfit
                 </span>
-                <span className="block text-[8px] sm:text-[10px] font-bold text-text-secondary -mt-1 tracking-wider uppercase">
+                <span className="block text-[8px] sm:text-[9px] font-black text-text-secondary tracking-widest uppercase opacity-75">
                   Smart Investing
                 </span>
               </div>
@@ -184,6 +186,16 @@ export default function Navbar() {
               >
                 <Search className="h-5 w-5" />
               </button>
+
+              {/* Compare Page Link */}
+              <Link
+                href="/compare"
+                className="flex items-center gap-1.5 h-10 px-3.5 rounded-xl border border-border bg-card hover:bg-background text-text-secondary hover:text-text-primary text-xs font-bold transition-all duration-200"
+                title="Compare Stocks side-by-side"
+              >
+                <GitCompare className="h-4.5 w-4.5 text-profit" />
+                <span className="hidden xs:inline">Compare</span>
+              </Link>
 
               {/* Theme Toggle */}
               {mounted && (

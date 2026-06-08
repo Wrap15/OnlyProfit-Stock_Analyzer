@@ -18,33 +18,39 @@ interface MarketGainerLoser {
 }
 
 const MONITOR_SYMBOLS = [
-  'RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'HDFCBANK.NS', 'ICICIBANK.NS',
-  'SBIN.NS', 'BHARTIAIRTEL.NS', 'LT.NS', 'ITC.NS', 'TATAMOTORS.NS',
-  'WIPRO.NS', 'HCLTECH.NS', 'ASIANPAINT.NS', 'AXISBANK.NS', 'BAJFINANCE.NS',
-  'BAJAJFINSV.NS', 'BPCL.NS', 'COALINDIA.NS', 'HINDUNILVR.NS', 'JSWSTEEL.NS',
-  'KOTAKBANK.NS', 'M&M.NS', 'MARUTI.NS', 'NESTLEIND.NS', 'NTPC.NS',
-  'ONGC.NS', 'POWERGRID.NS', 'SUNPHARMA.NS', 'TATASTEEL.NS', 'TITAN.NS',
-  'ULTRACEMCO.NS', 'ADANIENT.NS', 'ADANIPORTS.NS', 'GRASIM.NS', 'HEROMOTOCO.NS',
-  'HINDALCO.NS', 'JIOFIN.NS'
+  'HDFCBANK.NS', 'ICICIBANK.NS', 'SBIN.NS', 'KOTAKBANK.NS', 'AXISBANK.NS',
+  'BAJFINANCE.NS', 'BAJAJFINSV.NS', 'HDFCLIFE.NS', 'SBILIFE.NS', 'TCS.NS',
+  'INFY.NS', 'WIPRO.NS', 'HCLTECH.NS', 'TECHM.NS', 'LTIM.NS', 'RELIANCE.NS',
+  'ONGC.NS', 'IOC.NS', 'BPCL.NS', 'NTPC.NS', 'POWERGRID.NS', 'ADANIGREEN.NS',
+  'MARUTI.NS', 'TATAMOTORS.NS', 'M&M.NS', 'EICHERMOT.NS', 'HEROMOTOCO.NS', 'BAJAJ-AUTO.NS',
+  'HINDUNILVR.NS', 'ITC.NS', 'NESTLEIND.NS', 'BRITANNIA.NS', 'DABUR.NS', 'GODREJCP.NS',
+  'LT.NS', 'ULTRACEMCO.NS', 'GRASIM.NS', 'AMBUJACEM.NS', 'ADANIPORTS.NS', 'SUNPHARMA.NS',
+  'DRREDDY.NS', 'CIPLA.NS', 'DIVISLAB.NS', 'APOLLOHOSP.NS', 'DMART.NS', 'TITAN.NS',
+  'TRENT.NS', 'ETERNAL.NS', 'PAYTM.NS', 'NYKAA.NS', 'IRCTC.NS', 'IRFC.NS',
+  'RVNL.NS', 'BHEL.NS', 'ADANIENT.NS', 'ADANIPOWER.NS', 'TATASTEEL.NS', 'JSWSTEEL.NS',
+  'HINDALCO.NS'
 ];
 
-const TRENDING_SYMBOLS = ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'TATAMOTORS.NS', 'HDFCBANK.NS', 'JIOFIN.NS', 'SBIN.NS', 'BHARTIAIRTEL.NS'];
+const TRENDING_SYMBOLS = ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'TRENT.NS', 'HDFCBANK.NS', 'ETERNAL.NS', 'SBIN.NS', 'TATAMOTORS.NS'];
+const MOST_SEARCHED_SYMBOLS = ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'HDFCBANK.NS', 'TRENT.NS', 'ETERNAL.NS', 'IRCTC.NS', 'PAYTM.NS'];
 
 // Tickertape-style Curated Collections
-const BLUE_CHIP_SYMBOLS = ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'HDFCBANK.NS', 'ICICIBANK.NS', 'SBIN.NS', 'LT.NS', 'ITC.NS'];
-const HIGH_GROWTH_SYMBOLS = ['TATAMOTORS.NS', 'JIOFIN.NS', 'ADANIENT.NS', 'ADANIPORTS.NS', 'MARUTI.NS', 'M&M.NS'];
-const DIVIDEND_SYMBOLS = ['COALINDIA.NS', 'BPCL.NS', 'ONGC.NS', 'POWERGRID.NS', 'ITC.NS'];
-const DEBT_FREE_SYMBOLS = ['TCS.NS', 'INFY.NS', 'WIPRO.NS', 'HCLTECH.NS', 'ITC.NS', 'NESTLEIND.NS'];
+const BLUE_CHIP_SYMBOLS = ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'HDFCBANK.NS', 'ICICIBANK.NS', 'SBIN.NS', 'LT.NS', 'ITC.NS', 'HINDUNILVR.NS', 'KOTAKBANK.NS'];
+const HIGH_GROWTH_SYMBOLS = ['TRENT.NS', 'ETERNAL.NS', 'ADANIENT.NS', 'ADANIPORTS.NS', 'MARUTI.NS', 'M&M.NS', 'ADANIGREEN.NS', 'PAYTM.NS', 'RVNL.NS'];
+const DIVIDEND_SYMBOLS = ['IOC.NS', 'BPCL.NS', 'ONGC.NS', 'POWERGRID.NS', 'ITC.NS', 'TATASTEEL.NS'];
+const DEBT_FREE_SYMBOLS = ['TCS.NS', 'INFY.NS', 'WIPRO.NS', 'HCLTECH.NS', 'ITC.NS', 'NESTLEIND.NS', 'DIVISLAB.NS'];
 
-type TabType = 'watchlist' | 'trending' | 'explore';
+type TabType = 'watchlist' | 'trending' | 'mostsearched' | 'explore';
 
 export default function Home() {
-  const { watchlist } = useStockStore();
+  const { watchlist, recentSearches, clearRecentSearches } = useStockStore();
   const [marketQuotes, setMarketQuotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('trending');
   const [searchFilter, setSearchFilter] = useState('');
   const [activeCollection, setActiveCollection] = useState<'all' | 'bluechip' | 'growth' | 'dividend' | 'debtfree'>('all');
+  const [exploreSymbols, setExploreSymbols] = useState<string[]>(MONITOR_SYMBOLS);
+  const [exploreLoading, setExploreLoading] = useState(false);
 
   // Mutual Funds States
   const [activeMFCategory, setActiveMFCategory] = useState<string>('all');
@@ -133,17 +139,38 @@ export default function Home() {
     return num.toLocaleString('en-IN');
   };
 
-  // Filtering explore list based on search and collection filters
-  const filteredExploreSymbols = MONITOR_SYMBOLS.filter(sym => {
-    if (activeCollection === 'bluechip' && !BLUE_CHIP_SYMBOLS.includes(sym)) return false;
-    if (activeCollection === 'growth' && !HIGH_GROWTH_SYMBOLS.includes(sym)) return false;
-    if (activeCollection === 'dividend' && !DIVIDEND_SYMBOLS.includes(sym)) return false;
-    if (activeCollection === 'debtfree' && !DEBT_FREE_SYMBOLS.includes(sym)) return false;
+  // Handle explore list updates based on filter or dynamic global Search
+  useEffect(() => {
+    if (activeTab !== 'explore') return;
 
-    const quote = marketQuotes.find(q => q.symbol === sym);
-    const name = quote?.shortName || sym;
-    return sym.toLowerCase().includes(searchFilter.toLowerCase()) || name.toLowerCase().includes(searchFilter.toLowerCase());
-  });
+    if (!searchFilter.trim()) {
+      const filtered = MONITOR_SYMBOLS.filter(sym => {
+        if (activeCollection === 'bluechip' && !BLUE_CHIP_SYMBOLS.includes(sym)) return false;
+        if (activeCollection === 'growth' && !HIGH_GROWTH_SYMBOLS.includes(sym)) return false;
+        if (activeCollection === 'dividend' && !DIVIDEND_SYMBOLS.includes(sym)) return false;
+        if (activeCollection === 'debtfree' && !DEBT_FREE_SYMBOLS.includes(sym)) return false;
+        return true;
+      });
+      setExploreSymbols(filtered);
+      return;
+    }
+
+    setExploreLoading(true);
+    const delayDebounce = setTimeout(async () => {
+      try {
+        const res = await axios.get(`/api/stock/search?q=${encodeURIComponent(searchFilter)}`);
+        const searchResults: any[] = res.data || [];
+        const symbols = searchResults.map(r => r.symbol);
+        setExploreSymbols(symbols);
+      } catch (err) {
+        console.error('Explore dynamic search failed', err);
+      } finally {
+        setExploreLoading(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(delayDebounce);
+  }, [searchFilter, activeCollection, activeTab]);
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 transition-colors duration-300">
@@ -169,6 +196,35 @@ export default function Home() {
         {/* Left Column: Explorer Board (Grid Column Span 2) */}
         <div className="lg:col-span-2 space-y-6">
           
+          {/* Recently Viewed Panel */}
+          {recentSearches && recentSearches.length > 0 && (
+            <div className="bg-card border border-border p-4 rounded-2xl animate-fade-in">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-xs font-extrabold uppercase tracking-wider text-text-secondary flex items-center gap-1.5">
+                  <Search className="h-3.5 w-3.5 text-profit animate-pulse" /> Recently Viewed
+                </h3>
+                <button 
+                  onClick={clearRecentSearches}
+                  className="text-[10px] font-bold text-text-secondary hover:text-loss transition-colors"
+                >
+                  Clear History
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2.5">
+                {recentSearches.map((sym) => (
+                  <Link 
+                    key={sym} 
+                    href={`/stock/${sym}`}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-background border border-border hover:border-profit/30 hover:bg-card hover-lift transition-all"
+                  >
+                    <StockLogo symbol={sym} size="sm" />
+                    <span className="text-xs font-bold text-text-primary">{sym.split('.')[0]}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Custom Premium Capsule Tabs */}
           <div className="flex overflow-x-auto scrollbar-none max-w-full gap-2 p-1 bg-card border border-border/70 rounded-xl self-start">
             <button
@@ -180,6 +236,17 @@ export default function Home() {
               }`}
             >
               <Sparkles className="h-3.5 w-3.5" /> Trending
+            </button>
+
+            <button
+              onClick={() => setActiveTab('mostsearched')}
+              className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all duration-200 flex items-center gap-1.5 shrink-0 ${
+                activeTab === 'mostsearched'
+                  ? 'bg-profit/10 text-profit border border-profit/20 shadow-sm'
+                  : 'text-text-secondary hover:text-text-primary hover:bg-background border border-transparent'
+              }`}
+            >
+              <Activity className="h-3.5 w-3.5" /> Most Searched
             </button>
             
             <button
@@ -220,7 +287,16 @@ export default function Home() {
             </div>
           )}
 
-          {/* TAB 2: WATCHLIST */}
+          {/* TAB 2: MOST SEARCHED */}
+          {activeTab === 'mostsearched' && (
+            <div className="grid grid-cols-1 gap-2.5 sm:gap-4 sm:grid-cols-2 animate-fade-in gpu-layer">
+              {MOST_SEARCHED_SYMBOLS.map((symbol) => (
+                <StockCard key={symbol} symbol={symbol} />
+              ))}
+            </div>
+          )}
+
+          {/* TAB 3: WATCHLIST */}
           {activeTab === 'watchlist' && (
             <div className="animate-fade-in gpu-layer">
               {watchlist.length > 0 ? (
@@ -284,9 +360,14 @@ export default function Home() {
                 </div>
               </div>
 
-              {filteredExploreSymbols.length > 0 ? (
+              {exploreLoading ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-3 text-text-secondary">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-profit border-t-transparent" />
+                  <span className="text-xs font-bold">Querying NSE/BSE exchange directory...</span>
+                </div>
+              ) : exploreSymbols.length > 0 ? (
                 <div className="grid grid-cols-1 gap-2.5 sm:gap-4 sm:grid-cols-2">
-                  {filteredExploreSymbols.map((symbol) => (
+                  {exploreSymbols.map((symbol) => (
                     <StockCard key={symbol} symbol={symbol} />
                   ))}
                 </div>

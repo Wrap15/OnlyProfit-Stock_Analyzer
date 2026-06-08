@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { createChart, ColorType, UTCTimestamp, AreaSeries, LineSeries } from 'lightweight-charts';
+import { createChart, ColorType, UTCTimestamp, AreaSeries, LineSeries, HistogramSeries } from 'lightweight-charts';
 import { useStockStore } from '@/store/useStockStore';
 import axios from 'axios';
 
@@ -18,6 +18,7 @@ interface StockChartProps {
 
 export default function StockChart({ symbol, range, isPositive }: StockChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
   const { theme } = useStockStore();
   const [data, setData] = useState<ChartPoint[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,6 +97,20 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
       },
     });
 
+    // Create Volume Series (Histogram)
+    const volumeSeries = chart.addSeries(HistogramSeries, {
+      priceFormat: {
+        type: 'volume',
+      },
+      priceScaleId: '', // overlay
+    });
+
+    chart.priceScale('').applyOptions({
+      scaleMargins: {
+        top: 0.8, // Volume occupies bottom 20%
+        bottom: 0,
+      },
+    });
 
     // Format data points for lightweight-charts
     const formattedData = data.map((pt) => ({
@@ -103,8 +118,20 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
       value: pt.value,
     }));
 
-
     areaSeries.setData(formattedData);
+
+    // Format volume data points
+    const volumeData = data.map((pt, idx) => {
+      const prevVal = idx > 0 ? data[idx - 1].value : pt.value;
+      const isUp = pt.value >= prevVal;
+      return {
+        time: pt.time as UTCTimestamp,
+        value: (pt as any).volume || 0,
+        color: isUp ? 'rgba(16, 185, 129, 0.28)' : 'rgba(239, 68, 68, 0.28)', // profit green / loss red
+      };
+    });
+
+    volumeSeries.setData(volumeData);
 
     // Calculate and Overlay SMA (20-day)
     if (showSMA && data.length >= 5) {
@@ -140,6 +167,84 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
         lastValueVisible: false,
       });
       smaSeries.setData(smaData);
+    }
+
+    // Subscribe to crosshair moves for custom floating HTML Tooltip
+    const tooltip = tooltipRef.current;
+    if (tooltip) {
+      chart.subscribeCrosshairMove((param) => {
+        if (
+          param.point === undefined ||
+          !param.time ||
+          param.point.x < 0 ||
+          param.point.x > container.clientWidth ||
+          param.point.y < 0 ||
+          param.point.y > container.clientHeight
+        ) {
+          tooltip.style.opacity = '0';
+        } else {
+          const dateStr = range === '1d' || range === '1w'
+            ? new Date((param.time as number) * 1000).toLocaleString('en-IN', {
+                day: '2-digit',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+            : new Date((param.time as number) * 1000).toLocaleDateString('en-IN', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+              });
+
+          const priceData = param.seriesData.get(areaSeries);
+          const volData = param.seriesData.get(volumeSeries);
+          
+          const price = priceData ? (priceData as any).value : null;
+          const vol = volData ? (volData as any).value : null;
+
+          if (price !== null) {
+            tooltip.style.opacity = '1';
+            
+            const formatVal = (val: number) => {
+              if (val >= 10000000) return `${(val / 10000000).toFixed(2)} Cr`;
+              if (val >= 100000) return `${(val / 100000).toFixed(2)} L`;
+              return val.toLocaleString('en-IN');
+            };
+
+            tooltip.innerHTML = `
+              <div class="space-y-1.5 p-0.5">
+                <div class="text-[9px] font-black text-text-secondary uppercase tracking-wider">${dateStr}</div>
+                <div class="flex items-center justify-between gap-6">
+                  <span class="text-text-secondary font-bold text-[10px]">Price:</span>
+                  <span class="font-extrabold text-text-primary text-[10px]">₹${price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+                ${vol !== null && vol !== undefined && vol > 0 ? `
+                <div class="flex items-center justify-between gap-6">
+                  <span class="text-text-secondary font-bold text-[10px]">Volume:</span>
+                  <span class="font-extrabold text-text-primary text-[10px]">${formatVal(vol)}</span>
+                </div>
+                ` : ''}
+              </div>
+            `;
+
+            const tooltipWidth = 160;
+            const tooltipHeight = 65;
+            const left = Math.min(
+              container.clientWidth - tooltipWidth - 12,
+              Math.max(12, param.point.x - tooltipWidth / 2)
+            );
+            const top = Math.min(
+              container.clientHeight - tooltipHeight - 12,
+              Math.max(12, param.point.y - tooltipHeight - 20)
+            );
+
+            tooltip.style.left = `${left}px`;
+            tooltip.style.top = `${top}px`;
+          } else {
+            tooltip.style.opacity = '0';
+          }
+        }
+      });
     }
 
     chart.timeScale().fitContent();
@@ -198,7 +303,15 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
           </label>
         </div>
       )}
-      <div ref={chartContainerRef} className="w-full h-[260px] sm:h-[380px]" />
+      <div className="w-full relative">
+        <div ref={chartContainerRef} className="w-full h-[260px] sm:h-[380px]" />
+        {/* Floating Custom HTML Tooltip */}
+        <div
+          ref={tooltipRef}
+          className="absolute border border-border bg-card/95 backdrop-blur-sm px-3 py-2 rounded-xl shadow-premium dark:shadow-premium-dark pointer-events-none z-30 transition-all duration-75 text-xs opacity-0"
+          style={{ pointerEvents: 'none' }}
+        />
+      </div>
     </div>
   );
 }

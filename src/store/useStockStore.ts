@@ -3,11 +3,14 @@ import { persist } from 'zustand/middleware';
 
 interface StockState {
   watchlist: string[];
+  recentSearches: string[];
   selectedStock: string | null;
   theme: 'light' | 'dark';
   addToWatchlist: (symbol: string) => void;
   removeFromWatchlist: (symbol: string) => void;
   toggleWatchlist: (symbol: string) => void;
+  addToRecentSearches: (symbol: string) => void;
+  clearRecentSearches: () => void;
   setTheme: (theme: 'light' | 'dark') => void;
   toggleTheme: () => void;
   setSelectedStock: (symbol: string | null) => void;
@@ -17,6 +20,7 @@ export const useStockStore = create<StockState>()(
   persist(
     (set) => ({
       watchlist: ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'HDFCBANK.NS'], // default Indian stock symbols
+      recentSearches: [],
       selectedStock: null,
       theme: 'light',
       addToWatchlist: (symbol) =>
@@ -38,6 +42,16 @@ export const useStockStore = create<StockState>()(
               : [...state.watchlist, symbol],
           };
         }),
+      addToRecentSearches: (symbol) =>
+        set((state) => {
+          const cleanSymbol = symbol.toUpperCase();
+          const filtered = state.recentSearches.filter((s) => s !== cleanSymbol);
+          return {
+            recentSearches: [cleanSymbol, ...filtered].slice(0, 5), // Keep last 5 unique searches
+          };
+        }),
+      clearRecentSearches: () =>
+        set({ recentSearches: [] }),
       setTheme: (theme) => {
         if (typeof window !== 'undefined') {
           if (theme === 'dark') {
@@ -68,6 +82,7 @@ export const useStockStore = create<StockState>()(
       name: 'onlyprofit-storage', // local storage key
       partialize: (state) => ({
         watchlist: state.watchlist,
+        recentSearches: state.recentSearches,
         theme: state.theme,
       }),
     }

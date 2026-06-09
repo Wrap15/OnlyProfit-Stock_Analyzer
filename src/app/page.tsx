@@ -443,18 +443,20 @@ export default function Home() {
           {/* TAB 1: TRENDING */}
           {activeTab === 'trending' && (
             <div className="grid grid-cols-1 gap-2.5 sm:gap-4 sm:grid-cols-2 animate-fade-in gpu-layer">
-              {TRENDING_SYMBOLS.map((symbol) => (
-                <StockCard key={symbol} symbol={symbol} />
-              ))}
+              {TRENDING_SYMBOLS.map((symbol) => {
+                const quote = marketQuotes.find(q => q.symbol === symbol);
+                return <StockCard key={symbol} symbol={symbol} initialQuote={quote} />;
+              })}
             </div>
           )}
 
           {/* TAB 2: MOST SEARCHED */}
           {activeTab === 'mostsearched' && (
             <div className="grid grid-cols-1 gap-2.5 sm:gap-4 sm:grid-cols-2 animate-fade-in gpu-layer">
-              {MOST_SEARCHED_SYMBOLS.map((symbol) => (
-                <StockCard key={symbol} symbol={symbol} />
-              ))}
+              {MOST_SEARCHED_SYMBOLS.map((symbol) => {
+                const quote = marketQuotes.find(q => q.symbol === symbol);
+                return <StockCard key={symbol} symbol={symbol} initialQuote={quote} />;
+              })}
             </div>
           )}
 
@@ -463,9 +465,10 @@ export default function Home() {
             <div className="animate-fade-in gpu-layer">
               {watchlist.length > 0 ? (
                 <div className="grid grid-cols-1 gap-2.5 sm:gap-4 sm:grid-cols-2">
-                  {watchlist.map((symbol) => (
-                    <StockCard key={symbol} symbol={symbol} />
-                  ))}
+                  {watchlist.map((symbol) => {
+                    const quote = marketQuotes.find(q => q.symbol === symbol);
+                    return <StockCard key={symbol} symbol={symbol} initialQuote={quote} />;
+                  })}
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border p-12 bg-card/40 text-center">
@@ -530,9 +533,10 @@ export default function Home() {
                 </div>
               ) : exploreSymbols.length > 0 ? (
                 <div className="grid grid-cols-1 gap-2.5 sm:gap-4 sm:grid-cols-2">
-                  {exploreSymbols.map((symbol) => (
-                    <StockCard key={symbol} symbol={symbol} />
-                  ))}
+                  {exploreSymbols.map((symbol) => {
+                    const quote = marketQuotes.find(q => q.symbol === symbol);
+                    return <StockCard key={symbol} symbol={symbol} initialQuote={quote} />;
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-12 text-sm text-text-secondary font-bold">

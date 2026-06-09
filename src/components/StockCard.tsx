@@ -179,7 +179,7 @@ export default function StockCard({ symbol, initialQuote }: StockCardProps) {
 
   if (loading) {
     return (
-      <div className="w-full">
+      <div ref={containerRef} className="w-full">
         {/* Mobile Skeleton */}
         <div className="flex sm:hidden items-center justify-between w-full p-4 rounded-xl border border-border bg-card">
           <div className="flex items-center gap-3 min-w-0 max-w-[55%]">

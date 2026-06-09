@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { MUTUAL_FUNDS } from '@/lib/mutualfunds';
-import { mapToStandardSector } from '@/lib/yahooFinance';
+import { mapToStandardSector, MOCK_STOCK_INFO } from '@/lib/yahooFinance';
 
 interface MarketGainerLoser {
   symbol: string;
@@ -23,30 +23,115 @@ interface MarketGainerLoser {
 }
 
 const MONITOR_SYMBOLS = [
+  // Financials (20)
   'HDFCBANK.NS', 'ICICIBANK.NS', 'SBIN.NS', 'KOTAKBANK.NS', 'AXISBANK.NS',
-  'BAJFINANCE.NS', 'BAJAJFINSV.NS', 'HDFCLIFE.NS', 'SBILIFE.NS', 'TCS.NS',
-  'INFY.NS', 'WIPRO.NS', 'HCLTECH.NS', 'TECHM.NS', 'LTIM.NS', 'RELIANCE.NS',
-  'ONGC.NS', 'IOC.NS', 'BPCL.NS', 'NTPC.NS', 'POWERGRID.NS', 'ADANIGREEN.NS',
-  'MARUTI.NS', 'TMPV.NS', 'TMCV.NS', 'M&M.NS', 'EICHERMOT.NS', 'HEROMOTOCO.NS', 'BAJAJ-AUTO.NS',
-  'HINDUNILVR.NS', 'ITC.NS', 'NESTLEIND.NS', 'BRITANNIA.NS', 'DABUR.NS', 'GODREJCP.NS',
-  'LT.NS', 'ULTRACEMCO.NS', 'GRASIM.NS', 'AMBUJACEM.NS', 'ADANIPORTS.NS', 'SUNPHARMA.NS',
-  'DRREDDY.NS', 'CIPLA.NS', 'DIVISLAB.NS', 'APOLLOHOSP.NS', 'DMART.NS', 'TITAN.NS',
-  'TRENT.NS', 'ETERNAL.NS', 'PAYTM.NS', 'NYKAA.NS', 'IRCTC.NS', 'IRFC.NS',
-  'RVNL.NS', 'BHEL.NS', 'ADANIENT.NS', 'ADANIPOWER.NS', 'TATASTEEL.NS', 'JSWSTEEL.NS',
-  'HINDALCO.NS'
+  'BAJFINANCE.NS', 'BAJAJFINSV.NS', 'HDFCLIFE.NS', 'SBILIFE.NS', 'LICHSGFIN.NS',
+  'PFC.NS', 'RECLTD.NS', 'MUTHOOTFIN.NS', 'CHOLAFIN.NS', 'SHRIRAMFIN.NS',
+  'BANDHANBNK.NS', 'IDFCFIRSTB.NS', 'INDUSINDBK.NS', 'PNB.NS', 'BOB.NS',
+
+  // IT (20)
+  'TCS.NS', 'INFY.NS', 'WIPRO.NS', 'HCLTECH.NS', 'TECHM.NS',
+  'HAPPSTMNDS.NS', 'LTTS.NS', 'PERSISTENT.NS', 'COFORGE.NS', 'MPHASIS.NS',
+  'KPITTECH.NS', 'TATAELXSI.NS', 'CYIENT.NS', 'SONATSOFTW.NS', 'ZENSARTECH.NS',
+  'OFSS.NS', 'BSOFT.NS', 'NAUKRI.NS', 'AFFLE.NS', 'FSL.NS',
+
+  // Staples (20)
+  'HINDUNILVR.NS', 'ITC.NS', 'NESTLEIND.NS', 'BRITANNIA.NS', 'DABUR.NS',
+  'GODREJCP.NS', 'COLPAL.NS', 'MARICO.NS', 'TATACONSUM.NS', 'VBL.NS',
+  'UBL.NS', 'UNITDSPR.NS', 'BALRAMCHIN.NS', 'KRBL.NS', 'LTFOODS.NS',
+  'HERITGFOOD.NS', 'AVANTIFEED.NS', 'EMAMILTD.NS', 'JYOTHYLAB.NS', 'HATSUN.NS',
+
+  // Discretionary (20)
+  'MARUTI.NS', 'TMPV.NS', 'TMCV.NS', 'M&M.NS', 'EICHERMOT.NS',
+  'HEROMOTOCO.NS', 'BAJAJ-AUTO.NS', 'TITAN.NS', 'TRENT.NS', 'DMART.NS',
+  'PAGEIND.NS', 'BATAINDIA.NS', 'RELAXO.NS', 'KALYANKJIL.NS', 'ABFRL.NS',
+  'DEVYANI.NS', 'JUBLFOOD.NS', 'WESTLIFE.NS', 'VIPIND.NS', 'RAYMOND.NS',
+
+  // Energy (20)
+  'RELIANCE.NS', 'ONGC.NS', 'IOC.NS', 'BPCL.NS', 'HPCL.NS',
+  'OIL.NS', 'COALINDIA.NS', 'ADANIGREEN.NS', 'ADANIENSOL.NS', 'MRPL.NS',
+  'CHENNPETRO.NS', 'PETRONET.NS', 'GSPL.NS', 'GAIL.NS', 'MGL.NS',
+  'IGL.NS', 'PANAMAPET.NS', 'ATGL.NS', 'CASTROLIND.NS', 'AEGISLOG.NS',
+
+  // Industrials (20)
+  'LT.NS', 'RVNL.NS', 'BHEL.NS', 'IRCTC.NS', 'IRFC.NS',
+  'CONCOR.NS', 'BEL.NS', 'HAL.NS', 'GMRAIRPORT.NS', 'IRCON.NS',
+  'HEG.NS', 'GRAPHITE.NS', 'CUMMINSIND.NS', 'ABB.NS', 'SIEMENS.NS',
+  'THERMAX.NS', 'VOLTAS.NS', 'BLUESTARCO.NS', 'KEC.NS', 'ENGINERSIN.NS',
+
+  // Materials (20)
+  'TATASTEEL.NS', 'JSWSTEEL.NS', 'HINDALCO.NS', 'GRASIM.NS', 'AMBUJACEM.NS',
+  'ULTRACEMCO.NS', 'ACC.NS', 'SHREECEM.NS', 'JKCEMENT.NS', 'RAMCOCEM.NS',
+  'SAIL.NS', 'JINDALSTEL.NS', 'NMDC.NS', 'NATIONALUM.NS', 'ASIANPAINT.NS',
+  'BERGEPAINT.NS', 'KANSAINER.NS', 'PIDILITIND.NS', 'SRF.NS', 'DEEPAKNTR.NS',
+
+  // Health Care (20)
+  'SUNPHARMA.NS', 'CIPLA.NS', 'DIVISLAB.NS', 'APOLLOHOSP.NS', 'DRREDDY.NS',
+  'LUPIN.NS', 'AUROPHARMA.NS', 'BIOCON.NS', 'GLAND.NS', 'IPCALAB.NS',
+  'LAURUSLABS.NS', 'MAXHEALTH.NS', 'FORTIS.NS', 'SYNGENE.NS', 'METROPOLIS.NS',
+  'LALPATHLAB.NS', 'TORNTPHARM.NS', 'ALKEM.NS', 'ZYDUSLIFE.NS', 'GLAXO.NS',
+
+  // Communication (20)
+  'BHARTIARTL.NS', 'IDEA.NS', 'TATACOMM.NS', 'ZEEL.NS', 'SUNTV.NS',
+  'PVRINOX.NS', 'NETWORK18.NS', 'HATHWAY.NS', 'DEN.NS', 'SAREGAMA.NS',
+  'TIPSMUSIC.NS', 'DISHTV.NS', 'MTNL.NS', 'ROUTE.NS', 'TANLA.NS',
+  'ZEEMEDIA.NS', 'DBCORP.NS', 'JAGRAN.NS', 'ENIL.NS', 'TVTODAY.NS',
+
+  // Utilities (20)
+  'NTPC.NS', 'TATAPOWER.NS', 'POWERGRID.NS', 'ADANIPOWER.NS', 'TORNTPOWER.NS',
+  'CESC.NS', 'NLCINDIA.NS', 'JPPOWER.NS', 'RTNPOWER.NS', 'GIPCL.NS',
+  'SJVN.NS', 'NHPC.NS', 'WABAG.NS', 'JSWENERGY.NS', 'KPIGREEN.NS',
+  'PTC.NS', 'GUJGASLTD.NS', 'GENUSPOWER.NS', 'SWSOLAR.NS', 'BFUTILITIE.NS'
 ];
 
 // Market Cap Classifications
 const LARGE_CAP_SYMBOLS = [
-  'RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'ICICIBANK.NS', 'INFY.NS', 'SBIN.NS', 'BHARTIAIRTEL.NS', 'ITC.NS', 'LT.NS', 'HINDUNILVR.NS', 'KOTAKBANK.NS', 'AXISBANK.NS', 'MARUTI.NS', 'M&M.NS', 'TATASTEEL.NS', 'SUNPHARMA.NS', 'ULTRACEMCO.NS', 'ADANIENT.NS', 'ADANIPORTS.NS', 'NESTLEIND.NS'
+  'HDFCBANK.NS', 'ICICIBANK.NS', 'SBIN.NS', 'KOTAKBANK.NS', 'AXISBANK.NS',
+  'BAJFINANCE.NS', 'BAJAJFINSV.NS', 'HDFCLIFE.NS', 'SBILIFE.NS', 'SHRIRAMFIN.NS',
+  'TCS.NS', 'INFY.NS', 'WIPRO.NS', 'HCLTECH.NS', 'TECHM.NS', 'OFSS.NS',
+  'HINDUNILVR.NS', 'ITC.NS', 'NESTLEIND.NS', 'BRITANNIA.NS', 'VBL.NS',
+  'TATACONSUM.NS', 'GODREJCP.NS', 'MARUTI.NS', 'M&M.NS', 'TITAN.NS',
+  'TRENT.NS', 'DMART.NS', 'EICHERMOT.NS', 'HEROMOTOCO.NS', 'BAJAJ-AUTO.NS',
+  'RELIANCE.NS', 'ONGC.NS', 'IOC.NS', 'BPCL.NS', 'HPCL.NS', 'COALINDIA.NS',
+  'ADANIGREEN.NS', 'ADANIENSOL.NS', 'ATGL.NS', 'LT.NS', 'BEL.NS', 'HAL.NS',
+  'CONCOR.NS', 'ABB.NS', 'SIEMENS.NS', 'TATASTEEL.NS', 'JSWSTEEL.NS',
+  'HINDALCO.NS', 'GRASIM.NS', 'ULTRACEMCO.NS', 'ASIANPAINT.NS', 'PIDILITIND.NS',
+  'SHREECEM.NS', 'SUNPHARMA.NS', 'DRREDDY.NS', 'CIPLA.NS', 'DIVISLAB.NS',
+  'APOLLOHOSP.NS', 'MAXHEALTH.NS', 'TORNTPHARM.NS', 'BHARTIARTL.NS', 'TATACOMM.NS',
+  'NTPC.NS', 'POWERGRID.NS', 'TATAPOWER.NS', 'ADANIPOWER.NS', 'TORNTPOWER.NS',
+  'JSWENERGY.NS', 'SWSOLAR.NS'
 ];
 
 const MID_CAP_SYMBOLS = [
-  'TMPV.NS', 'TMCV.NS', 'BAJFINANCE.NS', 'BAJAJFINSV.NS', 'WIPRO.NS', 'HCLTECH.NS', 'NTPC.NS', 'POWERGRID.NS', 'COALINDIA.NS', 'ONGC.NS', 'JSWSTEEL.NS', 'HINDALCO.NS', 'GRASIM.NS', 'DMART.NS', 'TITAN.NS', 'TRENT.NS', 'EICHERMOT.NS', 'HEROMOTOCO.NS', 'BAJAJ-AUTO.NS', 'BRITANNIA.NS'
+  'PFC.NS', 'RECLTD.NS', 'MUTHOOTFIN.NS', 'CHOLAFIN.NS', 'BANDHANBNK.NS',
+  'INDUSINDBK.NS', 'PNB.NS', 'BOB.NS', 'LTTS.NS', 'PERSISTENT.NS',
+  'COFORGE.NS', 'MPHASIS.NS', 'KPITTECH.NS', 'TATAELXSI.NS', 'BSOFT.NS',
+  'NAUKRI.NS', 'DABUR.NS', 'MARICO.NS', 'COLPAL.NS', 'UBL.NS', 'UNITDSPR.NS',
+  'EMAMILTD.NS', 'TMPV.NS', 'TMCV.NS', 'PAGEIND.NS', 'BATAINDIA.NS',
+  'KALYANKJIL.NS', 'ABFRL.NS', 'JUBLFOOD.NS', 'OIL.NS', 'MRPL.NS',
+  'PETRONET.NS', 'GSPL.NS', 'GAIL.NS', 'MGL.NS', 'IGL.NS', 'RVNL.NS',
+  'BHEL.NS', 'IRCTC.NS', 'IRFC.NS', 'CUMMINSIND.NS', 'VOLTAS.NS',
+  'GMRAIRPORT.NS', 'AMBUJACEM.NS', 'ACC.NS', 'JKCEMENT.NS', 'RAMCOCEM.NS',
+  'SAIL.NS', 'JINDALSTEL.NS', 'NMDC.NS', 'SRF.NS', 'DEEPAKNTR.NS',
+  'LUPIN.NS', 'AUROPHARMA.NS', 'BIOCON.NS', 'IPCALAB.NS', 'FORTIS.NS',
+  'SYNGENE.NS', 'ZYDUSLIFE.NS', 'ALKEM.NS', 'IDEA.NS', 'ZEEL.NS',
+  'SUNTV.NS', 'PVRINOX.NS', 'NETWORK18.NS', 'ROUTE.NS', 'TANLA.NS',
+  'CESC.NS', 'NLCINDIA.NS', 'KPIGREEN.NS'
 ];
 
 const SMALL_CAP_SYMBOLS = [
-  'PAYTM.NS', 'NYKAA.NS', 'ETERNAL.NS', 'RVNL.NS', 'BHEL.NS', 'IRCTC.NS', 'IRFC.NS', 'BPCL.NS', 'IOC.NS', 'DABUR.NS', 'GODREJCP.NS', 'AMBUJACEM.NS', 'DRREDDY.NS', 'CIPLA.NS', 'DIVISLAB.NS', 'APOLLOHOSP.NS', 'HDFCLIFE.NS', 'SBILIFE.NS', 'LTIM.NS', 'TECHM.NS'
+  'LICHSGFIN.NS', 'IDFCFIRSTB.NS', 'CYIENT.NS', 'SONATSOFTW.NS', 'ZENSARTECH.NS',
+  'AFFLE.NS', 'FSL.NS', 'HAPPSTMNDS.NS', 'BALRAMCHIN.NS', 'KRBL.NS',
+  'LTFOODS.NS', 'HERITGFOOD.NS', 'AVANTIFEED.NS', 'JYOTHYLAB.NS', 'HATSUN.NS',
+  'RELAXO.NS', 'DEVYANI.NS', 'WESTLIFE.NS', 'VIPIND.NS', 'RAYMOND.NS',
+  'CHENNPETRO.NS', 'CASTROLIND.NS', 'AEGISLOG.NS', 'PANAMAPET.NS', 'IRCON.NS',
+  'HEG.NS', 'GRAPHITE.NS', 'THERMAX.NS', 'BLUESTARCO.NS', 'KEC.NS',
+  'ENGINERSIN.NS', 'NATIONALUM.NS', 'BERGEPAINT.NS', 'KANSAINER.NS', 'GLAND.NS',
+  'LAURUSLABS.NS', 'METROPOLIS.NS', 'LALPATHLAB.NS', 'GLAXO.NS', 'HATHWAY.NS',
+  'DEN.NS', 'SAREGAMA.NS', 'TIPSMUSIC.NS', 'DISHTV.NS', 'MTNL.NS',
+  'ZEEMEDIA.NS', 'DBCORP.NS', 'JAGRAN.NS', 'ENIL.NS', 'TVTODAY.NS',
+  'JPPOWER.NS', 'RTNPOWER.NS', 'GIPCL.NS', 'SJVN.NS', 'NHPC.NS',
+  'WABAG.NS', 'PTC.NS', 'GUJGASLTD.NS', 'GENUSPOWER.NS', 'BFUTILITIE.NS'
 ];
 
 const SECTOR_ICONS: Record<string, React.ComponentType<any>> = {
@@ -62,25 +147,13 @@ const SECTOR_ICONS: Record<string, React.ComponentType<any>> = {
   'Utilities': Bolt
 };
 
-const SECTOR_COLORS: Record<string, { bg: string; text: string; border: string; glow: string }> = {
-  'Financials': { bg: 'bg-blue-500/10', text: 'text-blue-500', border: 'border-blue-500/20', glow: 'shadow-blue-500/10' },
-  'Information Technology': { bg: 'bg-green-500/10', text: 'text-green-500', border: 'border-green-500/20', glow: 'shadow-green-500/10' },
-  'Consumer Staples': { bg: 'bg-purple-500/10', text: 'text-purple-500', border: 'border-purple-500/20', glow: 'shadow-purple-500/10' },
-  'Consumer Discretionary': { bg: 'bg-amber-500/10', text: 'text-amber-500', border: 'border-amber-500/20', glow: 'shadow-amber-500/10' },
-  'Energy': { bg: 'bg-orange-500/10', text: 'text-orange-500', border: 'border-orange-500/20', glow: 'shadow-orange-500/10' },
-  'Industrials': { bg: 'bg-sky-500/10', text: 'text-sky-500', border: 'border-sky-500/20', glow: 'shadow-sky-500/10' },
-  'Materials': { bg: 'bg-rose-500/10', text: 'text-rose-500', border: 'border-rose-500/20', glow: 'shadow-rose-500/10' },
-  'Health Care': { bg: 'bg-emerald-500/10', text: 'text-emerald-500', border: 'border-emerald-500/20', glow: 'shadow-emerald-500/10' },
-  'Communication Services': { bg: 'bg-indigo-500/10', text: 'text-indigo-500', border: 'border-indigo-500/20', glow: 'shadow-indigo-500/10' },
-  'Utilities': { bg: 'bg-cyan-500/10', text: 'text-cyan-500', border: 'border-cyan-500/20', glow: 'shadow-cyan-500/10' }
-};
 
-const TRENDING_SYMBOLS = ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'TRENT.NS', 'HDFCBANK.NS', 'ETERNAL.NS', 'SBIN.NS', 'TMPV.NS', 'TMCV.NS'];
-const MOST_SEARCHED_SYMBOLS = ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'HDFCBANK.NS', 'TRENT.NS', 'ETERNAL.NS', 'IRCTC.NS', 'PAYTM.NS'];
+const TRENDING_SYMBOLS = ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'TRENT.NS', 'HDFCBANK.NS', 'SBIN.NS', 'TMPV.NS', 'TMCV.NS', 'HAL.NS'];
+const MOST_SEARCHED_SYMBOLS = ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'HDFCBANK.NS', 'TRENT.NS', 'IRCTC.NS', 'RVNL.NS', 'SUNPHARMA.NS'];
 
 // Tickertape-style Curated Collections
 const BLUE_CHIP_SYMBOLS = ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'HDFCBANK.NS', 'ICICIBANK.NS', 'SBIN.NS', 'LT.NS', 'ITC.NS', 'HINDUNILVR.NS', 'KOTAKBANK.NS'];
-const HIGH_GROWTH_SYMBOLS = ['TRENT.NS', 'ETERNAL.NS', 'ADANIENT.NS', 'ADANIPORTS.NS', 'MARUTI.NS', 'M&M.NS', 'ADANIGREEN.NS', 'PAYTM.NS', 'RVNL.NS'];
+const HIGH_GROWTH_SYMBOLS = ['TRENT.NS', 'HAL.NS', 'RVNL.NS', 'MARUTI.NS', 'M&M.NS', 'KPIGREEN.NS'];
 const DIVIDEND_SYMBOLS = ['IOC.NS', 'BPCL.NS', 'ONGC.NS', 'POWERGRID.NS', 'ITC.NS', 'TATASTEEL.NS'];
 const DEBT_FREE_SYMBOLS = ['TCS.NS', 'INFY.NS', 'WIPRO.NS', 'HCLTECH.NS', 'ITC.NS', 'NESTLEIND.NS', 'DIVISLAB.NS'];
 
@@ -195,53 +268,7 @@ export default function Home() {
     volume: q.regularMarketVolume
   }));
 
-  // Aggregate Sector Metrics Dynamically
-  const sectorMap: Record<string, { count: number; sumPe: number; peCount: number; sumChange: number }> = {
-    'Financials': { count: 0, sumPe: 0, peCount: 0, sumChange: 0 },
-    'Information Technology': { count: 0, sumPe: 0, peCount: 0, sumChange: 0 },
-    'Consumer Staples': { count: 0, sumPe: 0, peCount: 0, sumChange: 0 },
-    'Consumer Discretionary': { count: 0, sumPe: 0, peCount: 0, sumChange: 0 },
-    'Energy': { count: 0, sumPe: 0, peCount: 0, sumChange: 0 },
-    'Industrials': { count: 0, sumPe: 0, peCount: 0, sumChange: 0 },
-    'Materials': { count: 0, sumPe: 0, peCount: 0, sumChange: 0 },
-    'Health Care': { count: 0, sumPe: 0, peCount: 0, sumChange: 0 },
-    'Communication Services': { count: 0, sumPe: 0, peCount: 0, sumChange: 0 },
-    'Utilities': { count: 0, sumPe: 0, peCount: 0, sumChange: 0 }
-  };
 
-  marketQuotes.forEach(q => {
-    if (q.symbol.startsWith('^')) return;
-    const sectorName = mapToStandardSector(q.sector);
-    if (sectorMap[sectorName]) {
-      sectorMap[sectorName].count++;
-      sectorMap[sectorName].sumChange += q.regularMarketChangePercent || 0;
-      if (q.trailingPE && q.trailingPE > 0) {
-        sectorMap[sectorName].sumPe += q.trailingPE;
-        sectorMap[sectorName].peCount++;
-      }
-    }
-  });
-
-  const sectorsData = Object.keys(sectorMap).map(key => {
-    const val = sectorMap[key];
-    const avgChange = val.count > 0 ? val.sumChange / val.count : 0;
-    const avgPe = val.peCount > 0 ? val.sumPe / val.peCount : 22.5;
-    return {
-      name: key,
-      count: val.count,
-      changePercent: avgChange,
-      pe: avgPe
-    };
-  });
-
-  const handleSectorClick = (sectorName: string) => {
-    setActiveTab('explore');
-    setSearchFilter(sectorName);
-    const exploreEl = document.getElementById('explore-search-input');
-    if (exploreEl) {
-      exploreEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  };
 
   const formatVolume = (num: number) => {
     if (!num) return '0';
@@ -276,8 +303,8 @@ export default function Home() {
 
     if (isSectorFilter) {
       const filtered = MONITOR_SYMBOLS.filter(sym => {
-        const quote = marketQuotes.find(q => q.symbol === sym);
-        const sector = quote?.sector || 'Financial Services';
+        const customMeta = MOCK_STOCK_INFO[sym] || {};
+        const sector = customMeta.sector || 'Financial Services';
         return mapToStandardSector(sector).toLowerCase() === searchFilter.toLowerCase();
       });
       setExploreSymbols(filtered);
@@ -515,69 +542,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* Market Sectors Widget */}
-          <div className="rounded-2xl border border-border bg-card p-5 shadow-soft dark:shadow-soft-dark mt-6 animate-fade-in">
-            <div className="flex items-center justify-between mb-4 pb-3 border-b border-border/50">
-              <div>
-                <h3 className="font-extrabold text-sm text-text-primary tracking-tight">
-                  Market Sectors
-                </h3>
-                <p className="text-[10px] text-text-secondary font-medium mt-0.5">
-                  Analyze and filter performance across core stock market sectors
-                </p>
-              </div>
-              <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider bg-background px-2 py-1 rounded border border-border">
-                {sectorsData.length} Sectors
-              </span>
-            </div>
 
-            {loading ? (
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5 py-2">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(i => (
-                  <div key={i} className="h-24 rounded-xl animate-shimmer border border-border bg-card" />
-                ))}
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5">
-                {sectorsData.map(sector => {
-                  const IconComponent = SECTOR_ICONS[sector.name] || Landmark;
-                  const colorConfig = SECTOR_COLORS[sector.name] || { bg: 'bg-blue-500/10', text: 'text-blue-500', border: 'border-blue-500/20', glow: 'shadow-blue-500/10' };
-                  const isPositive = sector.changePercent >= 0;
-                  
-                  return (
-                    <button
-                      key={sector.name}
-                      onClick={() => handleSectorClick(sector.name)}
-                      className="flex flex-col items-start p-3 rounded-xl border border-border/60 bg-background hover:bg-card hover:border-profit/20 hover:shadow-premium dark:hover:shadow-premium-dark active:scale-[0.98] transition-all duration-200 text-left group overflow-hidden relative"
-                    >
-                      {/* Icon */}
-                      <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${colorConfig.bg} ${colorConfig.text} border ${colorConfig.border} mb-3.5`}>
-                        <IconComponent className="h-4 w-4" />
-                      </div>
-
-                      {/* Name */}
-                      <div className="text-[11px] font-extrabold text-text-primary leading-tight line-clamp-2 min-h-[2rem]">
-                        {sector.name}
-                      </div>
-
-                      {/* Stock Count */}
-                      <div className="text-[9px] text-text-secondary font-semibold mt-1">
-                        {sector.count} {sector.count === 1 ? 'stock' : 'stocks'}
-                      </div>
-
-                      {/* Metrics Footer */}
-                      <div className="flex items-center justify-between w-full mt-3 pt-2 border-t border-border/40 text-[9px] font-extrabold">
-                        <span className="text-text-secondary">P/E {sector.pe.toFixed(1)}</span>
-                        <span className={isPositive ? 'text-profit' : 'text-loss'}>
-                          {isPositive ? '+' : ''}{sector.changePercent.toFixed(1)}%
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
 
         </div>
 

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useStockStore } from '@/store/useStockStore';
 import { 
-  Star, ChevronLeft, Calendar, ShieldCheck, 
+  Star, ChevronLeft, Calendar, 
   GitCompare, Building2, Share2, Bell, Clock, 
   ArrowUpRight, Sparkles, Globe, MapPin, Users, 
   Info, CheckCircle, Copy, Send
@@ -1430,30 +1430,7 @@ export default function StockDetailPage() {
             </div>
           )}
 
-          {/* Investment Protection disclaimers */}
-          <div className="bg-card border border-border rounded-2xl p-5 shadow-soft dark:shadow-soft-dark space-y-4">
-            <h4 className="text-xs font-black text-text-primary uppercase tracking-wider pb-2 border-b border-border/40">Investment Advisory</h4>
-            
-            <div className="flex items-start gap-3">
-              <ShieldCheck className="h-5 w-5 text-profit shrink-0 mt-0.5" />
-              <div>
-                <h4 className="text-xs font-black text-text-primary">Intelligence Platform Only</h4>
-                <p className="text-[10px] text-text-secondary leading-normal mt-1 font-medium">
-                  OnlyProfit is a pure market intelligence platform. We do not support buying, selling, or placing orders. Any details provided are strictly for information and educational analysis.
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-start gap-3">
-              <Calendar className="h-5 w-5 text-profit shrink-0 mt-0.5" />
-              <div>
-                <h4 className="text-xs font-black text-text-primary">Yahoo Data Feeds</h4>
-                <p className="text-[10px] text-text-secondary leading-normal mt-1 font-medium">
-                  Quotes and chart data are resolved from public Yahoo Finance endpoints and correspond to standard market sessions. Feeds may be delayed by up to 15 minutes.
-                </p>
-              </div>
-            </div>
-          </div>
+
 
           {/* Recommendation card */}
           {recommendation && (

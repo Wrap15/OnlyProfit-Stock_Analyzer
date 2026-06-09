@@ -34,10 +34,21 @@ function getVolatility(symbol: string): { label: string; className: string } {
 
 interface StockCardProps {
   symbol: string;
+  initialQuote?: {
+    shortName?: string;
+    longName?: string;
+    regularMarketPrice?: number;
+    regularMarketChange?: number;
+    regularMarketChangePercent?: number;
+    trailingPE?: number | null;
+    epsTrailingTwelveMonths?: number | null;
+    sector?: string;
+  };
 }
 
-export default function StockCard({ symbol }: StockCardProps) {
+export default function StockCard({ symbol, initialQuote }: StockCardProps) {
   const { watchlist, toggleWatchlist } = useStockStore();
+  
   const [data, setData] = useState<{
     name: string;
     price: number;
@@ -47,12 +58,83 @@ export default function StockCard({ symbol }: StockCardProps) {
     pe: number | null;
     eps: number | null;
     sector: string;
-  } | null>(null);
-  const [loading, setLoading] = useState(true);
+  } | null>(initialQuote ? {
+    name: initialQuote.shortName || initialQuote.longName || symbol,
+    price: initialQuote.regularMarketPrice || 0,
+    change: initialQuote.regularMarketChange || 0,
+    changePercent: initialQuote.regularMarketChangePercent || 0,
+    chart: [],
+    pe: initialQuote.trailingPE !== undefined ? initialQuote.trailingPE : null,
+    eps: initialQuote.epsTrailingTwelveMonths !== undefined ? initialQuote.epsTrailingTwelveMonths : null,
+    sector: initialQuote.sector || 'Financial Services'
+  } : null);
+
+  const [loading, setLoading] = useState(!initialQuote);
+  const [isVisible, setIsVisible] = useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
 
   const isFavorited = watchlist.includes(symbol);
 
+  // Set up intersection observer to only load chart for visible cards
   useEffect(() => {
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setIsVisible(true);
+        observer.disconnect();
+      }
+    }, { rootMargin: '200px' });
+
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    }
+    return () => observer.disconnect();
+  }, []);
+
+  // Update quote data if the initialQuote changes from parent
+  useEffect(() => {
+    if (initialQuote) {
+      setData(prev => ({
+        name: initialQuote.shortName || initialQuote.longName || symbol,
+        price: initialQuote.regularMarketPrice || 0,
+        change: initialQuote.regularMarketChange || 0,
+        changePercent: initialQuote.regularMarketChangePercent || 0,
+        pe: initialQuote.trailingPE !== undefined ? initialQuote.trailingPE : null,
+        eps: initialQuote.epsTrailingTwelveMonths !== undefined ? initialQuote.epsTrailingTwelveMonths : null,
+        sector: initialQuote.sector || 'Financial Services',
+        chart: prev?.chart || []
+      }));
+      setLoading(false);
+    }
+  }, [initialQuote, symbol]);
+
+  // Fetch chart data when card becomes visible
+  useEffect(() => {
+    if (!isVisible) return;
+
+    let active = true;
+    async function fetchChartData() {
+      try {
+        const chartRes = await axios.get(`/api/stock/chart?symbol=${encodeURIComponent(symbol)}&range=1d`);
+        const chartPoints = (chartRes.data || []).map((pt: any) => pt.value);
+        if (active) {
+          setData(prev => prev ? { ...prev, chart: chartPoints } : null);
+        }
+      } catch (err) {
+        console.error(`Failed to fetch chart for ${symbol}`, err);
+      }
+    }
+    fetchChartData();
+    return () => {
+      active = false;
+    };
+  }, [symbol, isVisible]);
+
+  // Fallback data fetch if initialQuote was not provided by parent
+  useEffect(() => {
+    if (initialQuote) return;
+    if (!isVisible) return;
+
+    let active = true;
     async function fetchData() {
       try {
         setLoading(true);
@@ -64,25 +146,30 @@ export default function StockCard({ symbol }: StockCardProps) {
         const chartRes = await axios.get(`/api/stock/chart?symbol=${encodeURIComponent(symbol)}&range=1d`);
         const chartPoints = (chartRes.data || []).map((pt: any) => pt.value);
 
-        setData({
-          name: quote.shortName || quote.longName || symbol,
-          price: quote.regularMarketPrice || 0,
-          change: quote.regularMarketChange || 0,
-          changePercent: quote.regularMarketChangePercent || 0,
-          chart: chartPoints,
-          pe: quote.trailingPE,
-          eps: quote.epsTrailingTwelveMonths,
-          sector: quote.sector || 'Financial Services'
-        });
+        if (active) {
+          setData({
+            name: quote.shortName || quote.longName || symbol,
+            price: quote.regularMarketPrice || 0,
+            change: quote.regularMarketChange || 0,
+            changePercent: quote.regularMarketChangePercent || 0,
+            chart: chartPoints,
+            pe: quote.trailingPE,
+            eps: quote.epsTrailingTwelveMonths,
+            sector: quote.sector || 'Financial Services'
+          });
+          setLoading(false);
+        }
       } catch (err) {
         console.error(`Failed to fetch card data for ${symbol}`, err);
-      } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     }
 
     fetchData();
-  }, [symbol]);
+    return () => {
+      active = false;
+    };
+  }, [symbol, initialQuote, isVisible]);
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -145,7 +232,8 @@ export default function StockCard({ symbol }: StockCardProps) {
   const volatility = getVolatility(symbol);
 
   return (
-    <Link href={`/stock/${symbol}`} className="block w-full animate-fade-in">
+    <div ref={containerRef} className="w-full">
+      <Link href={`/stock/${symbol}`} className="block w-full animate-fade-in">
       
       {/* MOBILE LAYOUT: Compact List Row */}
       <div className="flex sm:hidden items-center justify-between w-full p-4 rounded-xl border border-border bg-card hover:bg-border/30 active:scale-[0.99] transition-all duration-200">
@@ -279,6 +367,7 @@ export default function StockCard({ symbol }: StockCardProps) {
         </div>
       </div>
 
-    </Link>
+      </Link>
+    </div>
   );
 }

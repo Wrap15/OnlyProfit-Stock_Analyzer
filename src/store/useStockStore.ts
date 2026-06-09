@@ -1,11 +1,19 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+export interface PriceAlert {
+  symbol: string;
+  price: number;
+  condition: 'above' | 'below';
+  isActive: boolean;
+}
+
 interface StockState {
   watchlist: string[];
   recentSearches: string[];
   selectedStock: string | null;
   theme: 'light' | 'dark';
+  alerts: PriceAlert[];
   addToWatchlist: (symbol: string) => void;
   removeFromWatchlist: (symbol: string) => void;
   toggleWatchlist: (symbol: string) => void;
@@ -14,6 +22,8 @@ interface StockState {
   setTheme: (theme: 'light' | 'dark') => void;
   toggleTheme: () => void;
   setSelectedStock: (symbol: string | null) => void;
+  addAlert: (alert: PriceAlert) => void;
+  removeAlert: (symbol: string, price: number, condition: 'above' | 'below') => void;
 }
 
 export const useStockStore = create<StockState>()(
@@ -23,6 +33,7 @@ export const useStockStore = create<StockState>()(
       recentSearches: [],
       selectedStock: null,
       theme: 'light',
+      alerts: [],
       addToWatchlist: (symbol) =>
         set((state) => ({
           watchlist: state.watchlist.includes(symbol)
@@ -77,6 +88,16 @@ export const useStockStore = create<StockState>()(
           return { theme: nextTheme };
         }),
       setSelectedStock: (symbol) => set({ selectedStock: symbol }),
+      addAlert: (alert) =>
+        set((state) => ({
+          alerts: [...state.alerts, alert],
+        })),
+      removeAlert: (symbol, price, condition) =>
+        set((state) => ({
+          alerts: state.alerts.filter(
+            (a) => !(a.symbol === symbol && a.price === price && a.condition === condition)
+          ),
+        })),
     }),
     {
       name: 'onlyprofit-storage', // local storage key
@@ -84,6 +105,7 @@ export const useStockStore = create<StockState>()(
         watchlist: state.watchlist,
         recentSearches: state.recentSearches,
         theme: state.theme,
+        alerts: state.alerts,
       }),
     }
   )

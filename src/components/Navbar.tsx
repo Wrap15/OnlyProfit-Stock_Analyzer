@@ -87,12 +87,16 @@ export default function Navbar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSelect = (symbol: string) => {
+  const handleSelect = (item: SearchResult) => {
     setQuery('');
     setShowDropdown(false);
     setIsMobileSearchOpen(false);
-    addToRecentSearches(symbol);
-    router.push(`/stock/${symbol}`);
+    addToRecentSearches(item.symbol);
+    if (item.type === 'MUTUALFUND') {
+      router.push(`/mutualfund/${item.symbol}`);
+    } else {
+      router.push(`/stock/${item.symbol}`);
+    }
   };
 
   return (
@@ -125,7 +129,7 @@ export default function Navbar() {
                 </div>
                 <input
                   type="text"
-                  placeholder="Search Indian stocks (e.g., RELIANCE, TCS, INFY)"
+                  placeholder="Search stocks & mutual funds (e.g. SBI, Reliance)"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onFocus={() => query.trim().length >= 2 && setShowDropdown(true)}
@@ -154,14 +158,22 @@ export default function Navbar() {
                       {results.map((item) => (
                         <button
                           key={item.symbol}
-                          onClick={() => handleSelect(item.symbol)}
+                          onClick={() => handleSelect(item)}
                           className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-background transition-colors text-left"
                         >
                           <div>
-                            <div className="font-bold text-sm text-text-primary">{item.symbol.split('.')[0]}</div>
-                            <div className="text-xs text-text-secondary truncate max-w-[200px] sm:max-w-xs">{item.name}</div>
+                            <div className="font-bold text-sm text-text-primary">
+                              {item.type === 'MUTUALFUND' ? item.name : item.symbol.split('.')[0]}
+                            </div>
+                            <div className="text-xs text-text-secondary truncate max-w-[200px] sm:max-w-xs">
+                              {item.type === 'MUTUALFUND' ? `Mutual Fund • Code ${item.symbol}` : item.name}
+                            </div>
                           </div>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-background border border-border text-text-secondary">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                            item.type === 'MUTUALFUND' 
+                              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400' 
+                              : 'bg-background border-border text-text-secondary'
+                          }`}>
                             {item.exchange}
                           </span>
                         </button>
@@ -233,7 +245,7 @@ export default function Navbar() {
               <input
                 ref={mobileInputRef}
                 type="text"
-                placeholder="Search stocks (e.g. RELIANCE, TCS)"
+                placeholder="Search stocks & mutual funds (e.g. SBI, Reliance)"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 className="w-full h-10 pl-3 pr-8 rounded-xl border border-border bg-background text-sm text-text-primary focus:outline-none focus:border-profit transition-colors"
@@ -254,26 +266,34 @@ export default function Navbar() {
             {query.trim().length < 2 ? (
               <div className="flex flex-col items-center justify-center h-48 text-center text-text-secondary">
                 <Search className="h-8 w-8 opacity-40 mb-2" />
-                <p className="text-xs font-semibold">Type at least 2 characters to search stocks.</p>
+                <p className="text-xs font-semibold">Type at least 2 characters to search stocks & mutual funds.</p>
               </div>
             ) : loading ? (
               <div className="flex flex-col items-center justify-center h-48 text-text-secondary">
                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-profit border-t-transparent mb-2" />
-                <p className="text-xs font-semibold">Searching Indian markets...</p>
+                <p className="text-xs font-semibold">Searching markets...</p>
               </div>
             ) : results.length > 0 ? (
               <div className="space-y-1">
                 {results.map((item) => (
                   <button
                     key={item.symbol}
-                    onClick={() => handleSelect(item.symbol)}
+                    onClick={() => handleSelect(item)}
                     className="w-full flex items-center justify-between p-3.5 rounded-xl border border-border/30 bg-card hover:bg-border/30 transition-colors text-left"
                   >
                     <div>
-                      <div className="font-extrabold text-sm text-text-primary">{item.symbol.split('.')[0]}</div>
-                      <div className="text-xs text-text-secondary truncate max-w-[220px]">{item.name}</div>
+                      <div className="font-extrabold text-sm text-text-primary">
+                        {item.type === 'MUTUALFUND' ? item.name : item.symbol.split('.')[0]}
+                      </div>
+                      <div className="text-xs text-text-secondary truncate max-w-[220px]">
+                        {item.type === 'MUTUALFUND' ? `Mutual Fund • Code ${item.symbol}` : item.name}
+                      </div>
                     </div>
-                    <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-background border border-border text-text-secondary uppercase">
+                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded border uppercase ${
+                      item.type === 'MUTUALFUND' 
+                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400' 
+                        : 'bg-background border-border text-text-secondary'
+                    }`}>
                       {item.exchange}
                     </span>
                   </button>
@@ -281,7 +301,7 @@ export default function Navbar() {
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-48 text-center text-text-secondary">
-                <p className="text-xs font-semibold">No stocks found matching &quot;{query}&quot;</p>
+                <p className="text-xs font-semibold">No results found matching &quot;{query}&quot;</p>
               </div>
             )}
           </div>

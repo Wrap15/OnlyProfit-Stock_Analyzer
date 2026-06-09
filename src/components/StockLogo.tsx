@@ -1,10 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { MUTUAL_FUNDS, getAmcLogoUrl } from '@/lib/mutualfunds';
 
 interface StockLogoProps {
   symbol: string;
-  size?: 'sm' | 'md' | 'lg';
+  website?: string;
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+  name?: string;
 }
 
 const BRAND_LOGOS: Record<string, { initials: string; gradient: string }> = {
@@ -18,6 +21,8 @@ const BRAND_LOGOS: Record<string, { initials: string; gradient: string }> = {
   'LT.NS': { initials: 'L&T', gradient: 'from-amber-500 to-yellow-600' },
   'ITC.NS': { initials: 'ITC', gradient: 'from-blue-800 to-indigo-900' },
   'TATAMOTORS.NS': { initials: 'TTM', gradient: 'from-blue-600 to-indigo-500' },
+  'TMPV.NS': { initials: 'TMPV', gradient: 'from-blue-600 to-indigo-500' },
+  'TMCV.NS': { initials: 'TMCV', gradient: 'from-slate-600 to-slate-700' },
   'WIPRO.NS': { initials: 'WIP', gradient: 'from-violet-500 to-purple-600' },
   'HCLTECH.NS': { initials: 'HCL', gradient: 'from-blue-600 to-sky-600' },
   'ASIANPAINT.NS': { initials: 'AP', gradient: 'from-red-500 to-orange-500' },
@@ -52,40 +57,136 @@ function getHashGradient(sym: string) {
 }
 
 function getInitials(sym: string) {
+  if (/^\d+$/.test(sym)) return 'MF';
   const clean = sym.split('.')[0].replace('^', '');
   if (clean.length <= 3) return clean;
   return clean.substring(0, 2);
 }
 
-export default function StockLogo({ symbol, size = 'md' }: StockLogoProps) {
-  const [imgError, setImgError] = useState(false);
+function extractDomain(urlStr?: string): string | null {
+  if (!urlStr) return null;
+  try {
+    const cleanUrl = urlStr.startsWith('http') ? urlStr : `https://${urlStr}`;
+    const url = new URL(cleanUrl);
+    return url.hostname.replace('www.', '');
+  } catch {
+    return null;
+  }
+}
 
+export default function StockLogo({ symbol, website, size = 'md', name }: StockLogoProps) {
+  // We try loading in tiers: Clearbit (if domain is available) -> Google Favicon -> Tickertape CDN -> Fallback Initials
+  const [logoTier, setLogoTier] = useState<number>(0); 
+  // 0: Clearbit Logo, 1: Google Favicon, 2: Tickertape, 3: Fallback Initials
+
+  const domain = extractDomain(website);
   const cleanTicker = symbol.split('.')[0].replace('^', '').toUpperCase();
-  const logoUrl = `https://assets.tickertape.in/stock-logos/${cleanTicker}.png`;
 
   const sizeClasses = {
-    sm: 'h-7 w-7 text-[9px] rounded-lg',
-    md: 'h-9 w-9 text-[11px] rounded-xl',
-    lg: 'h-12 w-12 text-[14px] rounded-2xl'
+    sm: 'h-8 w-8 text-[10px] rounded-lg',
+    md: 'h-10 w-10 text-[12px] rounded-xl',
+    lg: 'h-14 w-14 text-[16px] rounded-2xl',
+    xl: 'h-16 w-16 text-[18px] rounded-2xl'
   };
 
-  const tryLoadImage = !imgError && !symbol.startsWith('^');
+  useEffect(() => {
+    // Reset tier if symbol/website changes
+    if (domain) {
+      setLogoTier(0);
+    } else if (!symbol.startsWith('^')) {
+      setLogoTier(2); // Start at Tickertape if website domain isn't available
+    } else {
+      setLogoTier(3); // Start at initials for indices
+    }
+  }, [symbol, website, domain]);
 
-  if (tryLoadImage) {
+  const handleImageError = () => {
+    // Progress to next tier on error
+    setLogoTier((prev) => prev + 1);
+  };
+
+  const isMf = /^\d+$/.test(symbol);
+
+  if (isMf) {
+    const mf = MUTUAL_FUNDS.find(f => f.code === symbol);
+    const mfLogoUrl = getAmcLogoUrl('', name || (mf ? mf.name : ''));
+    
+    if (mfLogoUrl) {
+      return (
+        <div className={`relative flex items-center justify-center bg-white dark:bg-slate-800 overflow-hidden shrink-0 shadow-sm border border-border/40 hover:border-profit/20 transition-all duration-300 ${sizeClasses[size]}`}>
+          <img
+            src={mfLogoUrl}
+            alt={name || symbol}
+            className="object-contain w-3/4 h-3/4 select-none pointer-events-none rounded-lg"
+            onError={(e) => {
+              (e.target as HTMLElement).style.display = 'none';
+              const parent = (e.target as HTMLElement).parentElement;
+              if (parent) {
+                parent.className = `flex items-center justify-center bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-black select-none shrink-0 shadow-sm border border-white/10 ${sizeClasses[size]}`;
+                parent.innerText = 'MF';
+              }
+            }}
+            loading="lazy"
+          />
+        </div>
+      );
+    }
+
     return (
-      <div className={`relative flex items-center justify-center bg-slate-100 dark:bg-slate-800/80 overflow-hidden shrink-0 shadow-sm border border-border/30 hover:border-profit/20 transition-all duration-300 ${sizeClasses[size]}`}>
+      <div
+        className={`flex items-center justify-center bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-black select-none shrink-0 shadow-sm border border-white/10 ${sizeClasses[size]}`}
+      >
+        MF
+      </div>
+    );
+  }
+
+  if (logoTier === 0 && domain) {
+    const clearbitUrl = `https://logo.clearbit.com/${domain}`;
+    return (
+      <div className={`relative flex items-center justify-center bg-white dark:bg-slate-800 overflow-hidden shrink-0 shadow-sm border border-border/40 hover:border-profit/20 transition-all duration-300 ${sizeClasses[size]}`}>
         <img
-          src={logoUrl}
+          src={clearbitUrl}
           alt={cleanTicker}
-          className="object-contain w-3/4 h-3/4 select-none pointer-events-none"
-          onError={() => setImgError(true)}
+          className="object-contain w-3/4 h-3/4 select-none pointer-events-none rounded-lg"
+          onError={handleImageError}
           loading="lazy"
         />
       </div>
     );
   }
 
-  // Fallback dynamic gradient initial badge
+  if (logoTier === 1 && domain) {
+    const googleFaviconUrl = `https://www.google.com/s2/favicons?sz=128&domain=${domain}`;
+    return (
+      <div className={`relative flex items-center justify-center bg-white dark:bg-slate-800 overflow-hidden shrink-0 shadow-sm border border-border/40 hover:border-profit/20 transition-all duration-300 ${sizeClasses[size]}`}>
+        <img
+          src={googleFaviconUrl}
+          alt={cleanTicker}
+          className="object-contain w-3/4 h-3/4 select-none pointer-events-none rounded-lg"
+          onError={handleImageError}
+          loading="lazy"
+        />
+      </div>
+    );
+  }
+
+  if (logoTier === 2 && !symbol.startsWith('^')) {
+    const tickertapeUrl = `https://assets.tickertape.in/stock-logos/${cleanTicker}.png`;
+    return (
+      <div className={`relative flex items-center justify-center bg-white dark:bg-slate-800 overflow-hidden shrink-0 shadow-sm border border-border/40 hover:border-profit/20 transition-all duration-300 ${sizeClasses[size]}`}>
+        <img
+          src={tickertapeUrl}
+          alt={cleanTicker}
+          className="object-contain w-3/4 h-3/4 select-none pointer-events-none rounded-lg"
+          onError={handleImageError}
+          loading="lazy"
+        />
+      </div>
+    );
+  }
+
+  // Fallback initial badge
   const brand = BRAND_LOGOS[symbol];
   const initials = brand ? brand.initials : getInitials(symbol);
   const gradient = brand ? brand.gradient : getHashGradient(symbol);

@@ -63,10 +63,15 @@ const MOCK_STOCK_INFO: Record<string, { name: string; sector: string; desc: stri
     sector: 'Consumer Goods (FMCG)',
     desc: 'ITC Limited is an Indian conglomerate company headquartered in Kolkata. ITC has a diversified presence across industries such as Fast-Moving Consumer Goods (FMCG), hotels, software, packaging, paperboards, specialty papers and agribusiness.'
   },
-  'TATAMOTORS.NS': {
-    name: 'Tata Motors Limited',
-    sector: 'Automotive',
-    desc: 'Tata Motors Limited is an Indian multinational automotive manufacturing company, headquartered in Mumbai. The company produces passenger cars, trucks, vans, coaches, and buses.'
+  'TMPV.NS': {
+    name: 'Tata Motors Passenger Vehicles Limited',
+    sector: 'Automotive (Passenger & EVs)',
+    desc: 'Tata Motors Passenger Vehicles Limited, a subsidiary of Tata Motors, comprises the passenger vehicles, electric vehicles (EV) business, and Jaguar Land Rover (JLR) operations, focusing on clean and premium mobility.'
+  },
+  'TMCV.NS': {
+    name: 'Tata Motors Limited (Commercial Vehicles)',
+    sector: 'Automotive (Commercial Vehicles)',
+    desc: 'Tata Motors Limited (Commercial Vehicles segment) is India\'s largest commercial vehicle manufacturer, producing a comprehensive range of trucks, buses, vans, and defense vehicles.'
   },
   'WIPRO.NS': {
     name: 'Wipro Limited',
@@ -396,7 +401,8 @@ const MOCK_BASE_PRICES: Record<string, number> = {
   'BHARTIAIRTEL.NS': 1380.10,
   'LT.NS': 3450.00,
   'ITC.NS': 435.50,
-  'TATAMOTORS.NS': 965.10,
+  'TMPV.NS': 388.20,
+  'TMCV.NS': 363.15,
   'WIPRO.NS': 468.20,
   'HCLTECH.NS': 1378.10,
   'ASIANPAINT.NS': 2890.50,
@@ -444,7 +450,58 @@ function getSeededRandom(seed: string) {
   };
 }
 
-// Generates smooth, realistic chart points using a random walk algorithm
+function getStableWebsite(symbol: string): string {
+  const clean = symbol.toUpperCase().split('.')[0];
+  if (clean === 'RELIANCE') return 'https://www.ril.com';
+  if (clean === 'TCS') return 'https://www.tcs.com';
+  if (clean === 'INFY') return 'https://www.infosys.com';
+  if (clean === 'HDFCBANK') return 'https://www.hdfcbank.com';
+  if (clean === 'ICICIBANK') return 'https://www.icicibank.com';
+  if (clean === 'SBIN') return 'https://www.sbi.co.in';
+  if (clean === 'TATAMOTORS' || clean === 'TMPV' || clean === 'TMCV') return 'https://www.tatamotors.com';
+  if (clean === 'ITC') return 'https://www.itcportal.com';
+  if (clean === 'BHARTIAIRTEL') return 'https://www.airtel.in';
+  if (clean === 'LT') return 'https://www.larsentoubro.com';
+  if (clean === 'WIPRO') return 'https://www.wipro.com';
+  if (clean === 'HCLTECH') return 'https://www.hcltech.com';
+  return `https://www.${clean.toLowerCase()}.com`;
+}
+
+function getStableHeadquarters(symbol: string): string {
+  const clean = symbol.toUpperCase().split('.')[0];
+  if (['TCS', 'RELIANCE', 'HDFCBANK', 'ICICIBANK', 'TATAMOTORS', 'TMPV', 'TMCV', 'M&M', 'LT', 'ITC', 'AXISBANK', 'JIOFIN', 'BAJFINANCE', 'BAJAJFINSV'].includes(clean)) {
+    return 'Mumbai, Maharashtra, India';
+  }
+  if (['INFY', 'WIPRO', 'HAL'].includes(clean)) {
+    return 'Bengaluru, Karnataka, India';
+  }
+  if (['HCLTECH', 'ONGC', 'NTPC', 'BHARTIAIRTEL'].includes(clean)) {
+    return 'New Delhi, Delhi, India';
+  }
+  return 'Mumbai, Maharashtra, India';
+}
+
+function getStableLeadership(symbol: string): { name: string; title: string }[] {
+  const clean = symbol.toUpperCase().split('.')[0];
+  const ceo = getStableCEOName(symbol);
+  
+  const rand1 = getSeededRandom(clean + '_cfo');
+  const rand2 = getSeededRandom(clean + '_coo');
+  
+  const firstNames = ['Rajesh', 'Sanjay', 'Arvind', 'Amit', 'Vikram', 'Rohan', 'Pradeep', 'Anil', 'Vijay', 'Sunil', 'Karan', 'Ashish', 'Manish', 'Devendra'];
+  const lastNames = ['Sharma', 'Mehta', 'Joshi', 'Gupta', 'Patel', 'Kumar', 'Singh', 'Verma', 'Iyer', 'Reddy', 'Nair', 'Shah', 'Sen', 'Das', 'Chatterjee'];
+  
+  const cfo = `${firstNames[Math.floor(rand1() * firstNames.length)]} ${lastNames[Math.floor(rand2() * lastNames.length)]}`;
+  const coo = `${firstNames[Math.floor(rand2() * firstNames.length)]} ${lastNames[Math.floor(rand1() * lastNames.length)]}`;
+  
+  return [
+    { name: ceo, title: 'Chief Executive Officer (CEO) & MD' },
+    { name: cfo, title: 'Chief Financial Officer (CFO)' },
+    { name: coo, title: 'Chief Operating Officer (COO)' }
+  ];
+}
+
+// Generates smooth, realistic chart points using a random walk algorithm with OHLC values
 export function generateMockChartData(symbol: string, range: string) {
   let pointsCount = 100;
   let intervalSec = 3600 * 24; // 1 day in seconds
@@ -465,8 +522,14 @@ export function generateMockChartData(symbol: string, range: string) {
   } else if (range === '1y') {
     pointsCount = 365;
     intervalSec = 3600 * 24;
+  } else if (range === '3y') {
+    pointsCount = 156;
+    intervalSec = 3600 * 24 * 7;
   } else if (range === '5y') {
     pointsCount = 260; // weekly data points
+    intervalSec = 3600 * 24 * 7;
+  } else if (range === 'max') {
+    pointsCount = 500;
     intervalSec = 3600 * 24 * 7;
   }
 
@@ -483,14 +546,25 @@ export function generateMockChartData(symbol: string, range: string) {
   // Generate backwards from now
   for (let i = pointsCount - 1; i >= 0; i--) {
     const time = now - i * intervalSec;
-    const changePercent = (rand() - 0.49) * volatility; // slight upward drift
-    currentPrice = currentPrice * (1 + changePercent);
+    const changePercent = (rand() - 0.485) * volatility; // slight upward drift
+    const openVal = currentPrice;
+    const closeVal = currentPrice * (1 + changePercent);
+    
+    const highVal = Math.max(openVal, closeVal) * (1 + rand() * (symbol.startsWith('^') ? 0.002 : 0.008));
+    const lowVal = Math.min(openVal, closeVal) * (1 - rand() * (symbol.startsWith('^') ? 0.002 : 0.008));
+    
+    currentPrice = closeVal; // next open is current close
+    
     const volumeBase = symbol.startsWith('^') ? 50000000 : 200000;
     const volRand = rand();
     const volume = Math.floor(volumeBase * (0.6 + volRand * 0.8));
     data.push({
       time,
-      value: parseFloat(currentPrice.toFixed(2)),
+      open: parseFloat(openVal.toFixed(2)),
+      high: parseFloat(highVal.toFixed(2)),
+      low: parseFloat(lowVal.toFixed(2)),
+      close: parseFloat(closeVal.toFixed(2)),
+      value: parseFloat(closeVal.toFixed(2)),
       volume: volume
     });
   }
@@ -506,8 +580,8 @@ export function generateMockQuote(symbol: string) {
 
   // Derive price parameters directly from the 1D chart to ensure 100% consistency!
   const chartPoints = generateMockChartData(symbol, '1d');
-  const price = chartPoints[chartPoints.length - 1].value;
-  const startPrice = chartPoints[0].value;
+  const price = chartPoints[chartPoints.length - 1].close || chartPoints[chartPoints.length - 1].value;
+  const startPrice = chartPoints[0].open || chartPoints[0].value;
   const change = price - startPrice;
   const changePercent = (change / startPrice) * 100;
   
@@ -564,7 +638,10 @@ export function generateMockQuote(symbol: string) {
     sector: info.sector,
     industry: getStableIndustry(symbol, info.sector),
     ceo: getStableCEOName(symbol),
-    longBusinessSummary: info.desc
+    longBusinessSummary: info.desc,
+    website: getStableWebsite(symbol),
+    headquarters: getStableHeadquarters(symbol),
+    leadership: getStableLeadership(symbol)
   };
 }
 
@@ -580,7 +657,8 @@ const TOP_STOCK_EXTRA_METRICS: Record<string, { industry: string; ceo: string }>
   'BHARTIAIRTEL.NS': { industry: 'Telecom Services', ceo: 'Gopal Vittal' },
   'LT.NS': { industry: 'Engineering & Construction', ceo: 'S. N. Subrahmanyan' },
   'ITC.NS': { industry: 'FMCG - Cigarettes & Food', ceo: 'Sanjiv Puri' },
-  'TATAMOTORS.NS': { industry: 'Automotive & Commercial Vehicles', ceo: 'Shailesh Chandra' },
+  'TMPV.NS': { industry: 'Passenger Vehicles & EVs', ceo: 'Shailesh Chandra' },
+  'TMCV.NS': { industry: 'Commercial Vehicles', ceo: 'Girish Wagh' },
   'WIPRO.NS': { industry: 'IT Services', ceo: 'Srinivas Pallia' },
   'HCLTECH.NS': { industry: 'IT Services', ceo: 'C Vijayakumar' },
   'ASIANPAINT.NS': { industry: 'Paints & Coatings', ceo: 'Amit Syngle' },
@@ -629,10 +707,20 @@ function getStableIndustry(symbol: string, sector: string): string {
   return sector || 'Diversified Business';
 }
 
-// Memory cache for company profiles
-const profileCache: Record<string, { sector: string; industry: string; ceo: string; desc: string }> = {};
+interface CompanyProfile {
+  sector: string;
+  industry: string;
+  ceo: string;
+  desc: string;
+  website?: string;
+  headquarters?: string;
+  leadership?: { name: string; title: string }[];
+}
 
-export async function fetchCompanyProfileFromAPI(symbol: string): Promise<{ sector: string; industry: string; ceo: string; desc: string } | null> {
+// Memory cache for company profiles
+const profileCache: Record<string, CompanyProfile> = {};
+
+export async function fetchCompanyProfileFromAPI(symbol: string): Promise<CompanyProfile | null> {
   const cleanSym = symbol.toUpperCase();
   if (profileCache[cleanSym]) return profileCache[cleanSym];
   
@@ -642,7 +730,10 @@ export async function fetchCompanyProfileFromAPI(symbol: string): Promise<{ sect
       sector: info.sector,
       industry: getStableIndustry(cleanSym, info.sector),
       ceo: getStableCEOName(cleanSym),
-      desc: info.desc
+      desc: info.desc,
+      website: getStableWebsite(cleanSym),
+      headquarters: getStableHeadquarters(cleanSym),
+      leadership: getStableLeadership(cleanSym)
     };
   }
 
@@ -651,7 +742,10 @@ export async function fetchCompanyProfileFromAPI(symbol: string): Promise<{ sect
       sector: 'Market Index',
       industry: 'Indices',
       ceo: 'N/A',
-      desc: 'Indian stock market index representing benchmark equities.'
+      desc: 'Indian stock market index representing benchmark equities.',
+      website: 'https://www.nseindia.com',
+      headquarters: 'Mumbai, Maharashtra, India',
+      leadership: [{ name: 'Ashishkumar Chauhan', title: 'Managing Director & CEO' }]
     };
   }
 
@@ -668,7 +762,10 @@ export async function fetchCompanyProfileFromAPI(symbol: string): Promise<{ sect
           sector: data.sector || 'Financial Services',
           industry: data.subindustry || getStableIndustry(cleanSym, data.sector),
           ceo: getStableCEOName(cleanSym),
-          desc: data.description
+          desc: data.description,
+          website: data.website || getStableWebsite(cleanSym),
+          headquarters: data.hq || getStableHeadquarters(cleanSym),
+          leadership: getStableLeadership(cleanSym)
         };
         profileCache[cleanSym] = profile;
         return profile;
@@ -688,11 +785,25 @@ export async function fetchCompanyProfileFromAPI(symbol: string): Promise<{ sect
       const ceoOfficer = officers.find((o: any) => o.title?.toLowerCase().includes('ceo') || o.title?.toLowerCase().includes('chief executive') || o.title?.toLowerCase().includes('managing director'));
       const ceoName = ceoOfficer ? ceoOfficer.name : null;
       
+      const leadership = officers.map((o: any) => ({
+        name: o.name,
+        title: o.title || 'Executive Officer'
+      })).slice(0, 3);
+      if (leadership.length === 0) {
+        leadership.push({ name: ceoName || getStableCEOName(cleanSym), title: 'Chief Executive Officer (CEO) & MD' });
+      }
+      
+      const hqParts = [profile.city, profile.state, profile.country].filter(Boolean);
+      const headquarters = hqParts.join(', ') || getStableHeadquarters(cleanSym);
+
       const data = {
         sector: profile.sector || 'Financial Services',
         industry: profile.industry || getStableIndustry(cleanSym, profile.sector),
         ceo: ceoName || getStableCEOName(cleanSym),
-        desc: profile.longBusinessSummary
+        desc: profile.longBusinessSummary,
+        website: profile.website || getStableWebsite(cleanSym),
+        headquarters,
+        leadership
       };
       profileCache[cleanSym] = data;
       return data;
@@ -708,11 +819,25 @@ export async function fetchCompanyProfileFromAPI(symbol: string): Promise<{ sect
         const ceoOfficer = officers.find((o: any) => o.title?.toLowerCase().includes('ceo') || o.title?.toLowerCase().includes('chief executive') || o.title?.toLowerCase().includes('managing director'));
         const ceoName = ceoOfficer ? ceoOfficer.name : null;
 
+        const leadership = officers.map((o: any) => ({
+          name: o.name,
+          title: o.title || 'Executive Officer'
+        })).slice(0, 3);
+        if (leadership.length === 0) {
+          leadership.push({ name: ceoName || getStableCEOName(cleanSym), title: 'Chief Executive Officer (CEO) & MD' });
+        }
+
+        const hqParts = [profile.city, profile.state, profile.country].filter(Boolean);
+        const headquarters = hqParts.join(', ') || getStableHeadquarters(cleanSym);
+
         const data = {
           sector: profile.sector || 'Financial Services',
           industry: profile.industry || getStableIndustry(cleanSym, profile.sector),
           ceo: ceoName || getStableCEOName(cleanSym),
-          desc: profile.longBusinessSummary
+          desc: profile.longBusinessSummary,
+          website: profile.website || getStableWebsite(cleanSym),
+          headquarters,
+          leadership
         };
         profileCache[cleanSym] = data;
         return data;
@@ -725,28 +850,46 @@ export async function fetchCompanyProfileFromAPI(symbol: string): Promise<{ sect
 }
 
 async function fetchFromSparkAPI(symbols: string[]) {
-  try {
-    const symbolsString = symbols.join(',');
-    const url = `https://query1.finance.yahoo.com/v7/finance/spark?symbols=${encodeURIComponent(symbolsString)}&range=1d&interval=5m`;
-    const response = await axios.get(url, { headers: HEADERS, timeout: 5000 });
-    
-    if (response.data?.spark?.result) {
-      return response.data.spark.result;
-    }
-  } catch (err) {
-    console.warn(`Spark Endpoint Query 1 failed, trying Query 2...`, err);
+  const chunkSize = 20;
+  const chunks: string[][] = [];
+  for (let i = 0; i < symbols.length; i += chunkSize) {
+    chunks.push(symbols.slice(i, i + chunkSize));
+  }
+
+  const allResults: any[] = [];
+
+  const promises = chunks.map(async (chunk) => {
     try {
-      const symbolsString = symbols.join(',');
-      const url = `https://query2.finance.yahoo.com/v7/finance/spark?symbols=${encodeURIComponent(symbolsString)}&range=1d&interval=5m`;
+      const symbolsString = chunk.join(',');
+      const url = `https://query1.finance.yahoo.com/v7/finance/spark?symbols=${encodeURIComponent(symbolsString)}&range=1d&interval=5m`;
       const response = await axios.get(url, { headers: HEADERS, timeout: 5000 });
       if (response.data?.spark?.result) {
         return response.data.spark.result;
       }
-    } catch (err2) {
-      console.warn(`All Spark endpoints failed`, err2);
+    } catch (err) {
+      console.warn(`Spark Endpoint Query 1 failed for chunk, trying Query 2...`, err);
+      try {
+        const symbolsString = chunk.join(',');
+        const url = `https://query2.finance.yahoo.com/v7/finance/spark?symbols=${encodeURIComponent(symbolsString)}&range=1d&interval=5m`;
+        const response = await axios.get(url, { headers: HEADERS, timeout: 5000 });
+        if (response.data?.spark?.result) {
+          return response.data.spark.result;
+        }
+      } catch (err2) {
+        console.warn(`All Spark endpoints failed for chunk`, err2);
+      }
+    }
+    return null;
+  });
+
+  const resolvedChunks = await Promise.all(promises);
+  for (const res of resolvedChunks) {
+    if (res && Array.isArray(res)) {
+      allResults.push(...res);
     }
   }
-  return null;
+
+  return allResults.length > 0 ? allResults : null;
 }
 
 async function fetchFromQuoteEndpoint(subdomain: string, symbols: string[], profileMap: Record<string, any>) {
@@ -828,12 +971,88 @@ async function fetchFromQuoteEndpoint(subdomain: string, symbols: string[], prof
           sector: profile?.sector || customMeta.sector || 'Financial Services',
           industry: profile?.industry || getStableIndustry(quote.symbol, profile?.sector || customMeta.sector || 'Financial Services'),
           ceo: profile?.ceo || getStableCEOName(quote.symbol),
-          longBusinessSummary: profile?.desc || customMeta.desc || 'No description available for this asset.'
+          longBusinessSummary: profile?.desc || customMeta.desc || 'No description available for this asset.',
+          website: profile?.website || getStableWebsite(quote.symbol),
+          headquarters: profile?.headquarters || getStableHeadquarters(quote.symbol),
+          leadership: profile?.leadership || getStableLeadership(quote.symbol)
         };
       });
     }
   }
   throw new Error('No quote results in response');
+}
+
+function buildQuoteObject(
+  symbol: string,
+  price: number,
+  prevClose: number,
+  volume: number,
+  marketCap: number,
+  profile: any
+) {
+  const change = price - prevClose;
+  const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
+  const customMeta = MOCK_STOCK_INFO[symbol] || {};
+  const rand = getSeededRandom(symbol + '_stable_metrics');
+  
+  let pe = null;
+  let eps = null;
+  let pb = null;
+  let divYield = null;
+  
+  if (!symbol.startsWith('^')) {
+    pe = parseFloat((18 + rand() * 22).toFixed(2));
+    eps = parseFloat((price / pe).toFixed(2));
+    pb = parseFloat((2 + rand() * 6).toFixed(2));
+    
+    let dy = 0.5 + rand() * 2;
+    if (['COALINDIA.NS', 'BPCL.NS', 'ONGC.NS', 'POWERGRID.NS'].includes(symbol)) {
+      dy = 4.5 + rand() * 4;
+    } else if (['ITC.NS', 'NESTLEIND.NS'].includes(symbol)) {
+      dy = 2.5 + rand() * 2.5;
+    }
+    divYield = parseFloat(dy.toFixed(2));
+  }
+
+  const sectorPE = parseFloat((20 + rand() * 12).toFixed(2));
+  const sectorPB = parseFloat((3 + rand() * 3).toFixed(2));
+  const analystRating = Math.floor(55 + rand() * 40);
+
+  const promoter = Math.floor(40 + rand() * 32);
+  const fii = Math.floor(10 + rand() * 16);
+  const dii = Math.floor(8 + rand() * 14);
+  const retail = 100 - (promoter + fii + dii);
+  const holdings = { promoter, fii, dii, retail };
+
+  return {
+    symbol,
+    shortName: cleanStockName(customMeta.name || symbol.split('.')[0]),
+    longName: cleanStockName(customMeta.name || symbol.split('.')[0]),
+    regularMarketPrice: parseFloat(price.toFixed(2)),
+    regularMarketChange: parseFloat(change.toFixed(2)),
+    regularMarketChangePercent: parseFloat(changePercent.toFixed(2)),
+    regularMarketVolume: volume || 1000000,
+    marketCap: marketCap || price * 100000000,
+    trailingPE: pe,
+    epsTrailingTwelveMonths: eps,
+    priceToBook: pb,
+    dividendYield: divYield,
+    sectorPE,
+    sectorPB,
+    analystRating,
+    holdings,
+    regularMarketDayHigh: price * (1.0 + rand() * 0.015),
+    regularMarketDayLow: price * (1.0 - rand() * 0.015),
+    fiftyTwoWeekHigh: price * 1.1,
+    fiftyTwoWeekLow: price * 0.9,
+    sector: profile?.sector || customMeta.sector || 'Financial Services',
+    industry: profile?.industry || getStableIndustry(symbol, profile?.sector || customMeta.sector || 'Financial Services'),
+    ceo: profile?.ceo || getStableCEOName(symbol),
+    longBusinessSummary: profile?.desc || customMeta.desc || 'No description available.',
+    website: profile?.website || getStableWebsite(symbol),
+    headquarters: profile?.headquarters || getStableHeadquarters(symbol),
+    leadership: profile?.leadership || getStableLeadership(symbol)
+  };
 }
 
 export async function fetchStockQuoteFromAPI(symbols: string[]): Promise<any[]> {
@@ -861,191 +1080,73 @@ export async function fetchStockQuoteFromAPI(symbols: string[]): Promise<any[]> 
     } catch (err2) {
       console.warn('Quote Endpoint Query 2 failed, trying Spark-based live resolution...', err2);
       
+      let sparkMap: Map<string, any> | null = null;
       try {
         const sparkResults = await fetchFromSparkAPI(symbols);
         if (sparkResults && sparkResults.length > 0) {
-          return sparkResults.map((item: any) => {
-            const symbol = item.symbol;
-            const meta = item.response?.[0]?.meta;
-            if (meta && meta.regularMarketPrice) {
-              const price = meta.regularMarketPrice;
-              const prevClose = meta.previousClose || meta.chartPreviousClose || price;
-              const change = price - prevClose;
-              const changePercent = (change / prevClose) * 100;
-              const customMeta = MOCK_STOCK_INFO[symbol] || {};
-              const rand = getSeededRandom(symbol + '_stable_metrics');
-              
-              let pe = null;
-              let eps = null;
-              let pb = null;
-              let divYield = null;
-              
-              if (!symbol.startsWith('^')) {
-                pe = parseFloat((18 + rand() * 22).toFixed(2));
-                eps = parseFloat((price / pe).toFixed(2));
-                pb = parseFloat((2 + rand() * 6).toFixed(2));
-                
-                let dy = 0.5 + rand() * 2;
-                if (['COALINDIA.NS', 'BPCL.NS', 'ONGC.NS', 'POWERGRID.NS'].includes(symbol)) {
-                  dy = 4.5 + rand() * 4;
-                } else if (['ITC.NS', 'NESTLEIND.NS'].includes(symbol)) {
-                  dy = 2.5 + rand() * 2.5;
-                }
-                divYield = parseFloat(dy.toFixed(2));
-              }
-
-              const sectorPE = parseFloat((20 + rand() * 12).toFixed(2));
-              const sectorPB = parseFloat((3 + rand() * 3).toFixed(2));
-              const analystRating = Math.floor(55 + rand() * 40);
-
-              const promoter = Math.floor(40 + rand() * 32);
-              const fii = Math.floor(10 + rand() * 16);
-              const dii = Math.floor(8 + rand() * 14);
-              const retail = 100 - (promoter + fii + dii);
-              const holdings = { promoter, fii, dii, retail };
-
-              const profile = profileMap[symbol];
-
-              return {
-                symbol,
-                shortName: cleanStockName(customMeta.name || symbol.split('.')[0]),
-                longName: cleanStockName(customMeta.name || symbol.split('.')[0]),
-                regularMarketPrice: parseFloat(price.toFixed(2)),
-                regularMarketChange: parseFloat(change.toFixed(2)),
-                regularMarketChangePercent: parseFloat(changePercent.toFixed(2)),
-                regularMarketVolume: meta.regularMarketVolume || 1000000,
-                marketCap: meta.marketCap || price * 100000000,
-                trailingPE: pe,
-                epsTrailingTwelveMonths: eps,
-                priceToBook: pb,
-                dividendYield: divYield,
-                sectorPE,
-                sectorPB,
-                analystRating,
-                holdings,
-                regularMarketDayHigh: price * (1.0 + rand() * 0.015),
-                regularMarketDayLow: price * (1.0 - rand() * 0.015),
-                fiftyTwoWeekHigh: price * 1.1,
-                fiftyTwoWeekLow: price * 0.9,
-                sector: profile?.sector || customMeta.sector || 'Financial Services',
-                industry: profile?.industry || getStableIndustry(symbol, profile?.sector || customMeta.sector || 'Financial Services'),
-                ceo: profile?.ceo || getStableCEOName(symbol),
-                longBusinessSummary: profile?.desc || customMeta.desc || 'No description available.'
-              };
-            }
-            throw new Error('Spark data missing');
-          });
+          sparkMap = new Map(sparkResults.map((item: any) => [item.symbol, item]));
         }
-        throw new Error('Spark resolver returned empty');
       } catch (errSpark) {
-        console.warn('Spark-based resolver failed, trying Chart-based live resolution...', errSpark);
-
-        // Try to resolve live data for each symbol via the Chart API in parallel
-        try {
-          const promises = symbols.map(async (symbol) => {
-            try {
-              const chartUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1d&interval=1d`;
-              const res = await axios.get(chartUrl, { headers: HEADERS, timeout: 4000 });
-              const meta = res.data?.chart?.result?.[0]?.meta;
-              if (meta && meta.regularMarketPrice) {
-                const price = meta.regularMarketPrice;
-                const prevClose = meta.previousClose || meta.chartPreviousClose || price;
-                const change = price - prevClose;
-                const changePercent = (change / prevClose) * 100;
-                const customMeta = MOCK_STOCK_INFO[symbol] || {};
-                const rand = getSeededRandom(symbol + '_stable_metrics');
-                
-                let pe = null;
-                let eps = null;
-                let pb = null;
-                let divYield = null;
-                
-                if (!symbol.startsWith('^')) {
-                  pe = parseFloat((18 + rand() * 22).toFixed(2));
-                  eps = parseFloat((price / pe).toFixed(2));
-                  pb = parseFloat((2 + rand() * 6).toFixed(2));
-                  
-                  let dy = 0.5 + rand() * 2;
-                  if (['COALINDIA.NS', 'BPCL.NS', 'ONGC.NS', 'POWERGRID.NS'].includes(symbol)) {
-                    dy = 4.5 + rand() * 4;
-                  } else if (['ITC.NS', 'NESTLEIND.NS'].includes(symbol)) {
-                    dy = 2.5 + rand() * 2.5;
-                  }
-                  divYield = parseFloat(dy.toFixed(2));
-                }
-
-                const sectorPE = parseFloat((20 + rand() * 12).toFixed(2));
-                const sectorPB = parseFloat((3 + rand() * 3).toFixed(2));
-                const analystRating = Math.floor(55 + rand() * 40);
-
-                const promoter = Math.floor(40 + rand() * 32);
-                const fii = Math.floor(10 + rand() * 16);
-                const dii = Math.floor(8 + rand() * 14);
-                const retail = 100 - (promoter + fii + dii);
-                const holdings = { promoter, fii, dii, retail };
-
-                const profile = profileMap[symbol];
-                
-                return {
-                  symbol,
-                  shortName: cleanStockName(customMeta.name || symbol.split('.')[0]),
-                  longName: cleanStockName(customMeta.name || symbol.split('.')[0]),
-                  regularMarketPrice: parseFloat(price.toFixed(2)),
-                  regularMarketChange: parseFloat(change.toFixed(2)),
-                  regularMarketChangePercent: parseFloat(changePercent.toFixed(2)),
-                  regularMarketVolume: meta.regularMarketVolume || 1000000,
-                  marketCap: meta.marketCap || price * 100000000,
-                  trailingPE: pe,
-                  epsTrailingTwelveMonths: eps,
-                  priceToBook: pb,
-                  dividendYield: divYield,
-                  sectorPE,
-                  sectorPB,
-                  analystRating,
-                  holdings,
-                  regularMarketDayHigh: price * (1.0 + rand() * 0.015),
-                  regularMarketDayLow: price * (1.0 - rand() * 0.015),
-                  fiftyTwoWeekHigh: price * 1.1,
-                  fiftyTwoWeekLow: price * 0.9,
-                  sector: profile?.sector || customMeta.sector || 'Financial Services',
-                  industry: profile?.industry || getStableIndustry(symbol, profile?.sector || customMeta.sector || 'Financial Services'),
-                  ceo: profile?.ceo || getStableCEOName(symbol),
-                  longBusinessSummary: profile?.desc || customMeta.desc || 'No description available.'
-                };
-              }
-              throw new Error('Chart meta missing');
-            } catch (chartErr) {
-              console.warn(`Chart-based fallback failed for ${symbol}`, chartErr);
-              const customMeta = MOCK_STOCK_INFO[symbol] || {};
-              const profile = profileMap[symbol];
-              const mockQuote = generateMockQuote(symbol);
-              return {
-                ...mockQuote,
-                sector: profile?.sector || customMeta.sector || mockQuote.sector,
-                industry: profile?.industry || getStableIndustry(symbol, profile?.sector || customMeta.sector || mockQuote.sector),
-                ceo: profile?.ceo || getStableCEOName(symbol),
-                longBusinessSummary: profile?.desc || customMeta.desc || mockQuote.longBusinessSummary
-              };
-            }
-          });
-          
-          return await Promise.all(promises);
-        } catch (err3) {
-          console.warn('Live fallback chain fully exhausted. Using local mockup fallback.', err3);
-          return symbols.map(sym => {
-            const customMeta = MOCK_STOCK_INFO[sym] || {};
-            const profile = profileMap[sym];
-            const mockQuote = generateMockQuote(sym);
-            return {
-              ...mockQuote,
-              sector: profile?.sector || customMeta.sector || mockQuote.sector,
-              industry: profile?.industry || getStableIndustry(sym, profile?.sector || customMeta.sector || mockQuote.sector),
-              ceo: profile?.ceo || getStableCEOName(sym),
-              longBusinessSummary: profile?.desc || customMeta.desc || mockQuote.longBusinessSummary
-            };
-          });
-        }
+        console.warn('Spark-based resolution failed', errSpark);
       }
+
+      const promises = symbols.map(async (symbol) => {
+        // 1. Try Spark
+        if (sparkMap) {
+          const sparkItem = sparkMap.get(symbol);
+          const sparkMeta = sparkItem?.response?.[0]?.meta;
+          if (sparkMeta && sparkMeta.regularMarketPrice) {
+            const price = sparkMeta.regularMarketPrice;
+            const prevClose = sparkMeta.previousClose || sparkMeta.chartPreviousClose || price;
+            return buildQuoteObject(
+              symbol,
+              price,
+              prevClose,
+              sparkMeta.regularMarketVolume || 1000000,
+              sparkMeta.marketCap || 0,
+              profileMap[symbol]
+            );
+          }
+        }
+
+        // 2. Try Chart
+        try {
+          const chartUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1d&interval=1d`;
+          const res = await axios.get(chartUrl, { headers: HEADERS, timeout: 4000 });
+          const chartMeta = res.data?.chart?.result?.[0]?.meta;
+          if (chartMeta && chartMeta.regularMarketPrice) {
+            const price = chartMeta.regularMarketPrice;
+            const prevClose = chartMeta.previousClose || chartMeta.chartPreviousClose || price;
+            return buildQuoteObject(
+              symbol,
+              price,
+              prevClose,
+              chartMeta.regularMarketVolume || 1000000,
+              chartMeta.marketCap || 0,
+              profileMap[symbol]
+            );
+          }
+        } catch (chartErr) {
+          console.warn(`Chart-based fallback failed for ${symbol}`, chartErr);
+        }
+
+        // 3. Try Mock
+        const customMeta = MOCK_STOCK_INFO[symbol] || {};
+        const profile = profileMap[symbol];
+        const mockQuote = generateMockQuote(symbol);
+        return {
+          ...mockQuote,
+          sector: profile?.sector || customMeta.sector || mockQuote.sector,
+          industry: profile?.industry || getStableIndustry(symbol, profile?.sector || customMeta.sector || mockQuote.sector),
+          ceo: profile?.ceo || getStableCEOName(symbol),
+          longBusinessSummary: profile?.desc || customMeta.desc || mockQuote.longBusinessSummary,
+          website: profile?.website || mockQuote.website || getStableWebsite(symbol),
+          headquarters: profile?.headquarters || mockQuote.headquarters || getStableHeadquarters(symbol),
+          leadership: profile?.leadership || mockQuote.leadership || getStableLeadership(symbol)
+        };
+      });
+
+      return await Promise.all(promises);
     }
   }
 }
@@ -1071,16 +1172,29 @@ export async function fetchStockChartFromAPI(symbol: string, range: string) {
     const chartData = response.data?.chart?.result?.[0];
     if (chartData?.timestamp && chartData?.indicators?.quote?.[0]?.close) {
       const timestamps = chartData.timestamp;
-      const closes = chartData.indicators.quote[0].close;
-      const volumes = chartData.indicators.quote[0].volume || [];
+      const quoteObj = chartData.indicators.quote[0];
+      const opens = quoteObj.open || [];
+      const highs = quoteObj.high || [];
+      const lows = quoteObj.low || [];
+      const closes = quoteObj.close;
+      const volumes = quoteObj.volume || [];
       
       const formattedData = [];
       for (let i = 0; i < timestamps.length; i++) {
         // filter out null values that Yahoo occasionally returns
         if (closes[i] !== null && closes[i] !== undefined) {
+          const closeVal = parseFloat(closes[i].toFixed(2));
+          const openVal = opens[i] !== null && opens[i] !== undefined ? parseFloat(opens[i].toFixed(2)) : closeVal;
+          const highVal = highs[i] !== null && highs[i] !== undefined ? parseFloat(highs[i].toFixed(2)) : closeVal;
+          const lowVal = lows[i] !== null && lows[i] !== undefined ? parseFloat(lows[i].toFixed(2)) : closeVal;
+
           formattedData.push({
             time: timestamps[i],
-            value: parseFloat(closes[i].toFixed(2)),
+            open: openVal,
+            high: highVal,
+            low: lowVal,
+            close: closeVal,
+            value: closeVal,
             volume: volumes[i] !== null && volumes[i] !== undefined ? volumes[i] : 0
           });
         }
@@ -1134,4 +1248,20 @@ export async function searchStocksFromAPI(query: string) {
         item.name.toLowerCase().includes(query.toLowerCase())
     ).slice(0, 8);
   }
+}
+
+export function mapToStandardSector(sector: string): string {
+  if (!sector) return 'Financials';
+  const sec = sector.toLowerCase();
+  if (sec.includes('bank') || sec.includes('financial') || sec.includes('insurance')) return 'Financials';
+  if (sec.includes('tech') || sec.includes('software') || sec.includes('it services')) return 'Information Technology';
+  if (sec.includes('consumer defensive') || sec.includes('fmcg') || sec.includes('staples') || sec.includes('goods') || sec.includes('food') || sec.includes('beverage')) return 'Consumer Staples';
+  if (sec.includes('consumer cyclical') || sec.includes('automotive') || sec.includes('discretionary') || sec.includes('retail') || sec.includes('textiles') || sec.includes('apparel')) return 'Consumer Discretionary';
+  if (sec.includes('oil') || sec.includes('gas') || sec.includes('energy') || sec.includes('petroleum')) return 'Energy';
+  if (sec.includes('industrial') || sec.includes('engineering') || sec.includes('construction') || sec.includes('capital goods')) return 'Industrials';
+  if (sec.includes('material') || sec.includes('steel') || sec.includes('metal') || sec.includes('paint') || sec.includes('cement') || sec.includes('chemical')) return 'Materials';
+  if (sec.includes('health') || sec.includes('pharma') || sec.includes('hospital') || sec.includes('medicine')) return 'Health Care';
+  if (sec.includes('telecom') || sec.includes('communication')) return 'Communication Services';
+  if (sec.includes('utility') || sec.includes('power') || sec.includes('water')) return 'Utilities';
+  return 'Financials';
 }

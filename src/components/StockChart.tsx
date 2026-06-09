@@ -1,13 +1,27 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { createChart, ColorType, UTCTimestamp, AreaSeries, LineSeries, HistogramSeries } from 'lightweight-charts';
+import { 
+  createChart, 
+  ColorType, 
+  UTCTimestamp, 
+  AreaSeries, 
+  LineSeries, 
+  HistogramSeries, 
+  CandlestickSeries 
+} from 'lightweight-charts';
 import { useStockStore } from '@/store/useStockStore';
-import axios from 'axios';
+import { apiClient as axios } from '@/lib/apiClient';
+import { AreaChart, BarChart3, Activity } from 'lucide-react';
 
 interface ChartPoint {
   time: number;
+  open?: number;
+  high?: number;
+  low?: number;
+  close?: number;
   value: number;
+  volume?: number;
 }
 
 interface StockChartProps {
@@ -23,6 +37,7 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
   const [data, setData] = useState<ChartPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [showSMA, setShowSMA] = useState(false);
+  const [chartType, setChartType] = useState<'area' | 'candlestick'>('area');
 
   // Fetch chart data on symbol or range changes
   useEffect(() => {
@@ -55,8 +70,8 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
         fontFamily: 'Inter, sans-serif',
       },
       grid: {
-        vertLines: { color: isDark ? 'rgba(31, 41, 55, 0.4)' : 'rgba(226, 232, 240, 0.6)' },
-        horzLines: { color: isDark ? 'rgba(31, 41, 55, 0.4)' : 'rgba(226, 232, 240, 0.6)' },
+        vertLines: { color: isDark ? 'rgba(30, 41, 59, 0.3)' : 'rgba(226, 232, 240, 0.4)' },
+        horzLines: { color: isDark ? 'rgba(30, 41, 59, 0.3)' : 'rgba(226, 232, 240, 0.4)' },
       },
       rightPriceScale: {
         borderVisible: false,
@@ -69,33 +84,65 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
       },
       crosshair: {
         vertLine: {
-          color: isDark ? '#475569' : '#cbd5e1',
+          color: isDark ? 'rgba(148, 163, 184, 0.4)' : 'rgba(100, 116, 139, 0.3)',
           width: 1,
           style: 3, // dashed
         },
         horzLine: {
-          color: isDark ? '#475569' : '#cbd5e1',
+          color: isDark ? 'rgba(148, 163, 184, 0.4)' : 'rgba(100, 116, 139, 0.3)',
           width: 1,
           style: 3, // dashed
         },
       },
       width: container.clientWidth,
-      height: typeof window !== 'undefined' && window.innerWidth < 640 ? 260 : 380,
+      height: typeof window !== 'undefined' && window.innerWidth < 640 ? 280 : 420,
     });
 
-    // Create Area Series
-    const strokeColor = isPositive ? '#00c853' : '#ff5252';
-    const areaSeries = chart.addSeries(AreaSeries, {
-      lineColor: strokeColor,
-      topColor: isPositive ? 'rgba(0, 200, 83, 0.15)' : 'rgba(255, 82, 82, 0.15)',
-      bottomColor: isPositive ? 'rgba(0, 200, 83, 0.0)' : 'rgba(255, 82, 82, 0.0)',
-      lineWidth: 2,
-      priceFormat: {
-        type: 'price',
-        precision: 2,
-        minMove: 0.01,
-      },
-    });
+    let mainSeries: any;
+
+    const upColor = '#10b981';
+    const downColor = '#ef4444';
+
+    if (chartType === 'candlestick') {
+      mainSeries = chart.addSeries(CandlestickSeries, {
+        upColor,
+        downColor,
+        borderUpColor: upColor,
+        borderDownColor: downColor,
+        wickUpColor: upColor,
+        wickDownColor: downColor,
+      });
+
+      const formattedCandles = data.map((pt) => ({
+        time: pt.time as UTCTimestamp,
+        open: pt.open !== undefined ? pt.open : pt.value,
+        high: pt.high !== undefined ? pt.high : pt.value,
+        low: pt.low !== undefined ? pt.low : pt.value,
+        close: pt.close !== undefined ? pt.close : pt.value,
+      }));
+
+      mainSeries.setData(formattedCandles);
+    } else {
+      const strokeColor = isPositive ? '#10b981' : '#ef4444';
+      mainSeries = chart.addSeries(AreaSeries, {
+        lineColor: strokeColor,
+        topColor: isPositive ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+        bottomColor: 'rgba(0, 0, 0, 0)',
+        lineWidth: 2,
+        priceFormat: {
+          type: 'price',
+          precision: 2,
+          minMove: 0.01,
+        },
+      });
+
+      const formattedData = data.map((pt) => ({
+        time: pt.time as UTCTimestamp,
+        value: pt.value,
+      }));
+
+      mainSeries.setData(formattedData);
+    }
 
     // Create Volume Series (Histogram)
     const volumeSeries = chart.addSeries(HistogramSeries, {
@@ -107,51 +154,43 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
 
     chart.priceScale('').applyOptions({
       scaleMargins: {
-        top: 0.8, // Volume occupies bottom 20%
+        top: 0.82, // Volume occupies bottom 18%
         bottom: 0,
       },
     });
 
-    // Format data points for lightweight-charts
-    const formattedData = data.map((pt) => ({
-      time: pt.time as UTCTimestamp,
-      value: pt.value,
-    }));
-
-    areaSeries.setData(formattedData);
-
     // Format volume data points
     const volumeData = data.map((pt, idx) => {
-      const prevVal = idx > 0 ? data[idx - 1].value : pt.value;
-      const isUp = pt.value >= prevVal;
+      const openVal = pt.open !== undefined ? pt.open : (idx > 0 ? data[idx - 1].value : pt.value);
+      const closeVal = pt.close !== undefined ? pt.close : pt.value;
+      const isUp = closeVal >= openVal;
       return {
         time: pt.time as UTCTimestamp,
-        value: (pt as any).volume || 0,
-        color: isUp ? 'rgba(16, 185, 129, 0.28)' : 'rgba(239, 68, 68, 0.28)', // profit green / loss red
+        value: pt.volume || 0,
+        color: isUp ? 'rgba(16, 185, 129, 0.18)' : 'rgba(239, 68, 68, 0.18)',
       };
     });
 
     volumeSeries.setData(volumeData);
 
     // Calculate and Overlay SMA (20-day)
+    let smaSeries: any;
     if (showSMA && data.length >= 5) {
       const smaData = [];
       for (let i = 0; i < data.length; i++) {
         if (i < 19) {
-          // Average of available prices for the initial points
           let sum = 0;
           for (let j = 0; j <= i; j++) {
-            sum += data[j].value;
+            sum += data[j].close !== undefined ? data[j].close! : data[j].value;
           }
           smaData.push({
             time: data[i].time as UTCTimestamp,
             value: parseFloat((sum / (i + 1)).toFixed(2))
           });
         } else {
-          // 20-day rolling average
           let sum = 0;
           for (let j = i - 19; j <= i; j++) {
-            sum += data[j].value;
+            sum += data[j].close !== undefined ? data[j].close! : data[j].value;
           }
           smaData.push({
             time: data[i].time as UTCTimestamp,
@@ -160,7 +199,7 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
         }
       }
 
-      const smaSeries = chart.addSeries(LineSeries, {
+      smaSeries = chart.addSeries(LineSeries, {
         color: '#6366f1', // Indigo-500
         lineWidth: 2,
         priceLineVisible: false,
@@ -196,13 +235,11 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
                 year: 'numeric',
               });
 
-          const priceData = param.seriesData.get(areaSeries);
+          const seriesData = param.seriesData.get(mainSeries);
           const volData = param.seriesData.get(volumeSeries);
-          
-          const price = priceData ? (priceData as any).value : null;
           const vol = volData ? (volData as any).value : null;
 
-          if (price !== null) {
+          if (seriesData) {
             tooltip.style.opacity = '1';
             
             const formatVal = (val: number) => {
@@ -211,15 +248,45 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
               return val.toLocaleString('en-IN');
             };
 
-            tooltip.innerHTML = `
-              <div class="space-y-1.5 p-0.5">
-                <div class="text-[9px] font-black text-text-secondary uppercase tracking-wider">${dateStr}</div>
-                <div class="flex items-center justify-between gap-6">
-                  <span class="text-text-secondary font-bold text-[10px]">Price:</span>
-                  <span class="font-extrabold text-text-primary text-[10px]">₹${price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+            let priceContent = '';
+            if (chartType === 'candlestick') {
+              const candle = seriesData as any;
+              priceContent = `
+                <div class="grid grid-cols-2 gap-x-4 gap-y-0.5 mt-1">
+                  <div class="flex justify-between gap-2 text-[10px]">
+                    <span class="text-text-secondary font-medium">Open:</span>
+                    <span class="font-bold text-text-primary">₹${candle.open.toFixed(2)}</span>
+                  </div>
+                  <div class="flex justify-between gap-2 text-[10px]">
+                    <span class="text-text-secondary font-medium">High:</span>
+                    <span class="font-bold text-profit">₹${candle.high.toFixed(2)}</span>
+                  </div>
+                  <div class="flex justify-between gap-2 text-[10px]">
+                    <span class="text-text-secondary font-medium">Low:</span>
+                    <span class="font-bold text-loss">₹${candle.low.toFixed(2)}</span>
+                  </div>
+                  <div class="flex justify-between gap-2 text-[10px]">
+                    <span class="text-text-secondary font-medium">Close:</span>
+                    <span class="font-bold text-text-primary">₹${candle.close.toFixed(2)}</span>
+                  </div>
                 </div>
+              `;
+            } else {
+              const areaPt = seriesData as any;
+              priceContent = `
+                <div class="flex items-center justify-between gap-6 mt-1">
+                  <span class="text-text-secondary font-bold text-[10px]">Price:</span>
+                  <span class="font-extrabold text-text-primary text-[10px]">₹${areaPt.value.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+              `;
+            }
+
+            tooltip.innerHTML = `
+              <div class="space-y-1 p-0.5">
+                <div class="text-[9px] font-black text-text-secondary uppercase tracking-wider">${dateStr}</div>
+                ${priceContent}
                 ${vol !== null && vol !== undefined && vol > 0 ? `
-                <div class="flex items-center justify-between gap-6">
+                <div class="flex items-center justify-between gap-6 pt-1 border-t border-border/30 mt-1">
                   <span class="text-text-secondary font-bold text-[10px]">Volume:</span>
                   <span class="font-extrabold text-text-primary text-[10px]">${formatVal(vol)}</span>
                 </div>
@@ -227,8 +294,8 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
               </div>
             `;
 
-            const tooltipWidth = 160;
-            const tooltipHeight = 65;
+            const tooltipWidth = 180;
+            const tooltipHeight = chartType === 'candlestick' ? 95 : 65;
             const left = Math.min(
               container.clientWidth - tooltipWidth - 12,
               Math.max(12, param.point.x - tooltipWidth / 2)
@@ -256,7 +323,7 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
       const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
       chart.applyOptions({ 
         width,
-        height: isMobile ? 260 : 380
+        height: isMobile ? 280 : 420
       });
       chart.timeScale().fitContent();
     });
@@ -267,11 +334,11 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
       resizeObserver.disconnect();
       chart.remove();
     };
-  }, [data, theme, isPositive, loading, range, showSMA]);
+  }, [data, theme, isPositive, loading, range, showSMA, chartType]);
 
   if (loading) {
     return (
-      <div className="w-full h-[260px] sm:h-[380px] bg-card rounded-2xl border border-border flex items-center justify-center animate-pulse">
+      <div className="w-full h-[280px] sm:h-[420px] bg-card rounded-2xl border border-border flex items-center justify-center animate-pulse">
         <div className="flex flex-col items-center gap-2">
           <div className="h-5 w-5 animate-spin rounded-full border-2 border-profit border-t-transparent" />
           <span className="text-xs text-text-secondary font-bold">Loading chart data...</span>
@@ -282,7 +349,7 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
 
   if (data.length === 0) {
     return (
-      <div className="w-full h-[260px] sm:h-[380px] bg-card rounded-2xl border border-border flex items-center justify-center text-sm text-text-secondary font-bold">
+      <div className="w-full h-[280px] sm:h-[420px] bg-card rounded-2xl border border-border flex items-center justify-center text-sm text-text-secondary font-bold">
         No chart data available for this range
       </div>
     );
@@ -290,21 +357,52 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
 
   return (
     <div className="w-full relative flex flex-col gap-3">
-      {!symbol.startsWith('^') && (
-        <div className="flex items-center gap-2 self-end text-xs font-bold text-text-secondary select-none z-10">
-          <label className="flex items-center gap-1.5 cursor-pointer hover:text-text-primary transition-colors">
-            <input
-              type="checkbox"
-              checked={showSMA}
-              onChange={(e) => setShowSMA(e.target.checked)}
-              className="rounded border-border text-profit focus:ring-profit/20 h-3.5 w-3.5"
-            />
-            <span>SMA-20 Overlay</span>
-          </label>
+      {/* Chart toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-4 select-none z-10 -mb-2">
+        <div className="flex items-center gap-1.5 p-0.5 bg-background border border-border rounded-xl">
+          <button
+            onClick={() => setChartType('area')}
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              chartType === 'area'
+                ? 'bg-card text-profit shadow-sm'
+                : 'text-text-secondary hover:text-text-primary'
+            }`}
+          >
+            <AreaChart className="h-3.5 w-3.5" />
+            <span>Line</span>
+          </button>
+          <button
+            onClick={() => setChartType('candlestick')}
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              chartType === 'candlestick'
+                ? 'bg-card text-profit shadow-sm'
+                : 'text-text-secondary hover:text-text-primary'
+            }`}
+          >
+            <BarChart3 className="h-3.5 w-3.5" />
+            <span>Candle</span>
+          </button>
         </div>
-      )}
+
+        {!symbol.startsWith('^') && (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowSMA(!showSMA)}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${
+                showSMA
+                  ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-500 shadow-sm'
+                  : 'border-border/80 text-text-secondary bg-card hover:text-text-primary hover:bg-background'
+              }`}
+            >
+              <Activity className="h-3.5 w-3.5" />
+              <span>SMA-20</span>
+            </button>
+          </div>
+        )}
+      </div>
+
       <div className="w-full relative">
-        <div ref={chartContainerRef} className="w-full h-[260px] sm:h-[380px]" />
+        <div ref={chartContainerRef} className="w-full h-[280px] sm:h-[420px]" />
         {/* Floating Custom HTML Tooltip */}
         <div
           ref={tooltipRef}
@@ -315,4 +413,3 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
     </div>
   );
 }
-

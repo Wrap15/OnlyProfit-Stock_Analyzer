@@ -33,7 +33,7 @@ interface StockInsightsProps {
 function getVolatilityLabel(symbol: string): string {
   const clean = symbol.split('.')[0].toUpperCase();
   const lowVol = ['RELIANCE', 'TCS', 'INFY', 'HDFCBANK', 'ITC', 'HINDUNILVR', 'KOTAKBANK', 'SUNPHARMA', 'LT', 'ASIANPAINT'];
-  const medVol = ['TATAMOTORS', 'SBIN', 'ICICIBANK', 'AXISBANK', 'BHARTIAIRTEL', 'M&M', 'MARUTI', 'JSWSTEEL', 'TATASTEEL', 'TITAN'];
+  const medVol = ['TATAMOTORS', 'TMPV', 'TMCV', 'SBIN', 'ICICIBANK', 'AXISBANK', 'BHARTIAIRTEL', 'M&M', 'MARUTI', 'JSWSTEEL', 'TATASTEEL', 'TITAN'];
   if (lowVol.includes(clean)) return 'Low Volatility';
   if (medVol.includes(clean)) return 'Medium Volatility';
   return 'High Volatility';

@@ -38,13 +38,13 @@ interface SearchResult {
 const PRESET_COMPARISONS = [
   { label: 'TCS vs Infosys', symbols: ['TCS.NS', 'INFY.NS'] },
   { label: 'HDFC Bank vs ICICI Bank', symbols: ['HDFCBANK.NS', 'ICICIBANK.NS'] },
-  { label: 'Reliance vs Tata Motors', symbols: ['RELIANCE.NS', 'TATAMOTORS.NS'] }
+  { label: 'Reliance vs Tata Motors PV', symbols: ['RELIANCE.NS', 'TMPV.NS'] }
 ];
 
 function getVolatility(symbol: string): { label: string; className: string } {
   const clean = symbol.split('.')[0].toUpperCase();
   const lowVol = ['RELIANCE', 'TCS', 'INFY', 'HDFCBANK', 'ITC', 'HINDUNILVR', 'KOTAKBANK', 'SUNPHARMA', 'LT', 'ASIANPAINT'];
-  const medVol = ['TATAMOTORS', 'SBIN', 'ICICIBANK', 'AXISBANK', 'BHARTIAIRTEL', 'M&M', 'MARUTI', 'JSWSTEEL', 'TATASTEEL', 'TITAN'];
+  const medVol = ['TATAMOTORS', 'TMPV', 'TMCV', 'SBIN', 'ICICIBANK', 'AXISBANK', 'BHARTIAIRTEL', 'M&M', 'MARUTI', 'JSWSTEEL', 'TATASTEEL', 'TITAN'];
   
   if (lowVol.includes(clean)) {
     return { label: 'Low Volatility', className: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' };

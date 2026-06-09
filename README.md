@@ -8,17 +8,20 @@ Built on Next.js 14, OnlyProfit implements state-of-the-art caching, robust API 
 
 ## 🚀 Key Features
 
+- **Unified Global Search (Stocks & Mutual Funds)**: Dynamically search and discover both NSE stock symbols and mutual fund schemes inside a single, unified navigation autocomplete bar. Routes to appropriate stock sidebars or mutual fund profiles with official Groww partner CDN logos.
 - **Mobile-First Responsive Layouts**: Fully responsive interface scaling from compact mobile viewports (swipeable filter pills, full-screen search overlay, touch-friendly thick range sliders) up to large desktop dashboard grids.
-- **Real-Time NSE Equity Tracking**: Monitor 30+ top National Stock Exchange (NSE) companies and indexes (Nifty 50, Sensex, Bank Nifty, Nifty IT).
+- **Real-Time NSE Equity Tracking**: Monitor 30+ top National Stock Exchange (NSE) companies and indexes (Nifty 50, Sensex, Bank Nifty, Nifty IT) with live Yahoo Finance feeds.
 - **Interactive Price Trend Charts**: Financial charting powered by `lightweight-charts`, rendering daily, monthly, yearly, and 5-year trendlines with dynamic resize adjustments.
 - **Fundamental & Valuation Analysis**: Displays core valuation metrics including P/E Ratio, EPS (TTM), Market Cap, Daily Volume, and 52-Week Highs/Lows.
+- **Tata Motors Demerger Alignment**: Fully aligned with the real-world corporate demerger by replacing the legacy delisted `TATAMOTORS` ticker with `TMPV.NS` (Tata Motors Passenger Vehicles Ltd) and `TMCV.NS` (Tata Motors Commercial Vehicles segment), returning actual live quotes.
+- **Real-Time Market Movers**: Calculates and renders actual live-market **Top Gainers**, **Top Losers**, and **Most Active Stocks** on the homepage using live Yahoo Finance feeds.
 - **Seeded Metric Consistency**: Utilizes stable seeded random values based on the symbol hash to generate mathematically consistent valuation metrics (`Price = P/E * EPS`) when Yahoo Finance's free APIs omit them for Indian shares.
 - **Association of Mutual Funds in India (AMFI) Integration**: Fetches direct-growth mutual funds (small-cap, mid-cap, flexi-cap, multi-cap, index funds) with live NAV rates.
 - **Horizontal Swipe Filter Strips**: Filters categories on mobile smoothly using horizontal swipe selectors without wrapping items or expanding headers.
 - **Interactive Return Yield Calculator**: Toggle between **Monthly SIP** and **Lumpsum** modes with thick range sliders. It generates a reactive SVG doughnut chart dividing "Invested Amount" vs "Estimated Returns".
 - **"Use in SIP" Dynamic Auto-Fill**: Clicking on any mutual fund card instantly applies that fund's 3-year cagr returns into the calculator and smoothly scrolls the user to the form.
 - **Global Loading Progress Indicator**: Displays a sleek, glowing indicator bar on the top edge of the browser window during any active API requests, backed by clean shimmer skeletons for individual elements to eliminate Cumulative Layout Shift (CLS).
-- **SEO & Structured Schema**: Dynamic metadata injection, auto-generated `sitemap.xml` for all 37 static stock paths, `robots.txt` instructions, and JSON-LD Structured Schema (WebSite & FinancialProduct types) for search indexing.
+- **SEO & Structured Schema**: Dynamic metadata injection, auto-generated `sitemap.xml` for all static stock paths, `robots.txt` instructions, and JSON-LD Structured Schema (WebSite & FinancialProduct types) for search indexing.
 
 ---
 
@@ -85,13 +88,18 @@ OnlyProfit communicates with server-side proxy routes to bypass CORS, protect re
 ### 1. Stock Quote Endpoint (`/api/stock/quote?symbols=RELIANCE.NS,TCS.NS`)
 - **Controller**: `src/app/api/stock/quote/route.ts`
 - **Source**: Yahoo Finance API.
-- **Caching**: **15 seconds** server-side in-memory cache. Resolves parallel requests for identical symbols in milliseconds and protects external APIs from throttling during dashboard polling (every 30 seconds).
-- **Fallback Chain**: Query1 -> Query2 -> Individual 1D Chart metadata query -> Local mock data generator (using seeded random values for stable and mathematically consistent P/E and EPS).
+- **Caching**: **60 seconds** server-side in-memory cache.
+- **Batch-Chunked Fallback Chain**: To comply with Yahoo's 20-symbol limit on their Spark endpoint (`/v7/finance/spark`), requests are chunked in groups of 20 symbols. A per-symbol resolution chain runs in parallel:
+  1. Try parsing from the chunked Spark API data.
+  2. If missing, make an individual live Chart query (`/v8/finance/chart/[symbol]`).
+  3. If chart fails, fall back to stable seed-based mock data.
+  This ensures individual symbol errors do not disrupt the entire batch of 60 symbols.
 
-### 2. Mutual Fund Endpoint (`/api/stock/mutualfund?category=smallcap`)
-- **Controller**: `src/app/api/stock/mutualfund/route.ts`
+### 2. Mutual Fund Detail Endpoint (`/api/stock/mutualfund/[code]`)
+- **Controller**: `src/app/api/stock/mutualfund/[code]/route.ts`
 - **Source**: AMFI public endpoint (`https://api.mfapi.in`).
-- **Caching**: **1 hour** server-side in-memory cache. Because AMFI only publishes new NAV files once daily at market close, caching responses avoids making 15 parallel external HTTP requests on every refresh.
+- **Resilience**: Features automatic retry logic and reverse code searches to translate codes into exact fund house AMC names, fetching direct-growth NAV history, and resolving CDN logos dynamically.
+- **Caching**: **1 hour** server-side in-memory cache. Because AMFI only publishes new NAV files once daily at market close, caching responses avoids making duplicate external HTTP requests on every refresh.
 
 ### 3. Historical Charts (`/api/stock/chart?symbol=RELIANCE.NS&range=1y`)
 - **Controller**: `src/app/api/stock/chart/route.ts`
@@ -200,3 +208,7 @@ Tickertape does not expose raw public API keys for their screener data. However,
 
 ## 🔒 Simulation & Education Disclaimer
 OnlyProfit is a **pure tracking and simulation platform** built for educational analysis. It does not interface with securities brokers, process real-world stock market transactions, or provide financial advice. Prices and details are retrieved from public Yahoo Finance feeds and may be delayed.
+
+
+
+

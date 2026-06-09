@@ -20,7 +20,7 @@ const BASKETS: { [key: string]: BasketConfig } = {
     type: 'Thematic',
     description: 'Invest in the pillars of India\'s industrial growth. This basket offers diversified exposure into the Tata group\'s leading enterprises spanning software, automobiles, steel, and luxury retail.',
     cagr: 19.5,
-    constituents: ['TCS.NS', 'TATAMOTORS.NS', 'TATASTEEL.NS', 'TITAN.NS'],
+    constituents: ['TCS.NS', 'TMPV.NS', 'TMCV.NS', 'TATASTEEL.NS', 'TITAN.NS'],
     color: 'from-blue-600/10 to-indigo-600/10 border-blue-500/20 text-blue-600 dark:text-blue-400',
     volatility: 'Low Volatility',
     category: 'Conglomerate'

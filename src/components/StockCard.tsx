@@ -11,7 +11,7 @@ import StockLogo from './StockLogo';
 function getVolatility(symbol: string): { label: string; className: string } {
   const clean = symbol.split('.')[0].toUpperCase();
   const lowVol = ['RELIANCE', 'TCS', 'INFY', 'HDFCBANK', 'ITC', 'HINDUNILVR', 'KOTAKBANK', 'SUNPHARMA', 'LT', 'ASIANPAINT'];
-  const medVol = ['TATAMOTORS', 'SBIN', 'ICICIBANK', 'AXISBANK', 'BHARTIAIRTEL', 'M&M', 'MARUTI', 'JSWSTEEL', 'TATASTEEL', 'TITAN'];
+  const medVol = ['TATAMOTORS', 'TMPV', 'TMCV', 'SBIN', 'ICICIBANK', 'AXISBANK', 'BHARTIAIRTEL', 'M&M', 'MARUTI', 'JSWSTEEL', 'TATASTEEL', 'TITAN'];
   const highVol = ['ADANIENT', 'ADANIPORTS', 'JIOFIN', 'BPCL', 'COALINDIA', 'ONGC', 'POWERGRID', 'ULTRACEMCO', 'GRASIM'];
 
   if (lowVol.includes(clean)) {

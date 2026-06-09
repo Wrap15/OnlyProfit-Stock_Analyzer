@@ -24,7 +24,7 @@ export default function ThematicBaskets() {
       type: 'Thematic',
       description: 'Diversified exposure into India\'s most trusted conglomerate, balancing legacy and innovation.',
       cagr: 19.5,
-      members: ['TCS.NS', 'TATAMOTORS.NS', 'TATASTEEL.NS', 'TITAN.NS'],
+      members: ['TCS.NS', 'TMPV.NS', 'TMCV.NS', 'TATASTEEL.NS', 'TITAN.NS'],
       color: 'from-blue-600/10 to-indigo-600/10 border-blue-500/20 text-blue-600 dark:text-blue-400',
       icon: <Sparkles className="h-4.5 w-4.5 text-blue-500" />
     },

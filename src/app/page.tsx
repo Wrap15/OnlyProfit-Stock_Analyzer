@@ -7,8 +7,13 @@ import StockLogo from '@/components/StockLogo';
 import { apiClient as axios } from '@/lib/apiClient';
 import MutualFundCard from '@/components/MutualFundCard';
 import ThematicBaskets from '@/components/ThematicBaskets';
-import { ArrowUpRight, ArrowDownRight, Star, Sparkles, LayoutGrid, Search, BookOpen, Activity } from 'lucide-react';
+import { 
+  ArrowUpRight, ArrowDownRight, Star, Sparkles, LayoutGrid, Search, BookOpen, Activity,
+  Landmark, Cpu, Cookie, Car, Flame, Wrench, Layers, HeartPulse, PhoneCall, Bolt
+} from 'lucide-react';
 import Link from 'next/link';
+import { MUTUAL_FUNDS } from '@/lib/mutualfunds';
+import { mapToStandardSector } from '@/lib/yahooFinance';
 
 interface MarketGainerLoser {
   symbol: string;
@@ -22,7 +27,7 @@ const MONITOR_SYMBOLS = [
   'BAJFINANCE.NS', 'BAJAJFINSV.NS', 'HDFCLIFE.NS', 'SBILIFE.NS', 'TCS.NS',
   'INFY.NS', 'WIPRO.NS', 'HCLTECH.NS', 'TECHM.NS', 'LTIM.NS', 'RELIANCE.NS',
   'ONGC.NS', 'IOC.NS', 'BPCL.NS', 'NTPC.NS', 'POWERGRID.NS', 'ADANIGREEN.NS',
-  'MARUTI.NS', 'TATAMOTORS.NS', 'M&M.NS', 'EICHERMOT.NS', 'HEROMOTOCO.NS', 'BAJAJ-AUTO.NS',
+  'MARUTI.NS', 'TMPV.NS', 'TMCV.NS', 'M&M.NS', 'EICHERMOT.NS', 'HEROMOTOCO.NS', 'BAJAJ-AUTO.NS',
   'HINDUNILVR.NS', 'ITC.NS', 'NESTLEIND.NS', 'BRITANNIA.NS', 'DABUR.NS', 'GODREJCP.NS',
   'LT.NS', 'ULTRACEMCO.NS', 'GRASIM.NS', 'AMBUJACEM.NS', 'ADANIPORTS.NS', 'SUNPHARMA.NS',
   'DRREDDY.NS', 'CIPLA.NS', 'DIVISLAB.NS', 'APOLLOHOSP.NS', 'DMART.NS', 'TITAN.NS',
@@ -31,7 +36,46 @@ const MONITOR_SYMBOLS = [
   'HINDALCO.NS'
 ];
 
-const TRENDING_SYMBOLS = ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'TRENT.NS', 'HDFCBANK.NS', 'ETERNAL.NS', 'SBIN.NS', 'TATAMOTORS.NS'];
+// Market Cap Classifications
+const LARGE_CAP_SYMBOLS = [
+  'RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'ICICIBANK.NS', 'INFY.NS', 'SBIN.NS', 'BHARTIAIRTEL.NS', 'ITC.NS', 'LT.NS', 'HINDUNILVR.NS', 'KOTAKBANK.NS', 'AXISBANK.NS', 'MARUTI.NS', 'M&M.NS', 'TATASTEEL.NS', 'SUNPHARMA.NS', 'ULTRACEMCO.NS', 'ADANIENT.NS', 'ADANIPORTS.NS', 'NESTLEIND.NS'
+];
+
+const MID_CAP_SYMBOLS = [
+  'TMPV.NS', 'TMCV.NS', 'BAJFINANCE.NS', 'BAJAJFINSV.NS', 'WIPRO.NS', 'HCLTECH.NS', 'NTPC.NS', 'POWERGRID.NS', 'COALINDIA.NS', 'ONGC.NS', 'JSWSTEEL.NS', 'HINDALCO.NS', 'GRASIM.NS', 'DMART.NS', 'TITAN.NS', 'TRENT.NS', 'EICHERMOT.NS', 'HEROMOTOCO.NS', 'BAJAJ-AUTO.NS', 'BRITANNIA.NS'
+];
+
+const SMALL_CAP_SYMBOLS = [
+  'PAYTM.NS', 'NYKAA.NS', 'ETERNAL.NS', 'RVNL.NS', 'BHEL.NS', 'IRCTC.NS', 'IRFC.NS', 'BPCL.NS', 'IOC.NS', 'DABUR.NS', 'GODREJCP.NS', 'AMBUJACEM.NS', 'DRREDDY.NS', 'CIPLA.NS', 'DIVISLAB.NS', 'APOLLOHOSP.NS', 'HDFCLIFE.NS', 'SBILIFE.NS', 'LTIM.NS', 'TECHM.NS'
+];
+
+const SECTOR_ICONS: Record<string, React.ComponentType<any>> = {
+  'Financials': Landmark,
+  'Information Technology': Cpu,
+  'Consumer Staples': Cookie,
+  'Consumer Discretionary': Car,
+  'Energy': Flame,
+  'Industrials': Wrench,
+  'Materials': Layers,
+  'Health Care': HeartPulse,
+  'Communication Services': PhoneCall,
+  'Utilities': Bolt
+};
+
+const SECTOR_COLORS: Record<string, { bg: string; text: string; border: string; glow: string }> = {
+  'Financials': { bg: 'bg-blue-500/10', text: 'text-blue-500', border: 'border-blue-500/20', glow: 'shadow-blue-500/10' },
+  'Information Technology': { bg: 'bg-green-500/10', text: 'text-green-500', border: 'border-green-500/20', glow: 'shadow-green-500/10' },
+  'Consumer Staples': { bg: 'bg-purple-500/10', text: 'text-purple-500', border: 'border-purple-500/20', glow: 'shadow-purple-500/10' },
+  'Consumer Discretionary': { bg: 'bg-amber-500/10', text: 'text-amber-500', border: 'border-amber-500/20', glow: 'shadow-amber-500/10' },
+  'Energy': { bg: 'bg-orange-500/10', text: 'text-orange-500', border: 'border-orange-500/20', glow: 'shadow-orange-500/10' },
+  'Industrials': { bg: 'bg-sky-500/10', text: 'text-sky-500', border: 'border-sky-500/20', glow: 'shadow-sky-500/10' },
+  'Materials': { bg: 'bg-rose-500/10', text: 'text-rose-500', border: 'border-rose-500/20', glow: 'shadow-rose-500/10' },
+  'Health Care': { bg: 'bg-emerald-500/10', text: 'text-emerald-500', border: 'border-emerald-500/20', glow: 'shadow-emerald-500/10' },
+  'Communication Services': { bg: 'bg-indigo-500/10', text: 'text-indigo-500', border: 'border-indigo-500/20', glow: 'shadow-indigo-500/10' },
+  'Utilities': { bg: 'bg-cyan-500/10', text: 'text-cyan-500', border: 'border-cyan-500/20', glow: 'shadow-cyan-500/10' }
+};
+
+const TRENDING_SYMBOLS = ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'TRENT.NS', 'HDFCBANK.NS', 'ETERNAL.NS', 'SBIN.NS', 'TMPV.NS', 'TMCV.NS'];
 const MOST_SEARCHED_SYMBOLS = ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'HDFCBANK.NS', 'TRENT.NS', 'ETERNAL.NS', 'IRCTC.NS', 'PAYTM.NS'];
 
 // Tickertape-style Curated Collections
@@ -52,12 +96,15 @@ export default function Home() {
   const [exploreSymbols, setExploreSymbols] = useState<string[]>(MONITOR_SYMBOLS);
   const [exploreLoading, setExploreLoading] = useState(false);
 
+  // Market cap states for movers lists
+  const [gainersCap, setGainersCap] = useState<'all' | 'large' | 'mid' | 'small'>('all');
+  const [losersCap, setLosersCap] = useState<'all' | 'large' | 'mid' | 'small'>('all');
+  const [activeCap, setActiveCap] = useState<'all' | 'large' | 'mid' | 'small'>('all');
+
   // Mutual Funds States
   const [activeMFCategory, setActiveMFCategory] = useState<string>('all');
   const [mutualFunds, setMutualFunds] = useState<any[]>([]);
   const [mfLoading, setMFLoading] = useState<boolean>(true);
-
-
 
   useEffect(() => {
     async function fetchMutualFunds() {
@@ -95,18 +142,32 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
-  // Compute gainers & losers
+  // Compute gainers & losers with cap filtering
   const sortedQuotes = [...marketQuotes].sort((a, b) => b.regularMarketChangePercent - a.regularMarketChangePercent);
-  const gainers: MarketGainerLoser[] = sortedQuotes.slice(0, 5).map(q => ({
+  
+  const filteredGainersQuotes = sortedQuotes.filter(q => {
+    if (q.symbol.startsWith('^')) return false;
+    if (gainersCap === 'large') return LARGE_CAP_SYMBOLS.includes(q.symbol);
+    if (gainersCap === 'mid') return MID_CAP_SYMBOLS.includes(q.symbol);
+    if (gainersCap === 'small') return SMALL_CAP_SYMBOLS.includes(q.symbol);
+    return true;
+  });
+  const gainers: MarketGainerLoser[] = filteredGainersQuotes.slice(0, 5).map(q => ({
     symbol: q.symbol,
     name: q.shortName,
     price: q.regularMarketPrice,
     changePercent: q.regularMarketChangePercent
   }));
   
-  // Clean filter losers and avoid indexes
-  const losers: MarketGainerLoser[] = sortedQuotes
+  const filteredLosersQuotes = sortedQuotes
     .filter(q => !q.symbol.startsWith('^'))
+    .filter(q => {
+      if (losersCap === 'large') return LARGE_CAP_SYMBOLS.includes(q.symbol);
+      if (losersCap === 'mid') return MID_CAP_SYMBOLS.includes(q.symbol);
+      if (losersCap === 'small') return SMALL_CAP_SYMBOLS.includes(q.symbol);
+      return true;
+    });
+  const losers: MarketGainerLoser[] = filteredLosersQuotes
     .slice(-5)
     .reverse()
     .map(q => ({
@@ -117,17 +178,70 @@ export default function Home() {
     }));
 
   // Compute most active stocks by trading volume
-  const mostActive = [...marketQuotes]
+  const filteredActiveQuotes = [...marketQuotes]
     .filter(q => !q.symbol.startsWith('^'))
-    .sort((a, b) => b.regularMarketVolume - a.regularMarketVolume)
-    .slice(0, 5)
-    .map(q => ({
-      symbol: q.symbol,
-      name: q.shortName,
-      price: q.regularMarketPrice,
-      changePercent: q.regularMarketChangePercent,
-      volume: q.regularMarketVolume
-    }));
+    .filter(q => {
+      if (activeCap === 'large') return LARGE_CAP_SYMBOLS.includes(q.symbol);
+      if (activeCap === 'mid') return MID_CAP_SYMBOLS.includes(q.symbol);
+      if (activeCap === 'small') return SMALL_CAP_SYMBOLS.includes(q.symbol);
+      return true;
+    })
+    .sort((a, b) => b.regularMarketVolume - a.regularMarketVolume);
+  const mostActive = filteredActiveQuotes.slice(0, 5).map(q => ({
+    symbol: q.symbol,
+    name: q.shortName,
+    price: q.regularMarketPrice,
+    changePercent: q.regularMarketChangePercent,
+    volume: q.regularMarketVolume
+  }));
+
+  // Aggregate Sector Metrics Dynamically
+  const sectorMap: Record<string, { count: number; sumPe: number; peCount: number; sumChange: number }> = {
+    'Financials': { count: 0, sumPe: 0, peCount: 0, sumChange: 0 },
+    'Information Technology': { count: 0, sumPe: 0, peCount: 0, sumChange: 0 },
+    'Consumer Staples': { count: 0, sumPe: 0, peCount: 0, sumChange: 0 },
+    'Consumer Discretionary': { count: 0, sumPe: 0, peCount: 0, sumChange: 0 },
+    'Energy': { count: 0, sumPe: 0, peCount: 0, sumChange: 0 },
+    'Industrials': { count: 0, sumPe: 0, peCount: 0, sumChange: 0 },
+    'Materials': { count: 0, sumPe: 0, peCount: 0, sumChange: 0 },
+    'Health Care': { count: 0, sumPe: 0, peCount: 0, sumChange: 0 },
+    'Communication Services': { count: 0, sumPe: 0, peCount: 0, sumChange: 0 },
+    'Utilities': { count: 0, sumPe: 0, peCount: 0, sumChange: 0 }
+  };
+
+  marketQuotes.forEach(q => {
+    if (q.symbol.startsWith('^')) return;
+    const sectorName = mapToStandardSector(q.sector);
+    if (sectorMap[sectorName]) {
+      sectorMap[sectorName].count++;
+      sectorMap[sectorName].sumChange += q.regularMarketChangePercent || 0;
+      if (q.trailingPE && q.trailingPE > 0) {
+        sectorMap[sectorName].sumPe += q.trailingPE;
+        sectorMap[sectorName].peCount++;
+      }
+    }
+  });
+
+  const sectorsData = Object.keys(sectorMap).map(key => {
+    const val = sectorMap[key];
+    const avgChange = val.count > 0 ? val.sumChange / val.count : 0;
+    const avgPe = val.peCount > 0 ? val.sumPe / val.peCount : 22.5;
+    return {
+      name: key,
+      count: val.count,
+      changePercent: avgChange,
+      pe: avgPe
+    };
+  });
+
+  const handleSectorClick = (sectorName: string) => {
+    setActiveTab('explore');
+    setSearchFilter(sectorName);
+    const exploreEl = document.getElementById('explore-search-input');
+    if (exploreEl) {
+      exploreEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
 
   const formatVolume = (num: number) => {
     if (!num) return '0';
@@ -155,6 +269,21 @@ export default function Home() {
       return;
     }
 
+    // Check if the search filter is exactly one of the standard sectors
+    const isSectorFilter = Object.keys(SECTOR_ICONS).some(
+      s => s.toLowerCase() === searchFilter.toLowerCase()
+    );
+
+    if (isSectorFilter) {
+      const filtered = MONITOR_SYMBOLS.filter(sym => {
+        const quote = marketQuotes.find(q => q.symbol === sym);
+        const sector = quote?.sector || 'Financial Services';
+        return mapToStandardSector(sector).toLowerCase() === searchFilter.toLowerCase();
+      });
+      setExploreSymbols(filtered);
+      return;
+    }
+
     setExploreLoading(true);
     const delayDebounce = setTimeout(async () => {
       try {
@@ -170,7 +299,7 @@ export default function Home() {
     }, 300);
 
     return () => clearTimeout(delayDebounce);
-  }, [searchFilter, activeCollection, activeTab]);
+  }, [searchFilter, activeCollection, activeTab, marketQuotes]);
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 transition-colors duration-300">
@@ -211,16 +340,22 @@ export default function Home() {
                 </button>
               </div>
               <div className="flex flex-wrap gap-2.5">
-                {recentSearches.map((sym) => (
-                  <Link 
-                    key={sym} 
-                    href={`/stock/${sym}`}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-background border border-border hover:border-profit/30 hover:bg-card hover-lift transition-all"
-                  >
-                    <StockLogo symbol={sym} size="sm" />
-                    <span className="text-xs font-bold text-text-primary">{sym.split('.')[0]}</span>
-                  </Link>
-                ))}
+                {recentSearches.map((sym) => {
+                  const isMf = /^\d+$/.test(sym);
+                  const mf = isMf ? MUTUAL_FUNDS.find(f => f.code === sym) : null;
+                  const displayName = mf ? mf.name.replace(' - Growth', '').replace(' Fund', '') : sym.split('.')[0];
+                  const href = isMf ? `/mutualfund/${sym}` : `/stock/${sym}`;
+                  return (
+                    <Link 
+                      key={sym} 
+                      href={href}
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-background border border-border hover:border-profit/30 hover:bg-card hover-lift transition-all"
+                    >
+                      <StockLogo symbol={sym} size="sm" name={displayName} />
+                      <span className="text-xs font-bold text-text-primary">{displayName}</span>
+                    </Link>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -329,6 +464,7 @@ export default function Home() {
                     <Search className="h-4 w-4 text-text-secondary" />
                   </div>
                   <input
+                    id="explore-search-input"
                     type="text"
                     placeholder="Search explore list..."
                     value={searchFilter}
@@ -379,6 +515,70 @@ export default function Home() {
             </div>
           )}
 
+          {/* Market Sectors Widget */}
+          <div className="rounded-2xl border border-border bg-card p-5 shadow-soft dark:shadow-soft-dark mt-6 animate-fade-in">
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-border/50">
+              <div>
+                <h3 className="font-extrabold text-sm text-text-primary tracking-tight">
+                  Market Sectors
+                </h3>
+                <p className="text-[10px] text-text-secondary font-medium mt-0.5">
+                  Analyze and filter performance across core stock market sectors
+                </p>
+              </div>
+              <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider bg-background px-2 py-1 rounded border border-border">
+                {sectorsData.length} Sectors
+              </span>
+            </div>
+
+            {loading ? (
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5 py-2">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(i => (
+                  <div key={i} className="h-24 rounded-xl animate-shimmer border border-border bg-card" />
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5">
+                {sectorsData.map(sector => {
+                  const IconComponent = SECTOR_ICONS[sector.name] || Landmark;
+                  const colorConfig = SECTOR_COLORS[sector.name] || { bg: 'bg-blue-500/10', text: 'text-blue-500', border: 'border-blue-500/20', glow: 'shadow-blue-500/10' };
+                  const isPositive = sector.changePercent >= 0;
+                  
+                  return (
+                    <button
+                      key={sector.name}
+                      onClick={() => handleSectorClick(sector.name)}
+                      className="flex flex-col items-start p-3 rounded-xl border border-border/60 bg-background hover:bg-card hover:border-profit/20 hover:shadow-premium dark:hover:shadow-premium-dark active:scale-[0.98] transition-all duration-200 text-left group overflow-hidden relative"
+                    >
+                      {/* Icon */}
+                      <div className={`flex h-7 w-7 items-center justify-center rounded-lg ${colorConfig.bg} ${colorConfig.text} border ${colorConfig.border} mb-3.5`}>
+                        <IconComponent className="h-4 w-4" />
+                      </div>
+
+                      {/* Name */}
+                      <div className="text-[11px] font-extrabold text-text-primary leading-tight line-clamp-2 min-h-[2rem]">
+                        {sector.name}
+                      </div>
+
+                      {/* Stock Count */}
+                      <div className="text-[9px] text-text-secondary font-semibold mt-1">
+                        {sector.count} {sector.count === 1 ? 'stock' : 'stocks'}
+                      </div>
+
+                      {/* Metrics Footer */}
+                      <div className="flex items-center justify-between w-full mt-3 pt-2 border-t border-border/40 text-[9px] font-extrabold">
+                        <span className="text-text-secondary">P/E {sector.pe.toFixed(1)}</span>
+                        <span className={isPositive ? 'text-profit' : 'text-loss'}>
+                          {isPositive ? '+' : ''}{sector.changePercent.toFixed(1)}%
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
         </div>
 
         {/* Right Column: Gainers, Losers & Most Active (Grid Column Span 1) */}
@@ -386,7 +586,7 @@ export default function Home() {
           
           {/* Top Gainers Card */}
           <div className="rounded-2xl border border-border bg-card p-5 shadow-soft dark:shadow-soft-dark">
-            <div className="flex items-center justify-between mb-4 pb-3 border-b border-border/50">
+            <div className="flex items-center justify-between mb-3 pb-3 border-b border-border/55">
               <div className="flex items-center gap-2">
                 <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-profit/10 text-profit">
                   <ArrowUpRight className="h-4 w-4" />
@@ -398,6 +598,28 @@ export default function Home() {
               <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">
                 NSE
               </span>
+            </div>
+
+            {/* Market Cap Filter Pills */}
+            <div className="flex gap-1 mb-4 p-0.5 bg-background border border-border/60 rounded-xl overflow-x-auto scrollbar-none">
+              {[
+                { id: 'all', label: 'All' },
+                { id: 'large', label: 'Large Cap' },
+                { id: 'mid', label: 'Mid Cap' },
+                { id: 'small', label: 'Small Cap' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setGainersCap(tab.id as any)}
+                  className={`flex-1 py-1 rounded-lg text-[9px] font-extrabold tracking-tight shrink-0 transition-all duration-200 ${
+                    gainersCap === tab.id
+                      ? 'bg-card text-text-primary shadow-sm border border-border/60'
+                      : 'text-text-secondary hover:text-text-primary border border-transparent'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
 
             {loading ? (
@@ -415,7 +637,7 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-            ) : (
+            ) : gainers.length > 0 ? (
               <div className="space-y-1 animate-fade-in">
                 {gainers.map((stock) => (
                   <Link
@@ -445,12 +667,16 @@ export default function Home() {
                   </Link>
                 ))}
               </div>
+            ) : (
+              <div className="text-center py-6 text-xs text-text-secondary font-bold">
+                No gainers found in this category
+              </div>
             )}
           </div>
 
           {/* Top Losers Card */}
           <div className="rounded-2xl border border-border bg-card p-5 shadow-soft dark:shadow-soft-dark">
-            <div className="flex items-center justify-between mb-4 pb-3 border-b border-border/50">
+            <div className="flex items-center justify-between mb-3 pb-3 border-b border-border/55">
               <div className="flex items-center gap-2">
                 <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-loss/10 text-loss">
                   <ArrowDownRight className="h-4 w-4" />
@@ -462,6 +688,28 @@ export default function Home() {
               <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">
                 NSE
               </span>
+            </div>
+
+            {/* Market Cap Filter Pills */}
+            <div className="flex gap-1 mb-4 p-0.5 bg-background border border-border/60 rounded-xl overflow-x-auto scrollbar-none">
+              {[
+                { id: 'all', label: 'All' },
+                { id: 'large', label: 'Large Cap' },
+                { id: 'mid', label: 'Mid Cap' },
+                { id: 'small', label: 'Small Cap' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setLosersCap(tab.id as any)}
+                  className={`flex-1 py-1 rounded-lg text-[9px] font-extrabold tracking-tight shrink-0 transition-all duration-200 ${
+                    losersCap === tab.id
+                      ? 'bg-card text-text-primary shadow-sm border border-border/60'
+                      : 'text-text-secondary hover:text-text-primary border border-transparent'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
 
             {loading ? (
@@ -479,7 +727,7 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-            ) : (
+            ) : losers.length > 0 ? (
               <div className="space-y-1 animate-fade-in">
                 {losers.map((stock) => (
                   <Link
@@ -509,12 +757,16 @@ export default function Home() {
                   </Link>
                 ))}
               </div>
+            ) : (
+              <div className="text-center py-6 text-xs text-text-secondary font-bold">
+                No losers found in this category
+              </div>
             )}
           </div>
 
           {/* Most Active Stocks Card */}
           <div className="rounded-2xl border border-border bg-card p-5 shadow-soft dark:shadow-soft-dark">
-            <div className="flex items-center justify-between mb-4 pb-3 border-b border-border/50">
+            <div className="flex items-center justify-between mb-3 pb-3 border-b border-border/55">
               <div className="flex items-center gap-2">
                 <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-500">
                   <Activity className="h-4 w-4" />
@@ -526,6 +778,28 @@ export default function Home() {
               <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">
                 Volume
               </span>
+            </div>
+
+            {/* Market Cap Filter Pills */}
+            <div className="flex gap-1 mb-4 p-0.5 bg-background border border-border/60 rounded-xl overflow-x-auto scrollbar-none">
+              {[
+                { id: 'all', label: 'All' },
+                { id: 'large', label: 'Large Cap' },
+                { id: 'mid', label: 'Mid Cap' },
+                { id: 'small', label: 'Small Cap' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveCap(tab.id as any)}
+                  className={`flex-1 py-1 rounded-lg text-[9px] font-extrabold tracking-tight shrink-0 transition-all duration-200 ${
+                    activeCap === tab.id
+                      ? 'bg-card text-text-primary shadow-sm border border-border/60'
+                      : 'text-text-secondary hover:text-text-primary border border-transparent'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
 
             {loading ? (
@@ -543,7 +817,7 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-            ) : (
+            ) : mostActive.length > 0 ? (
               <div className="space-y-1 animate-fade-in">
                 {mostActive.map((stock) => {
                   const isStockPositive = stock.changePercent >= 0;
@@ -575,6 +849,10 @@ export default function Home() {
                     </Link>
                   );
                 })}
+              </div>
+            ) : (
+              <div className="text-center py-6 text-xs text-text-secondary font-bold">
+                No active stocks found in this category
               </div>
             )}
           </div>

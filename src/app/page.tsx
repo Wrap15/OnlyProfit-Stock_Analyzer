@@ -14,6 +14,7 @@ import {
 import Link from 'next/link';
 import { MUTUAL_FUNDS } from '@/lib/mutualfunds';
 import { mapToStandardSector, MOCK_STOCK_INFO } from '@/lib/yahooFinance';
+import { isIndianMarketOpen } from '@/lib/marketHours';
 
 interface MarketGainerLoser {
   symbol: string;
@@ -211,6 +212,15 @@ export default function Home() {
     }
 
     fetchMarketData();
+
+    // Poll for fresh market quotes every 15 seconds during market hours
+    const pollInterval = setInterval(() => {
+      if (isIndianMarketOpen()) {
+        fetchMarketData();
+      }
+    }, 15000);
+
+    return () => clearInterval(pollInterval);
   }, []);
 
   const hasQuotes = marketQuotes.length > 0;
@@ -220,6 +230,9 @@ export default function Home() {
     if (loading || !hasQuotes) return;
 
     const interval = setInterval(() => {
+      // Do not fluctuate prices client-side when the market is closed
+      if (!isIndianMarketOpen()) return;
+
       setMarketQuotes(prev => {
         if (prev.length === 0) return prev;
         return prev.map(q => {

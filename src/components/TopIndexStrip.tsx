@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { apiClient as axios } from '@/lib/apiClient';
+import { isIndianMarketOpen } from '@/lib/marketHours';
 import IndexCard from './IndexCard';
 
 interface IndexData {
@@ -76,8 +77,12 @@ export default function TopIndexStrip() {
     }
 
     fetchIndexData();
-    // Poll every 30 seconds for live data sync
-    const interval = setInterval(fetchIndexData, 30000);
+    // Poll every 30 seconds for live data sync during market hours
+    const interval = setInterval(() => {
+      if (isIndianMarketOpen()) {
+        fetchIndexData();
+      }
+    }, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -86,6 +91,9 @@ export default function TopIndexStrip() {
     if (!hasLoaded) return;
 
     const interval = setInterval(() => {
+      // Do not fluctuate prices client-side when the market is closed
+      if (!isIndianMarketOpen()) return;
+
       setIndices(prev => {
         if (prev.length === 0) return prev;
         return prev.map(ind => {

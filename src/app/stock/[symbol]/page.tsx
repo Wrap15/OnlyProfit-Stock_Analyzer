@@ -6,10 +6,11 @@ import { useStockStore } from '@/store/useStockStore';
 import { 
   Star, ChevronLeft, Calendar, 
   GitCompare, Building2, Share2, Bell, Clock, 
-  ArrowUpRight, Sparkles, Globe, MapPin, Users, 
+  Sparkles, Globe, MapPin, Users, 
   Info, CheckCircle, Copy, Send
 } from 'lucide-react';
 import { apiClient as axios } from '@/lib/apiClient';
+import { isIndianMarketOpen } from '@/lib/marketHours';
 import dynamic from 'next/dynamic';
 import StockLogo from '@/components/StockLogo';
 
@@ -159,9 +160,9 @@ export default function StockDetailPage() {
   useEffect(() => {
     if (!symbol) return;
 
-    async function fetchQuoteData() {
+    async function fetchQuoteData(showLoadingState = true) {
       try {
-        setLoading(true);
+        if (showLoadingState) setLoading(true);
         const res = await axios.get(`/api/stock/quote?symbols=${symbol}`);
         if (res.data && res.data.length > 0) {
           setQuote(res.data[0]);
@@ -169,11 +170,20 @@ export default function StockDetailPage() {
       } catch (err) {
         console.error(`Failed to fetch details for ${symbol}`, err);
       } finally {
-        setLoading(false);
+        if (showLoadingState) setLoading(false);
       }
     }
 
-    fetchQuoteData();
+    fetchQuoteData(true);
+
+    // Poll for fresh stock details every 10 seconds during market hours
+    const pollInterval = setInterval(() => {
+      if (isIndianMarketOpen()) {
+        fetchQuoteData(false);
+      }
+    }, 10000);
+
+    return () => clearInterval(pollInterval);
   }, [symbol]);
 
   // Real-time stock price micro-fluctuations (every 2.5 seconds)
@@ -181,6 +191,9 @@ export default function StockDetailPage() {
     if (loading) return;
     
     const interval = setInterval(() => {
+      // Do not fluctuate prices client-side when the market is closed
+      if (!isIndianMarketOpen()) return;
+
       setQuote(prev => {
         if (!prev) return null;
         const prevClose = prev.regularMarketPrice - prev.regularMarketChange;
@@ -491,7 +504,6 @@ export default function StockDetailPage() {
   const eventsList = getMockEvents();
 
   // Recommendation Card suggestions
-  const recommendation = getMockRecommendation(quote.sector);
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 transition-colors duration-300 animate-fade-in space-y-6">
@@ -1481,21 +1493,50 @@ export default function StockDetailPage() {
 
 
           {/* Recommendation card */}
-          {recommendation && (
-            <div className="bg-gradient-to-br from-profit/15 via-transparent to-transparent border border-profit/20 rounded-2xl p-5 shadow-soft dark:shadow-soft-dark space-y-3 relative overflow-hidden">
+          {peerQuotes.length > 0 && (
+            <div className="bg-gradient-to-br from-profit/10 via-card to-card border border-border/80 rounded-2xl p-5 shadow-soft dark:shadow-soft-dark space-y-4 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-24 h-24 bg-profit/5 rounded-full filter blur-xl pointer-events-none" />
-              <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-profit/10 text-profit border border-profit/20 select-none">
-                Recommendation
-              </span>
-              <h4 className="text-sm font-black text-text-primary pt-1">{recommendation.title}</h4>
-              <p className="text-[10px] text-text-secondary font-medium leading-relaxed">{recommendation.desc}</p>
-              <button
-                onClick={() => router.push(`/stock/${recommendation.symbol}`)}
-                className="mt-2 text-xs font-black text-profit hover:text-profit/80 inline-flex items-center gap-1 group"
-              >
-                <span>Analyze {recommendation.symbol.split('.')[0]}</span>
-                <ArrowUpRight className="h-3.5 w-3.5 transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-              </button>
+              
+              <div className="flex items-center justify-between pb-2 border-b border-border/40">
+                <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-profit/10 text-profit border border-profit/25 select-none">
+                  Sector Recommendations
+                </span>
+                <span className="text-[9px] text-text-secondary font-bold uppercase">{quote.sector}</span>
+              </div>
+              
+              <div className="space-y-3">
+                {peerQuotes.slice(0, 3).map((peer) => {
+                  const isPosVal = peer.regularMarketChangePercent >= 0;
+                  return (
+                    <div 
+                      key={peer.symbol} 
+                      onClick={() => router.push(`/stock/${peer.symbol}`)}
+                      className="flex items-center justify-between cursor-pointer group p-1.5 rounded-xl hover:bg-background/80 transition-all border border-transparent hover:border-border/30"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <StockLogo symbol={peer.symbol} size="sm" />
+                        <div className="min-w-0">
+                          <span className="text-xs font-black text-text-primary group-hover:text-profit transition-colors truncate block max-w-[120px]">
+                            {peer.shortName || peer.longName}
+                          </span>
+                          <span className="text-[9px] text-text-secondary font-black uppercase">
+                            {peer.symbol.split('.')[0]}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="text-xs font-black text-text-primary block">
+                          ₹{peer.regularMarketPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </span>
+                        <span className={`text-[9px] font-black inline-flex items-center gap-0.5 ${isPosVal ? 'text-profit' : 'text-loss'}`}>
+                          {isPosVal ? '+' : ''}{peer.regularMarketChangePercent.toFixed(2)}%
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 
@@ -2000,28 +2041,7 @@ function getMockEvents() {
   ];
 }
 
-function getMockRecommendation(sector: string) {
-  // Return a solid comparative recommendation card based on sector
-  if (sector.toLowerCase().includes('it') || sector.toLowerCase().includes('software')) {
-    return {
-      symbol: 'INFY.NS',
-      title: 'Infosys (INFY) value buy',
-      desc: 'IT sector valuations are consolidatng. Infosys trading at 24x trailing P/E presents a stable entry relative to historical IT averages.'
-    };
-  } else if (sector.toLowerCase().includes('bank') || sector.toLowerCase().includes('financial')) {
-    return {
-      symbol: 'ICICIBANK.NS',
-      title: 'ICICI Bank (ICICIBANK) growth lead',
-      desc: 'Demonstrating superior net interest margins (NIM) and low NPA growth relative to banking peers. Attractive entry indicator.'
-    };
-  } else {
-    return {
-      symbol: 'TCS.NS',
-      title: 'TCS (TCS) defensive play',
-      desc: 'High capital return stock with steady dividend payouts. Solid defense play against macro headwinds and volatility.'
-    };
-  }
-}
+// Recommendation helpers removed in favor of dynamic peerQuotes recommendation list.
 
 const tabs = [
   { id: 'overview', label: 'Overview' },

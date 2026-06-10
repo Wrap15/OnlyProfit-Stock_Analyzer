@@ -13,6 +13,7 @@ export const MUTUAL_FUNDS: SchemeInfo[] = [
   { code: '118778', name: 'Nippon India Small Cap Fund - Growth', category: 'smallcap', categoryLabel: 'Small Cap', baseNav: 195.04, y1Return: 38.6, y3Return: 29.4 },
   { code: '125497', name: 'SBI Small Cap Fund - Growth', category: 'smallcap', categoryLabel: 'Small Cap', baseNav: 194.75, y1Return: 28.2, y3Return: 23.5 },
   { code: '130503', name: 'HDFC Small Cap Fund - Growth', category: 'smallcap', categoryLabel: 'Small Cap', baseNav: 152.67, y1Return: 34.2, y3Return: 26.8 },
+  { code: '147946', name: 'Bandhan Small Cap Fund - Direct Plan - Growth', category: 'smallcap', categoryLabel: 'Small Cap', baseNav: 41.50, y1Return: 39.2, y3Return: 28.5 },
   
   // Flexi Cap
   { code: '122639', name: 'Parag Parikh Flexi Cap Fund - Growth', category: 'flexicap', categoryLabel: 'Flexi Cap', baseNav: 89.15, y1Return: 24.5, y3Return: 21.2 },
@@ -23,6 +24,7 @@ export const MUTUAL_FUNDS: SchemeInfo[] = [
   { code: '118650', name: 'Nippon India Multi Cap Fund - Growth', category: 'multicap', categoryLabel: 'Multi Cap', baseNav: 323.74, y1Return: 29.6, y3Return: 23.8 },
   { code: '120334', name: 'ICICI Prudential Multi Asset Fund - Growth', category: 'multicap', categoryLabel: 'Multi Cap', baseNav: 877.92, y1Return: 23.2, y3Return: 19.8 },
   { code: '120823', name: 'Quant Active Fund - Growth', category: 'multicap', categoryLabel: 'Multi Cap', baseNav: 705.43, y1Return: 32.8, y3Return: 26.2 },
+  { code: '149185', name: 'Kotak Multicap Fund - Growth', category: 'multicap', categoryLabel: 'Multi Cap', baseNav: 20.46, y1Return: 36.2, y3Return: 22.5 },
   
   // Mid Cap
   { code: '118989', name: 'HDFC Mid-Cap Opportunities Fund - Growth', category: 'midcap', categoryLabel: 'Mid Cap', baseNav: 220.33, y1Return: 35.4, y3Return: 27.2 },

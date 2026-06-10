@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { apiClient as axios } from '@/lib/apiClient';
-import MiniSparkline from './MiniSparkline';
-import Link from 'next/link';
+import IndexCard from './IndexCard';
 
 interface IndexData {
   symbol: string;
@@ -34,6 +33,7 @@ export default function TopIndexStrip() {
       loading: true
     }))
   );
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   useEffect(() => {
     async function fetchIndexData() {
@@ -69,16 +69,45 @@ export default function TopIndexStrip() {
         });
 
         setIndices(updated);
+        setHasLoaded(true);
       } catch (err) {
         console.error('Failed to fetch indices data', err);
       }
     }
 
     fetchIndexData();
-    // Poll every 30 seconds for live feeling
+    // Poll every 30 seconds for live data sync
     const interval = setInterval(fetchIndexData, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  // Real-time client-side fluctuations for indices (every 2.5 seconds)
+  useEffect(() => {
+    if (!hasLoaded) return;
+
+    const interval = setInterval(() => {
+      setIndices(prev => {
+        if (prev.length === 0) return prev;
+        return prev.map(ind => {
+          // Low volatility fluctuation for indices (max ±0.015%)
+          const pct = (Math.random() - 0.495) * 0.0003; 
+          const newPrice = ind.price * (1 + pct);
+          const basePrice = ind.price - ind.change;
+          const newChange = newPrice - basePrice;
+          const newChangePercent = basePrice > 0 ? (newChange / basePrice) * 100 : 0;
+
+          return {
+            ...ind,
+            price: parseFloat(newPrice.toFixed(2)),
+            change: parseFloat(newChange.toFixed(2)),
+            changePercent: parseFloat(newChangePercent.toFixed(2))
+          };
+        });
+      });
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [hasLoaded]);
 
   return (
     <div className="sticky top-16 z-40 w-full border-b border-border bg-card/75 backdrop-blur-md transition-all select-none">
@@ -89,59 +118,18 @@ export default function TopIndexStrip() {
         
         <div className="w-full overflow-x-auto scrollbar-none py-2.5 px-4">
           <div className="flex items-center justify-start gap-3 md:justify-around min-w-max pr-6 sm:pr-0">
-            {indices.map((index) => {
-              const isPositive = index.changePercent >= 0;
-              return (
-                <Link
-                  key={index.symbol}
-                  href={`/stock/${index.symbol}`}
-                  className="flex items-center gap-3 rounded-xl border border-border/50 bg-background/50 hover:bg-background hover:border-profit/10 hover:shadow-soft p-2.5 px-4 transition-all duration-200 hover:scale-[1.02] cursor-pointer animate-fade-in"
-                >
-                  {index.loading ? (
-                    <div className="flex items-center gap-3">
-                      <div className="w-16 h-4 bg-border/40 rounded animate-pulse" />
-                      <div className="w-12 h-4 bg-border/40 rounded animate-pulse" />
-                    </div>
-                  ) : (
-                    <>
-                      <div className="flex flex-col">
-                        <span className="text-[10px] sm:text-[11px] font-extrabold text-text-secondary tracking-wide uppercase">
-                          {index.name}
-                        </span>
-                        <span className="text-xs sm:text-sm font-extrabold text-text-primary mt-0.5">
-                          {index.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </span>
-                      </div>
-
-                      <div className="flex flex-col items-end">
-                        <span
-                          className={`text-xs font-bold ${
-                            isPositive ? 'text-profit' : 'text-loss'
-                          }`}
-                        >
-                          {isPositive ? '+' : ''}
-                          {index.changePercent.toFixed(2)}%
-                        </span>
-                        <span
-                          className={`text-[9px] sm:text-[10px] font-bold ${
-                            isPositive ? 'text-profit/85' : 'text-loss/85'
-                          }`}
-                        >
-                          {isPositive ? '+' : ''}
-                          {index.change.toFixed(2)}
-                        </span>
-                      </div>
-
-                      {index.chart.length > 0 && (
-                        <div className="h-6 w-16 opacity-80 hidden sm:block">
-                          <MiniSparkline data={index.chart} isPositive={isPositive} width={64} height={24} />
-                        </div>
-                      )}
-                    </>
-                  )}
-                </Link>
-              );
-            })}
+            {indices.map((index) => (
+              <IndexCard
+                key={index.symbol}
+                symbol={index.symbol}
+                name={index.name}
+                price={index.price}
+                change={index.change}
+                changePercent={index.changePercent}
+                chart={index.chart}
+                loading={index.loading}
+              />
+            ))}
           </div>
         </div>
       </div>

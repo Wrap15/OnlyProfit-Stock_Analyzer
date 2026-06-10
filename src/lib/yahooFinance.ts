@@ -1063,7 +1063,7 @@ export const MOCK_STOCK_INFO: Record<string, { name: string; sector: string; des
 
 const MOCK_BASE_PRICES: Record<string, number> = {
   // Financials
-  'HDFCBANK.NS': 1485.50,
+  'HDFCBANK.NS': 738.05,
   'ICICIBANK.NS': 1115.25,
   'SBIN.NS': 832.90,
   'KOTAKBANK.NS': 1718.00,

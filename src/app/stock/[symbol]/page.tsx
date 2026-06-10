@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useStockStore } from '@/store/useStockStore';
 import { 
@@ -92,6 +92,9 @@ export default function StockDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeRange, setActiveRange] = useState('1d');
   
+  const [priceFlash, setPriceFlash] = useState<'up' | 'down' | null>(null);
+  const prevPriceRef = useRef<number>(0);
+  
   const [activeTab, setActiveTab] = useState<'overview' | 'financials' | 'fundamentals' | 'technicals' | 'shareholding' | 'peers' | 'news' | 'profile'>('overview');
   
   // Financial Widget states
@@ -172,6 +175,45 @@ export default function StockDetailPage() {
 
     fetchQuoteData();
   }, [symbol]);
+
+  // Real-time stock price micro-fluctuations (every 2.5 seconds)
+  useEffect(() => {
+    if (loading) return;
+    
+    const interval = setInterval(() => {
+      setQuote(prev => {
+        if (!prev) return null;
+        const prevClose = prev.regularMarketPrice - prev.regularMarketChange;
+        // Fluctuation percentage (between -0.04% and +0.04%)
+        const pct = (Math.random() - 0.495) * 0.0008; 
+        const newPrice = prev.regularMarketPrice * (1 + pct);
+        const newChange = newPrice - prevClose;
+        const newChangePercent = prevClose > 0 ? (newChange / prevClose) * 100 : 0;
+        
+        return {
+          ...prev,
+          regularMarketPrice: parseFloat(newPrice.toFixed(2)),
+          regularMarketChange: parseFloat(newChange.toFixed(2)),
+          regularMarketChangePercent: parseFloat(newChangePercent.toFixed(2))
+        };
+      });
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [loading]);
+
+  // Price movement flash listener
+  useEffect(() => {
+    if (!quote?.regularMarketPrice) return;
+    if (prevPriceRef.current && prevPriceRef.current !== quote.regularMarketPrice) {
+      const dir = quote.regularMarketPrice > prevPriceRef.current ? 'up' : 'down';
+      setPriceFlash(dir);
+      const timer = setTimeout(() => setPriceFlash(null), 800);
+      prevPriceRef.current = quote.regularMarketPrice;
+      return () => clearTimeout(timer);
+    }
+    prevPriceRef.current = quote.regularMarketPrice;
+  }, [quote?.regularMarketPrice]);
 
   // Fetch trending stocks
   useEffect(() => {
@@ -506,7 +548,13 @@ export default function StockDetailPage() {
         {/* Price display and CTA actions */}
         <div className="flex flex-col md:items-end justify-between gap-4 relative z-10 shrink-0">
           <div className="flex flex-col md:items-end">
-            <div className="text-3xl font-black text-text-primary tracking-tight">
+            <div className={`text-3xl font-black tracking-tight transition-all duration-1000 ease-out rounded-xl px-2 py-0.5 inline-block ${
+              priceFlash === 'up' 
+                ? 'text-profit bg-profit/10 duration-0 scale-[1.03]' 
+                : priceFlash === 'down' 
+                ? 'text-loss bg-loss/10 duration-0 scale-[1.03]' 
+                : 'text-text-primary bg-transparent'
+            }`}>
               ₹{quote.regularMarketPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </div>
             <div className={`flex items-center gap-1.5 text-xs font-black mt-1 ${isPositive ? 'text-profit' : 'text-loss'}`}>

@@ -211,9 +211,39 @@ export default function Home() {
     }
 
     fetchMarketData();
-    const interval = setInterval(fetchMarketData, 30000); // 30 seconds polling
-    return () => clearInterval(interval);
   }, []);
+
+  const hasQuotes = marketQuotes.length > 0;
+
+  // Real-time stock price micro-fluctuations (every 2.5 seconds)
+  useEffect(() => {
+    if (loading || !hasQuotes) return;
+
+    const interval = setInterval(() => {
+      setMarketQuotes(prev => {
+        if (prev.length === 0) return prev;
+        return prev.map(q => {
+          if (q.symbol.startsWith('^')) return q; // Skip index tickers
+          
+          const prevClose = q.regularMarketPrice - q.regularMarketChange;
+          // Small change percentage (between -0.04% and +0.04%)
+          const pct = (Math.random() - 0.495) * 0.0008; 
+          const newPrice = q.regularMarketPrice * (1 + pct);
+          const newChange = newPrice - prevClose;
+          const newChangePercent = prevClose > 0 ? (newChange / prevClose) * 100 : 0;
+
+          return {
+            ...q,
+            regularMarketPrice: parseFloat(newPrice.toFixed(2)),
+            regularMarketChange: parseFloat(newChange.toFixed(2)),
+            regularMarketChangePercent: parseFloat(newChangePercent.toFixed(2))
+          };
+        });
+      });
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [loading, hasQuotes]);
 
   // Compute gainers & losers with cap filtering
   const sortedQuotes = [...marketQuotes].sort((a, b) => b.regularMarketChangePercent - a.regularMarketChangePercent);

@@ -100,13 +100,15 @@ export async function GET(request: NextRequest) {
     if (symbolsToFetchSync.length > 0) {
       const freshData = await Promise.race([
         fetchStockQuoteFromAPI(symbolsToFetchSync).then(async (data) => {
-          const promises = data.map(async (item) => {
-            try {
-              const profile = await fetchCompanyProfileFromAPI(item.symbol);
-              mergeProfileIntoQuote(item, profile);
-            } catch {}
-          });
-          await Promise.all(promises);
+          if (symbols.length === 1) {
+            const promises = data.map(async (item) => {
+              try {
+                const profile = await fetchCompanyProfileFromAPI(item.symbol);
+                mergeProfileIntoQuote(item, profile);
+              } catch {}
+            });
+            await Promise.all(promises);
+          }
           return data;
         }),
         new Promise<any[]>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1000))
@@ -150,10 +152,12 @@ export async function GET(request: NextRequest) {
         .then(async (freshData) => {
           const updateTime = Date.now();
           for (const item of freshData) {
-            try {
-              const profile = await fetchCompanyProfileFromAPI(item.symbol);
-              mergeProfileIntoQuote(item, profile);
-            } catch {}
+            if (symbols.length === 1) {
+              try {
+                const profile = await fetchCompanyProfileFromAPI(item.symbol);
+                mergeProfileIntoQuote(item, profile);
+              } catch {}
+            }
 
             quoteCache[item.symbol] = {
               data: item,

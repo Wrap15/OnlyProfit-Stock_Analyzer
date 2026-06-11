@@ -1926,6 +1926,8 @@ async function fetchFromSparkAPI(symbols: string[]) {
   return allResults.length > 0 ? allResults : null;
 }
 
+let areQuoteEndpointsBlocked = true;
+
 async function fetchFromQuoteEndpoint(subdomain: string, symbols: string[], profileMap: Record<string, any>) {
   const chunkSize = 30;
   const chunks: string[][] = [];
@@ -2023,7 +2025,10 @@ async function fetchFromQuoteEndpoint(subdomain: string, symbols: string[], prof
           });
         }
       }
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.response?.status === 401 || err?.response?.status === 403) {
+        areQuoteEndpointsBlocked = true;
+      }
       console.warn(`Quote Endpoint fetch failed for chunk`, err);
     }
     return [];
@@ -2192,6 +2197,76 @@ export async function fetchStockQuotesFromTickertape(symbols: string[]): Promise
   return null;
 }
 
+async function fetchQuotesFromSparkOrChart(symbols: string[], profileMap: Record<string, any>): Promise<any[]> {
+  let sparkMap: Map<string, any> | null = null;
+  try {
+    const sparkResults = await fetchFromSparkAPI(symbols);
+    if (sparkResults && sparkResults.length > 0) {
+      sparkMap = new Map(sparkResults.map((item: any) => [item.symbol, item]));
+    }
+  } catch (errSpark) {
+    console.warn('Spark-based resolution failed', errSpark);
+  }
+
+  const promises = symbols.map(async (symbol) => {
+    // 1. Try Spark
+    if (sparkMap) {
+      const sparkItem = sparkMap.get(symbol);
+      const sparkMeta = sparkItem?.response?.[0]?.meta;
+      if (sparkMeta && sparkMeta.regularMarketPrice) {
+        const price = sparkMeta.regularMarketPrice;
+        const prevClose = sparkMeta.previousClose || sparkMeta.chartPreviousClose || price;
+        return buildQuoteObject(
+          symbol,
+          price,
+          prevClose,
+          sparkMeta.regularMarketVolume || 1000000,
+          sparkMeta.marketCap || 0,
+          profileMap[symbol]
+        );
+      }
+    }
+
+    // 2. Try Chart
+    try {
+      const chartUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1d&interval=1d`;
+      const res = await axios.get(chartUrl, { headers: HEADERS, timeout: 4000 });
+      const chartMeta = res.data?.chart?.result?.[0]?.meta;
+      if (chartMeta && chartMeta.regularMarketPrice) {
+        const price = chartMeta.regularMarketPrice;
+        const prevClose = chartMeta.previousClose || chartMeta.chartPreviousClose || price;
+        return buildQuoteObject(
+          symbol,
+          price,
+          prevClose,
+          chartMeta.regularMarketVolume || 1000000,
+          chartMeta.marketCap || 0,
+          profileMap[symbol]
+        );
+      }
+    } catch (chartErr) {
+      console.warn(`Chart-based fallback failed for ${symbol}`, chartErr);
+    }
+
+    // 3. Try Mock
+    const customMeta = MOCK_STOCK_INFO[symbol] || {};
+    const profile = profileMap[symbol];
+    const mockQuote = generateMockQuote(symbol);
+    return {
+      ...mockQuote,
+      sector: profile?.sector || customMeta.sector || mockQuote.sector,
+      industry: profile?.industry || getStableIndustry(symbol, profile?.sector || customMeta.sector || mockQuote.sector),
+      ceo: profile?.ceo || getStableCEOName(symbol),
+      longBusinessSummary: profile?.desc || customMeta.desc || mockQuote.longBusinessSummary,
+      website: profile?.website || mockQuote.website || getStableWebsite(symbol),
+      headquarters: profile?.headquarters || mockQuote.headquarters || getStableHeadquarters(symbol),
+      leadership: profile?.leadership || mockQuote.leadership || getStableLeadership(symbol)
+    };
+  });
+
+  return Promise.all(promises);
+}
+
 export async function fetchStockQuoteFromAPI(symbols: string[]): Promise<any[]> {
   // Skip slow profile fetches for performance; rely on custom static profiles
   const profileMap: Record<string, any> = {};
@@ -2205,14 +2280,29 @@ export async function fetchStockQuoteFromAPI(symbols: string[]): Promise<any[]> 
         return tickertapeQuotes;
       }
       
-      const yahooQuotes = await fetchFromQuoteEndpoint('query1', missingSymbols, profileMap)
-        .catch(() => fetchFromQuoteEndpoint('query2', missingSymbols, profileMap))
-        .catch(() => []);
+      let yahooQuotes: any[] = [];
+      if (areQuoteEndpointsBlocked) {
+        yahooQuotes = await fetchQuotesFromSparkOrChart(missingSymbols, profileMap);
+      } else {
+        try {
+          yahooQuotes = await fetchFromQuoteEndpoint('query1', missingSymbols, profileMap);
+        } catch {
+          try {
+            yahooQuotes = await fetchFromQuoteEndpoint('query2', missingSymbols, profileMap);
+          } catch {
+            yahooQuotes = await fetchQuotesFromSparkOrChart(missingSymbols, profileMap);
+          }
+        }
+      }
       
       return [...tickertapeQuotes, ...yahooQuotes];
     }
   } catch (err) {
     console.warn('Tickertape quotes query failed, trying Yahoo Finance...', err);
+  }
+
+  if (areQuoteEndpointsBlocked) {
+    return await fetchQuotesFromSparkOrChart(symbols, profileMap);
   }
 
   // Try Query 1
@@ -2225,74 +2315,7 @@ export async function fetchStockQuoteFromAPI(symbols: string[]): Promise<any[]> 
       return await fetchFromQuoteEndpoint('query2', symbols, profileMap);
     } catch (err2) {
       console.warn('Quote Endpoint Query 2 failed, trying Spark-based live resolution...', err2);
-      
-      let sparkMap: Map<string, any> | null = null;
-      try {
-        const sparkResults = await fetchFromSparkAPI(symbols);
-        if (sparkResults && sparkResults.length > 0) {
-          sparkMap = new Map(sparkResults.map((item: any) => [item.symbol, item]));
-        }
-      } catch (errSpark) {
-        console.warn('Spark-based resolution failed', errSpark);
-      }
-
-      const promises = symbols.map(async (symbol) => {
-        // 1. Try Spark
-        if (sparkMap) {
-          const sparkItem = sparkMap.get(symbol);
-          const sparkMeta = sparkItem?.response?.[0]?.meta;
-          if (sparkMeta && sparkMeta.regularMarketPrice) {
-            const price = sparkMeta.regularMarketPrice;
-            const prevClose = sparkMeta.previousClose || sparkMeta.chartPreviousClose || price;
-            return buildQuoteObject(
-              symbol,
-              price,
-              prevClose,
-              sparkMeta.regularMarketVolume || 1000000,
-              sparkMeta.marketCap || 0,
-              profileMap[symbol]
-            );
-          }
-        }
-
-        // 2. Try Chart
-        try {
-          const chartUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1d&interval=1d`;
-          const res = await axios.get(chartUrl, { headers: HEADERS, timeout: 4000 });
-          const chartMeta = res.data?.chart?.result?.[0]?.meta;
-          if (chartMeta && chartMeta.regularMarketPrice) {
-            const price = chartMeta.regularMarketPrice;
-            const prevClose = chartMeta.previousClose || chartMeta.chartPreviousClose || price;
-            return buildQuoteObject(
-              symbol,
-              price,
-              prevClose,
-              chartMeta.regularMarketVolume || 1000000,
-              chartMeta.marketCap || 0,
-              profileMap[symbol]
-            );
-          }
-        } catch (chartErr) {
-          console.warn(`Chart-based fallback failed for ${symbol}`, chartErr);
-        }
-
-        // 3. Try Mock
-        const customMeta = MOCK_STOCK_INFO[symbol] || {};
-        const profile = profileMap[symbol];
-        const mockQuote = generateMockQuote(symbol);
-        return {
-          ...mockQuote,
-          sector: profile?.sector || customMeta.sector || mockQuote.sector,
-          industry: profile?.industry || getStableIndustry(symbol, profile?.sector || customMeta.sector || mockQuote.sector),
-          ceo: profile?.ceo || getStableCEOName(symbol),
-          longBusinessSummary: profile?.desc || customMeta.desc || mockQuote.longBusinessSummary,
-          website: profile?.website || mockQuote.website || getStableWebsite(symbol),
-          headquarters: profile?.headquarters || mockQuote.headquarters || getStableHeadquarters(symbol),
-          leadership: profile?.leadership || mockQuote.leadership || getStableLeadership(symbol)
-        };
-      });
-
-      return await Promise.all(promises);
+      return await fetchQuotesFromSparkOrChart(symbols, profileMap);
     }
   }
 }

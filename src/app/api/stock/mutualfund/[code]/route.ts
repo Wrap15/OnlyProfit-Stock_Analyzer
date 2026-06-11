@@ -58,6 +58,23 @@ async function fetchFromAMFI(code: string) {
   }
 }
 
+async function fetchAndMergeMFDetails(code: string) {
+  const fullData = await fetchFromAMFI(code);
+  try {
+    const growwData = await fetchLatestNAVFromGroww(code);
+    if (growwData && fullData.data && fullData.data.length > 0) {
+      if (growwData.date === fullData.data[0].date) {
+        fullData.data[0].nav = growwData.nav.toString();
+      } else {
+        fullData.data = [{ date: growwData.date, nav: growwData.nav.toString() }, ...fullData.data];
+      }
+    }
+  } catch (err: any) {
+    console.warn(`Background Groww overlay failed for details of ${code}:`, err.message);
+  }
+  return fullData;
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { code: string } }
@@ -86,20 +103,31 @@ export async function GET(
     }
   }
 
-  // Fallback to synchronous fetch if cache miss or too stale
+  // Fallback to non-blocking mock initialization if cache miss
   if (!fullData) {
-    try {
-      fullData = await fetchFromAMFI(code);
-      schemeCache[code] = {
-        data: fullData,
-        timestamp: Date.now()
+    let resolvedConfig = fundConfig;
+    if (!resolvedConfig) {
+      resolvedConfig = {
+        code,
+        name: 'Unknown Mutual Fund',
+        category: 'equity',
+        categoryLabel: 'Equity Fund',
+        baseNav: 100,
+        y1Return: 25.0,
+        y3Return: 20.0
       };
-    } catch (err: any) {
-      console.warn(`Failed to fetch AMFI data for mutual fund ${code}: ${err.message}`);
     }
-  } else if (triggerUpdate) {
+    fullData = generateMockFullData(resolvedConfig);
+    schemeCache[code] = {
+      data: fullData,
+      timestamp: now - FRESH_DURATION
+    };
+    triggerUpdate = true;
+  }
+
+  if (triggerUpdate) {
     // Refresh cache in background
-    fetchFromAMFI(code)
+    fetchAndMergeMFDetails(code)
       .then(freshData => {
         schemeCache[code] = {
           data: freshData,
@@ -108,7 +136,7 @@ export async function GET(
         console.log(`Mutual fund details cache successfully updated in background for ${code}`);
       })
       .catch(err => {
-        console.warn(`Background AMFI fetch failed for code ${code}:`, err.message);
+        console.warn(`Background fetch and merge failed for code ${code}:`, err.message);
       });
   }
 
@@ -172,23 +200,8 @@ export async function GET(
     });
   }
 
-  // Try to overlay the exact Groww NAV if available
-  let dataPoints = fullData.data;
-  try {
-    const growwData = await fetchLatestNAVFromGroww(code);
-    if (growwData) {
-      if (dataPoints[0] && growwData.date === dataPoints[0].date) {
-        dataPoints[0].nav = growwData.nav.toString();
-      } else {
-        dataPoints = [{ date: growwData.date, nav: growwData.nav.toString() }, ...dataPoints];
-      }
-    }
-  } catch (growwErr: any) {
-    console.warn(`Groww overlay failed for details of ${code}:`, growwErr.message);
-  }
-
   // Pre-fill missing business days to keep dates and prices realistic
-  const rawPoints = fillMissingBusinessDays(dataPoints, code); // array of { date, nav } (latest first)
+  const rawPoints = fillMissingBusinessDays(fullData.data, code); // array of { date, nav } (latest first)
   const meta = fullData.meta;
 
   const rawFundName = meta?.scheme_name || (fundConfig ? fundConfig.name : 'Unknown Mutual Fund');

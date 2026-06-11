@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchStockChartFromAPI } from '@/lib/yahooFinance';
+import { fetchStockChartFromAPI, generateMockChartData } from '@/lib/yahooFinance';
 
 interface CacheEntry {
   data: any;
@@ -24,25 +24,50 @@ export async function GET(request: NextRequest) {
 
   // Intraday charts expire in 60s, historical charts in 2 hours
   const cacheDuration = range === '1d' ? 60000 : 7200000;
+  let data: any = null;
+  let triggerUpdate = false;
 
   const cached = chartCache[cacheKey];
-  if (cached && (now - cached.timestamp < cacheDuration)) {
-    return NextResponse.json(cached.data);
+  if (cached) {
+    const age = now - cached.timestamp;
+    if (age < cacheDuration) {
+      data = cached.data;
+    } else {
+      data = cached.data;
+      triggerUpdate = true;
+    }
   }
 
-  try {
-    const data = await fetchStockChartFromAPI(cleanSymbol, range);
-    
-    // Store in memory cache
-    chartCache[cacheKey] = {
-      data,
-      timestamp: now
-    };
+  const fetchAndCacheChart = async () => {
+    try {
+      const freshData = await fetchStockChartFromAPI(cleanSymbol, range);
+      chartCache[cacheKey] = {
+        data: freshData,
+        timestamp: Date.now()
+      };
+      return freshData;
+    } catch (err: any) {
+      console.warn(`Background chart fetch failed for ${cleanSymbol}:`, err.message);
+      throw err;
+    }
+  };
 
-    return NextResponse.json(data);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Failed to fetch stock chart data' }, { status: 500 });
+  if (!data) {
+    try {
+      data = await Promise.race([
+        fetchAndCacheChart(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1000))
+      ]);
+    } catch (err: any) {
+      console.warn(`Synchronous chart fetch failed or timed out for ${cleanSymbol}: ${err.message}`);
+      data = generateMockChartData(cleanSymbol, range);
+      triggerUpdate = true;
+    }
+  } else if (triggerUpdate) {
+    fetchAndCacheChart().catch(() => {});
   }
+
+  return NextResponse.json(data);
 }
 export const dynamic = 'force-dynamic';
 

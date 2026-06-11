@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchStockQuoteFromAPI, fetchCompanyProfileFromAPI } from '@/lib/yahooFinance';
+import { fetchStockQuoteFromAPI, fetchCompanyProfileFromAPI, generateMockQuote, MOCK_STOCK_INFO } from '@/lib/yahooFinance';
 
 interface CacheEntry {
   data: any;
@@ -96,23 +96,51 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 1. Fetch synchronously for symbols that need immediate real-world accuracy
+    // 1. Fetch with a 1000ms timeout budget for cache misses
     if (symbolsToFetchSync.length > 0) {
-      const freshData = await fetchStockQuoteFromAPI(symbolsToFetchSync);
-      for (const item of freshData) {
-        // Fetch real-world company profile (sector, industry, description) if missing or default
-        try {
-          const profile = await fetchCompanyProfileFromAPI(item.symbol);
-          mergeProfileIntoQuote(item, profile);
-        } catch (profileErr) {
-          console.warn(`Failed to fetch company profile for ${item.symbol}:`, profileErr);
-        }
+      const freshData = await Promise.race([
+        fetchStockQuoteFromAPI(symbolsToFetchSync).then(async (data) => {
+          const promises = data.map(async (item) => {
+            try {
+              const profile = await fetchCompanyProfileFromAPI(item.symbol);
+              mergeProfileIntoQuote(item, profile);
+            } catch {}
+          });
+          await Promise.all(promises);
+          return data;
+        }),
+        new Promise<any[]>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1000))
+      ]).catch((err) => {
+        console.warn(`Synchronous quote fetch failed or timed out for ${symbolsToFetchSync.join(',')}: ${err.message}`);
+        symbolsToFetchAsync.push(...symbolsToFetchSync);
+        return [];
+      });
 
-        quoteCache[item.symbol] = {
-          data: item,
-          timestamp: now
-        };
-        cachedData.push(item);
+      const fetchedSymbols = new Set<string>();
+      if (freshData && freshData.length > 0) {
+        for (const item of freshData) {
+          quoteCache[item.symbol] = {
+            data: item,
+            timestamp: Date.now()
+          };
+          cachedData.push(item);
+          fetchedSymbols.add(item.symbol);
+        }
+      }
+
+      // Return mock quotes immediately for symbols that timed out
+      const missingSymbols = symbolsToFetchSync.filter(s => !fetchedSymbols.has(s));
+      if (missingSymbols.length > 0) {
+        for (const symbol of missingSymbols) {
+          const mockQuote = generateMockQuote(symbol);
+          const customMeta = MOCK_STOCK_INFO[symbol] || {};
+          const item = {
+            ...mockQuote,
+            longBusinessSummary: customMeta.desc || mockQuote.longBusinessSummary,
+            sector: customMeta.sector || mockQuote.sector
+          };
+          cachedData.push(item);
+        }
       }
     }
 

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { MUTUAL_FUNDS, getAmcLogoUrl } from '@/lib/mutualfunds';
+import { getTickertapeSid } from '@/lib/yahooFinance';
 
 interface StockLogoProps {
   symbol: string;
@@ -172,7 +173,7 @@ export default function StockLogo({ symbol, website, size = 'md', name }: StockL
   }
 
   if (logoTier === 2 && !symbol.startsWith('^')) {
-    const tickertapeUrl = `https://assets.tickertape.in/stock-logos/${cleanTicker}.png`;
+    const tickertapeUrl = `https://assets.tickertape.in/stock-logos/${getTickertapeSid(symbol)}.png`;
     return (
       <div className={`relative flex items-center justify-center bg-white dark:bg-slate-800 overflow-hidden shrink-0 shadow-sm border border-border/40 hover:border-profit/20 transition-all duration-300 ${sizeClasses[size]}`}>
         <img

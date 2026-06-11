@@ -725,6 +725,11 @@ export const MOCK_STOCK_INFO: Record<string, { name: string; sector: string; des
   },
 
   // --- MATERIALS ---
+  'VEDL.NS': {
+    name: 'Vedanta Limited',
+    sector: 'Materials',
+    desc: 'Vedanta Limited is a diversified natural resources company with operations in India, South Africa, Namibia, and Australia.'
+  },
   'TATASTEEL.NS': {
     name: 'Tata Steel Limited',
     sector: 'Materials',
@@ -1295,6 +1300,7 @@ const MOCK_BASE_PRICES: Record<string, number> = {
   'ENGINERSIN.NS': 218.45,
 
   // Materials
+  'VEDL.NS': 450.00,
   'TATASTEEL.NS': 161.30,
   'JSWSTEEL.NS': 885.10,
   'HINDALCO.NS': 612.00,
@@ -2150,8 +2156,8 @@ export async function fetchStockQuotesFromTickertape(symbols: string[]): Promise
 
         mappedQuotes.push({
           symbol: origSymbol,
-          shortName: cleanStockName(customMeta.name || item.sid),
-          longName: cleanStockName(customMeta.name || item.sid),
+          shortName: cleanStockName(customMeta.name || origSymbol.split('.')[0]),
+          longName: cleanStockName(customMeta.name || origSymbol.split('.')[0]),
           regularMarketPrice: parseFloat(price.toFixed(2)),
           regularMarketChange: parseFloat(change.toFixed(2)),
           regularMarketChangePercent: parseFloat(changePercent.toFixed(2)),

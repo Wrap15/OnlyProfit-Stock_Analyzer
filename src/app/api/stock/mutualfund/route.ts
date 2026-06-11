@@ -172,15 +172,9 @@ export async function GET(request: NextRequest) {
       triggerUpdate = true;
     }
   } else {
-    // Synchronous fetch on first run ever
-    try {
-      cachedMutualFunds = await fetchAllMFData();
-      cacheTime = now;
-    } catch (err: any) {
-      console.error('Synchronous fetch failed, serving fallback mock list:', err.message);
-      cachedMutualFunds = MUTUAL_FUNDS.map(f => generateMockMFData(f));
-      cacheTime = now - FRESH_DURATION; // stale so it retries
-    }
+    cachedMutualFunds = MUTUAL_FUNDS.map(f => generateMockMFData(f));
+    cacheTime = now - FRESH_DURATION;
+    triggerUpdate = true;
   }
 
   if (triggerUpdate) {

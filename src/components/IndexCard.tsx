@@ -12,6 +12,7 @@ interface IndexCardProps {
   changePercent: number;
   chart: number[];
   loading: boolean;
+  isRealUpdate?: boolean;
 }
 
 export default function IndexCard({
@@ -21,7 +22,8 @@ export default function IndexCard({
   change,
   changePercent,
   chart,
-  loading
+  loading,
+  isRealUpdate
 }: IndexCardProps) {
   const isPositive = changePercent >= 0;
   const [flash, setFlash] = useState<'up' | 'down' | null>(null);
@@ -30,14 +32,16 @@ export default function IndexCard({
   useEffect(() => {
     if (loading || !price) return;
     if (prevPriceRef.current && prevPriceRef.current !== price) {
-      const direction = price > prevPriceRef.current ? 'up' : 'down';
-      setFlash(direction);
-      const timer = setTimeout(() => setFlash(null), 800);
-      prevPriceRef.current = price;
-      return () => clearTimeout(timer);
+      if (isRealUpdate) {
+        const direction = price > prevPriceRef.current ? 'up' : 'down';
+        setFlash(direction);
+        const timer = setTimeout(() => setFlash(null), 1500); // 1.5s lazy transition
+        prevPriceRef.current = price;
+        return () => clearTimeout(timer);
+      }
     }
     prevPriceRef.current = price;
-  }, [price, loading]);
+  }, [price, loading, isRealUpdate]);
 
   if (loading) {
     return (
@@ -63,12 +67,12 @@ export default function IndexCard({
         <span className="text-[10px] sm:text-[11px] font-extrabold text-text-secondary tracking-wide uppercase">
           {name}
         </span>
-        <span className={`text-xs sm:text-sm font-extrabold mt-0.5 transition-all duration-1000 ease-out rounded px-1.5 py-0.5 inline-block ${
+        <span className={`text-xs sm:text-sm font-extrabold mt-0.5 transition-colors ease-out rounded px-1.5 py-0.5 inline-block ${
           flash === 'up'
-            ? 'text-profit bg-profit/10 duration-0 scale-[1.03]'
+            ? 'text-profit duration-0'
             : flash === 'down'
-            ? 'text-loss bg-loss/10 duration-0 scale-[1.03]'
-            : 'text-text-primary bg-transparent'
+            ? 'text-loss duration-0'
+            : 'text-text-primary duration-[1500ms]'
         }`}>
           ₹{price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
         </span>

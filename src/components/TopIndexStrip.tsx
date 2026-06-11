@@ -56,16 +56,21 @@ export default function TopIndexStrip() {
         const updated = INDEX_SYMBOLS.map(item => {
           const quote = quotes.find((q: any) => q.symbol === item.symbol) || {};
           const chartObj = charts.find(c => c.symbol === item.symbol) || { data: [] };
+          
+          const price = quote.regularMarketPrice || 0;
+          const change = quote.regularMarketChange || 0;
+          const changePercent = quote.regularMarketChangePercent || 0;
           const chartPoints = chartObj.data.map((pt: any) => pt.value) || [];
 
           return {
             symbol: item.symbol,
             name: item.name,
-            price: quote.regularMarketPrice || 0,
-            change: quote.regularMarketChange || 0,
-            changePercent: quote.regularMarketChangePercent || 0,
+            price: price,
+            change: change,
+            changePercent: changePercent,
             chart: chartPoints,
-            loading: false
+            loading: false,
+            isRealUpdate: true
           };
         });
 
@@ -77,16 +82,16 @@ export default function TopIndexStrip() {
     }
 
     fetchIndexData();
-    // Poll every 30 seconds for live data sync during market hours
+    // Poll every 3 seconds for live data sync during market hours
     const interval = setInterval(() => {
       if (isIndianMarketOpen()) {
         fetchIndexData();
       }
-    }, 30000);
+    }, 3000);
     return () => clearInterval(interval);
   }, []);
 
-  // Real-time client-side fluctuations for indices (every 2.5 seconds)
+  // Real-time client-side fluctuations for indices (every 1.0 second like NSE)
   useEffect(() => {
     if (!hasLoaded) return;
 
@@ -97,8 +102,8 @@ export default function TopIndexStrip() {
       setIndices(prev => {
         if (prev.length === 0) return prev;
         return prev.map(ind => {
-          // Low volatility fluctuation for indices (max ±0.015%)
-          const pct = (Math.random() - 0.495) * 0.0003; 
+          // Low volatility fluctuation for indices per second (max ±0.006%)
+          const pct = (Math.random() - 0.495) * 0.00012; 
           const newPrice = ind.price * (1 + pct);
           const basePrice = ind.price - ind.change;
           const newChange = newPrice - basePrice;
@@ -108,11 +113,12 @@ export default function TopIndexStrip() {
             ...ind,
             price: parseFloat(newPrice.toFixed(2)),
             change: parseFloat(newChange.toFixed(2)),
-            changePercent: parseFloat(newChangePercent.toFixed(2))
+            changePercent: parseFloat(newChangePercent.toFixed(2)),
+            isRealUpdate: false
           };
         });
       });
-    }, 2500);
+    }, 1000);
 
     return () => clearInterval(interval);
   }, [hasLoaded]);
@@ -136,6 +142,7 @@ export default function TopIndexStrip() {
                 changePercent={index.changePercent}
                 chart={index.chart}
                 loading={index.loading}
+                isRealUpdate={(index as any).isRealUpdate}
               />
             ))}
           </div>

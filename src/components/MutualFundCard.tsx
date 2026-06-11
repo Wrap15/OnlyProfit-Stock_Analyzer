@@ -13,6 +13,8 @@ interface MutualFundData {
   nav: number;
   oneYearReturn: number;
   threeYearReturn: number;
+  rating?: number;
+  minSipAmount?: number;
   sparkline: number[];
 }
 
@@ -77,9 +79,16 @@ export default function MutualFundCard({ fund }: MutualFundCardProps) {
               <h3 className="font-extrabold text-sm text-text-primary tracking-tight truncate group-hover:text-profit transition-colors duration-200">
                 {fund.name.replace(' - Growth', '')}
               </h3>
-              <span className={`inline-block text-[9px] font-black uppercase tracking-wider mt-1 px-2 py-0.5 rounded-md border ${config.bgColor} ${config.textColor}`}>
-                {fund.categoryLabel}
-              </span>
+              <div className="flex items-center gap-2 mt-1">
+                <span className={`inline-block text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md border ${config.bgColor} ${config.textColor}`}>
+                  {fund.categoryLabel}
+                </span>
+                {fund.rating !== undefined && (
+                  <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/15 text-amber-500 select-none">
+                    ★ {fund.rating.toFixed(1)}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -112,6 +121,17 @@ export default function MutualFundCard({ fund }: MutualFundCardProps) {
               {fund.oneYearReturn >= 0 ? '+' : ''}{fund.oneYearReturn.toFixed(2)}%
             </span>
           </div>
+          
+          {fund.minSipAmount !== undefined && (
+            <div className="flex flex-col items-center">
+              <span className="text-[10px] font-extrabold text-text-secondary uppercase tracking-wider">
+                Min. SIP
+              </span>
+              <span className="text-xs font-black text-text-primary mt-0.5">
+                ₹{fund.minSipAmount}
+              </span>
+            </div>
+          )}
           
           {fund.sparkline.length > 0 && (
             <div className="h-8 w-24 opacity-85 hover:opacity-100 transition-opacity">

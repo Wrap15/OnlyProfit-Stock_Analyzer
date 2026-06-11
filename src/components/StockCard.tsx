@@ -43,6 +43,7 @@ interface StockCardProps {
     trailingPE?: number | null;
     epsTrailingTwelveMonths?: number | null;
     sector?: string;
+    isRealUpdate?: boolean;
   };
 }
 
@@ -81,14 +82,16 @@ export default function StockCard({ symbol, initialQuote }: StockCardProps) {
   useEffect(() => {
     if (!data?.price) return;
     if (prevPriceRef.current && prevPriceRef.current !== data.price) {
-      const direction = data.price > prevPriceRef.current ? 'up' : 'down';
-      setFlash(direction);
-      const timer = setTimeout(() => setFlash(null), 800);
-      prevPriceRef.current = data.price;
-      return () => clearTimeout(timer);
+      if (initialQuote && initialQuote.isRealUpdate) {
+        const direction = data.price > prevPriceRef.current ? 'up' : 'down';
+        setFlash(direction);
+        const timer = setTimeout(() => setFlash(null), 1500); // 1.5s lazy transition
+        prevPriceRef.current = data.price;
+        return () => clearTimeout(timer);
+      }
     }
     prevPriceRef.current = data.price;
-  }, [data?.price]);
+  }, [data?.price, initialQuote]);
 
   // Set up intersection observer to only load chart for visible cards
   useEffect(() => {
@@ -292,12 +295,12 @@ export default function StockCard({ symbol, initialQuote }: StockCardProps) {
 
         {/* Right Price & Percent */}
         <div className="flex flex-col items-end shrink-0">
-          <span className={`text-xs font-extrabold transition-all duration-1000 ease-out rounded px-1.5 py-0.5 ${
+          <span className={`text-xs font-extrabold transition-colors ease-out rounded px-1.5 py-0.5 ${
             flash === 'up' 
-              ? 'text-profit bg-profit/10 duration-0 scale-[1.03]' 
+              ? 'text-profit duration-0' 
               : flash === 'down' 
-              ? 'text-loss bg-loss/10 duration-0 scale-[1.03]' 
-              : 'text-text-primary bg-transparent'
+              ? 'text-loss duration-0' 
+              : 'text-text-primary duration-[1500ms]'
           }`}>
             ₹{data.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
           </span>
@@ -355,12 +358,12 @@ export default function StockCard({ symbol, initialQuote }: StockCardProps) {
 
         {/* Price section */}
         <div className="mt-4">
-          <div className={`text-xl font-extrabold tracking-tight transition-all duration-1000 ease-out rounded-lg px-2 py-0.5 inline-block ${
+          <div className={`text-xl font-extrabold tracking-tight transition-colors ease-out rounded-lg px-2 py-0.5 inline-block ${
             flash === 'up' 
-              ? 'text-profit bg-profit/10 duration-0 scale-[1.03]' 
+              ? 'text-profit duration-0' 
               : flash === 'down' 
-              ? 'text-loss bg-loss/10 duration-0 scale-[1.03]' 
-              : 'text-text-primary bg-transparent'
+              ? 'text-loss duration-0' 
+              : 'text-text-primary duration-[1500ms]'
           }`}>
             ₹{data.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
           </div>

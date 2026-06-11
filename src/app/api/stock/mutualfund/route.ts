@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import axios from 'axios';
-import { MUTUAL_FUNDS, SchemeInfo } from '@/lib/mutualfunds';
+import { MUTUAL_FUNDS, SchemeInfo, fillMissingBusinessDays, fetchLatestNAVFromGroww } from '@/lib/mutualfunds';
+import { REAL_MF_DATA } from '@/lib/mutualfundsData';
 
-// Cache in memory to make reload instantaneous
+// Cache in memory with SWR thresholds
 let cachedMutualFunds: any = null;
 let cacheTime = 0;
-const CACHE_DURATION = 3600 * 1000; // 1 hour cache duration
+const FRESH_DURATION = 300 * 1000; // 5 minutes
+let isUpdatingCache = false;
 
 // Parser helper for date in AMFI format (dd-mm-yyyy)
 function parseMFDate(dateStr: string): Date {
@@ -28,12 +30,14 @@ function generateMockMFData(fund: SchemeInfo) {
     return seed / 233280;
   };
 
-  // Generate 30 days of history backwards
+  // Generate 30 days of history backwards (de-compounding)
   for (let i = 0; i < 30; i++) {
-    const changePercent = (rand() - 0.48) * 0.006; // upward trend
-    currentNav = currentNav * (1 + changePercent);
     points.push(parseFloat(currentNav.toFixed(2)));
+    const changePercent = (rand() - 0.46) * 0.005; // average positive daily growth
+    currentNav = currentNav / (1 + changePercent);
   }
+
+  const realData = REAL_MF_DATA[fund.code];
 
   // Return formatted array (oldest first for sparkline)
   return {
@@ -44,33 +48,38 @@ function generateMockMFData(fund: SchemeInfo) {
     nav: parseFloat(fund.baseNav.toFixed(2)),
     oneYearReturn: fund.y1Return,
     threeYearReturn: fund.y3Return,
+    rating: realData ? realData.rating : 4,
+    minSipAmount: realData ? realData.minSipAmount : 500,
     sparkline: points.reverse()
   };
 }
 
-export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const categoryFilter = searchParams.get('category'); // e.g. 'smallcap'
-
-  // If memory cache is fresh, return cached data instantly
-  const now = Date.now();
-  if (cachedMutualFunds && (now - cacheTime < CACHE_DURATION)) {
-    const filtered = categoryFilter
-      ? cachedMutualFunds.filter((f: any) => f.category === categoryFilter.toLowerCase())
-      : cachedMutualFunds;
-    return NextResponse.json(filtered);
-  }
-
-  // Filter schemes
+async function fetchAllMFData() {
   const schemesToFetch = MUTUAL_FUNDS;
 
   const promises = schemesToFetch.map(async (fund) => {
     try {
-      // Fetch details from open AMFI API (timeout after 4 seconds)
-      const res = await axios.get(`https://api.mfapi.in/mf/${fund.code}`, { timeout: 4000 });
-      const navData = res.data?.data;
+      const res = await axios.get(`https://api.mfapi.in/mf/${fund.code}`, { timeout: 8000 });
+      let navData = res.data?.data;
       
       if (navData && navData.length > 0) {
+        // Try to overlay the exact Groww NAV if available
+        try {
+          const growwData = await fetchLatestNAVFromGroww(fund.code);
+          if (growwData) {
+            if (growwData.date === navData[0].date) {
+              navData[0].nav = growwData.nav.toString();
+            } else {
+              navData = [{ date: growwData.date, nav: growwData.nav.toString() }, ...navData];
+            }
+          }
+        } catch (growwErr: any) {
+          console.warn(`Groww overlay failed for ${fund.code}:`, growwErr.message);
+        }
+
+        // Automatically fill missing business days
+        navData = fillMissingBusinessDays(navData, fund.code);
+
         const latestNav = parseFloat(navData[0].nav);
         
         // Find NAV 1 year ago (365 days ago)
@@ -110,6 +119,8 @@ export async function GET(request: NextRequest) {
         const sparklineRaw = navData.slice(0, 30).map((pt: any) => parseFloat(pt.nav));
         const sparkline = sparklineRaw.reverse();
 
+        const realData = REAL_MF_DATA[fund.code];
+
         return {
           code: fund.code,
           name: fund.name,
@@ -118,6 +129,8 @@ export async function GET(request: NextRequest) {
           nav: parseFloat(latestNav.toFixed(2)),
           oneYearReturn: parseFloat(oneYearReturn.toFixed(2)),
           threeYearReturn: parseFloat(threeYearReturn.toFixed(2)),
+          rating: realData ? realData.rating : 4,
+          minSipAmount: realData ? realData.minSipAmount : 500,
           sparkline
         };
       }
@@ -128,21 +141,57 @@ export async function GET(request: NextRequest) {
     }
   });
 
-  try {
-    const results = await Promise.all(promises);
-    
-    // Save to cache
-    cachedMutualFunds = results;
-    cacheTime = now;
+  return Promise.all(promises);
+}
 
-    const filtered = categoryFilter
-      ? results.filter((f: any) => f.category === categoryFilter.toLowerCase())
-      : results;
-    return NextResponse.json(filtered);
+async function updateCacheInBackground() {
+  if (isUpdatingCache) return;
+  isUpdatingCache = true;
+  try {
+    const results = await fetchAllMFData();
+    cachedMutualFunds = results;
+    cacheTime = Date.now();
+    console.log('Mutual funds list cache successfully updated in background');
   } catch (err: any) {
-    console.error('Failed to process mutual fund data:', err);
-    return NextResponse.json({ error: 'Failed to process mutual fund data' }, { status: 500 });
+    console.warn('Failed to update mutual funds list cache in background:', err.message);
+  } finally {
+    isUpdatingCache = false;
   }
+}
+
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const categoryFilter = searchParams.get('category'); // e.g. 'smallcap'
+
+  const now = Date.now();
+  let triggerUpdate = false;
+
+  if (cachedMutualFunds) {
+    const age = now - cacheTime;
+    if (age > FRESH_DURATION) {
+      triggerUpdate = true;
+    }
+  } else {
+    // Synchronous fetch on first run ever
+    try {
+      cachedMutualFunds = await fetchAllMFData();
+      cacheTime = now;
+    } catch (err: any) {
+      console.error('Synchronous fetch failed, serving fallback mock list:', err.message);
+      cachedMutualFunds = MUTUAL_FUNDS.map(f => generateMockMFData(f));
+      cacheTime = now - FRESH_DURATION; // stale so it retries
+    }
+  }
+
+  if (triggerUpdate) {
+    updateCacheInBackground();
+  }
+
+  const filtered = categoryFilter
+    ? cachedMutualFunds.filter((f: any) => f.category === categoryFilter.toLowerCase())
+    : cachedMutualFunds;
+
+  return NextResponse.json(filtered);
 }
 
 export const dynamic = 'force-dynamic';

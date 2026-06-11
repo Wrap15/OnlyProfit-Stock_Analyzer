@@ -8,8 +8,8 @@
   --card: #ffffff;
   --card-foreground: #0f172a;
   --border: #e2e8f0;
-  --green-profit: #10b981;
-  --red-loss: #ef4444;
+  --green-profit: #00c095;
+  --red-loss: #eb5757;
   --text-primary: #0f172a;
   --text-secondary: #64748b;
 }
@@ -20,8 +20,8 @@
   --card: #0f172a;
   --card-foreground: #f8fafc;
   --border: #1e293b;
-  --green-profit: #10b981;
-  --red-loss: #ef4444;
+  --green-profit: #00c095;
+  --red-loss: #eb5757;
   --text-primary: #f8fafc;
   --text-secondary: #94a3b8;
 }
@@ -183,7 +183,7 @@ input[type="range"]::-webkit-slider-thumb {
   width: 18px;
   height: 18px;
   border-radius: 9999px;
-  background: #10b981; /* profit green */
+  background: #00c095; /* profit green */
   border: 2px solid #ffffff;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   cursor: pointer;
@@ -203,7 +203,7 @@ input[type="range"]::-moz-range-thumb {
   height: 18px;
   border: 2px solid #ffffff;
   border-radius: 9999px;
-  background: #10b981;
+  background: #00c095;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   transition: transform 0.1s cubic-bezier(0.16, 1, 0.3, 1);

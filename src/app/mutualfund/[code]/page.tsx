@@ -84,6 +84,7 @@ interface FundDetails {
     value: number;
   }>;
   logoUrl?: string | null;
+  rating: number;
 }
 
 const RANGES = [
@@ -419,30 +420,28 @@ export default function MutualFundDetailPage() {
       </div>
 
       {/* Fund Header Section (Groww-Style UI) */}
-      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6 mb-8 bg-card border border-border rounded-3xl p-6 shadow-soft dark:shadow-soft-dark">
-        <div className="flex items-start gap-4 flex-1">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-8 pb-6 border-b border-border/60">
+        <div className="flex items-center gap-4 flex-1">
           {/* AMC visual badge representation */}
           {fund.logoUrl && !logoError ? (
-            <div className="relative flex h-14 w-14 items-center justify-center bg-white dark:bg-slate-800 overflow-hidden shrink-0 shadow-sm border border-border/40 rounded-2xl">
+            <div className="relative flex h-16 w-16 items-center justify-center bg-white dark:bg-slate-900 overflow-hidden shrink-0 shadow-sm border border-border rounded-2xl">
               <img
                 src={fund.logoUrl}
                 alt={fund.name}
-                className="object-contain w-3/4 h-3/4 select-none pointer-events-none rounded-lg"
+                className="object-contain w-5/6 h-5/6 select-none pointer-events-none rounded-lg"
                 onError={() => setLogoError(true)}
                 loading="lazy"
               />
             </div>
           ) : (
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-profit/20 to-indigo-500/20 border border-profit/15 text-profit font-black text-sm uppercase shrink-0">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-tr from-profit/20 to-indigo-500/20 border border-profit/15 text-profit font-black text-base uppercase shrink-0">
               {fund.fundHouse.split(' ').slice(0, 2).map(n => n[0]).join('')}
             </div>
           )}
           <div className="space-y-1.5 min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl sm:text-2xl font-black text-text-primary tracking-tight leading-tight">
-                {fund.name}
-              </h1>
-            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-text-primary tracking-tight leading-tight">
+              {fund.name}
+            </h1>
             
             <div className="flex flex-wrap items-center gap-2 select-none">
               <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg border ${config.bgColor} ${config.textColor}`}>
@@ -460,24 +459,31 @@ export default function MutualFundDetailPage() {
               </span>
             </div>
 
-            <p className="text-[11px] font-bold text-text-secondary pt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span>Fund House: <strong className="text-text-primary">{fund.fundHouse}</strong></span>
-              <span className="text-border">•</span>
-              <span>Sub Category: <strong className="text-text-primary">{fund.schemeCategory}</strong></span>
-            </p>
+            {/* Fund House & Sub Category Details Row */}
+            <div className="text-[11px] font-bold text-text-secondary pt-1 flex flex-wrap items-center gap-x-2 gap-y-1 select-text">
+              <span>Fund House: <strong className="text-text-primary font-black">{fund.fundHouse}</strong></span>
+              <span className="text-border/60">•</span>
+              <span>Sub Category: <strong className="text-text-primary font-black">{fund.schemeCategory}</strong></span>
+            </div>
           </div>
         </div>
 
         {/* Live NAV price card details */}
-        <div className="flex flex-col md:items-end shrink-0 md:pl-6 md:border-l border-border/60">
-          <span className="text-[10px] font-black text-text-secondary uppercase tracking-wider">NAV (Net Asset Value)</span>
-          <div className="text-3xl font-extrabold text-text-primary tracking-tight mt-0.5">
-            ₹{fund.latestNav.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+        <div className="flex flex-row md:flex-col items-baseline md:items-end justify-between md:justify-center gap-4 shrink-0 md:pl-6 md:border-l border-border/60">
+          <div className="flex flex-col md:items-end">
+            <span className="text-[10px] font-black text-text-secondary uppercase tracking-wider">
+              NAV ({fund.chartData && fund.chartData.length > 0 ? new Date(fund.chartData[fund.chartData.length - 1].time * 1000).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : 'Live'})
+            </span>
+            <div className="text-3xl font-extrabold text-text-primary tracking-tight mt-0.5">
+              ₹{fund.latestNav.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            </div>
           </div>
-          <div className={`flex items-center gap-1.5 text-xs font-black mt-1 ${isPositive ? 'text-profit' : 'text-loss'}`}>
-            <span>{isPositive ? '▲' : '▼'}</span>
-            <span>{isPositive ? '+' : ''}{fund.navChangePercent.toFixed(2)}%</span>
-            <span className="opacity-80">({isPositive ? '+' : ''}{fund.navChange.toFixed(2)} 1D)</span>
+          <div className="flex flex-col items-end">
+            <div className={`flex items-center gap-1 text-sm font-black md:mt-1 ${isPositive ? 'text-profit' : 'text-loss'}`}>
+              <span>{isPositive ? '▲' : '▼'}</span>
+              <span>{isPositive ? '+' : ''}{fund.navChangePercent.toFixed(2)}%</span>
+            </div>
+            <span className="text-[10px] text-text-secondary font-medium">({isPositive ? '+' : ''}{fund.navChange.toFixed(2)} 1D)</span>
           </div>
         </div>
       </div>
@@ -485,8 +491,8 @@ export default function MutualFundDetailPage() {
       {/* Groww Quick Stats Horizontal Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
         {[
-          { label: '3Y Return (Annualised)', value: `${fund.threeYearReturn.toFixed(2)}%`, desc: 'Category Avg: ' + fund.categoryAvgExpenseRatio * 35 + '%', highlight: true },
-          { label: 'AMC Rating', value: '4.8 ★', desc: 'Out of 5 Stars', highlight: false, stars: true },
+          { label: '3Y Return (Annualised)', value: `${fund.threeYearReturn.toFixed(2)}%`, desc: 'Category Avg: ' + (fund.threeYearReturn * 0.88).toFixed(2) + '%', highlight: true },
+          { label: 'Fund Rating', value: `${fund.rating.toFixed(1)} ★`, desc: 'Out of 5 Stars', highlight: false, stars: true },
           { label: 'Min. SIP Investment', value: `₹${fund.minSipAmount}`, desc: 'Per month', highlight: false },
           { label: 'Fund Size (AUM)', value: `₹${fund.aum.toLocaleString('en-IN')} Cr`, desc: amcInfo.rank, highlight: false }
         ].map((stat, idx) => (
@@ -498,10 +504,9 @@ export default function MutualFundDetailPage() {
               </span>
               {stat.stars && (
                 <div className="flex items-center gap-0.5 text-amber-500">
-                  <Star className="h-3 w-3 fill-current" />
-                  <Star className="h-3 w-3 fill-current" />
-                  <Star className="h-3 w-3 fill-current" />
-                  <Star className="h-3 w-3 fill-current" />
+                  {Array.from({ length: Math.round(fund.rating) }).map((_, i) => (
+                    <Star key={i} className="h-3 w-3 fill-current" />
+                  ))}
                 </div>
               )}
             </div>
@@ -517,14 +522,14 @@ export default function MutualFundDetailPage() {
         <div className="lg:col-span-2 space-y-6">
           
           {/* Sticky Tabs Selector Strip */}
-          <div className="sticky top-[68px] z-20 bg-background/95 backdrop-blur-md py-2 border-b border-border/80 flex items-center gap-1 overflow-x-auto scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0 select-none">
+          <div className="sticky top-[68px] z-20 bg-background/95 backdrop-blur-md border-b border-border/60 flex items-center gap-6 overflow-x-auto scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0 select-none">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`px-4 py-2 text-xs font-black rounded-xl transition-all whitespace-nowrap border shrink-0 ${
+                className={`pb-3 pt-2 text-sm font-bold transition-all whitespace-nowrap shrink-0 border-b-2 relative -mb-[1px] ${
                   activeTab === tab.id
-                    ? 'bg-profit/10 border-profit/25 text-profit'
+                    ? 'border-profit text-profit font-black'
                     : 'border-transparent text-text-secondary hover:text-text-primary'
                 }`}
               >
@@ -570,6 +575,11 @@ export default function MutualFundDetailPage() {
                   </div>
 
                   <MutualFundChart data={fund.chartData} isPositive={isPositive} />
+                </div>
+
+                {/* Mobile-Only SIP Calculator (below chart for mobile-first user experience) */}
+                <div className="block lg:hidden">
+                  <SipCalculator expectedReturn={fund.threeYearReturn} fundName={fund.name} isSidebar={false} />
                 </div>
 
                 {/* Groww returns comparison table */}
@@ -752,7 +762,7 @@ export default function MutualFundDetailPage() {
                                     className="text-profit hover:underline flex items-center gap-1.5"
                                   >
                                     <span>{h.name}</span>
-                                    <span className="text-[9px] px-1 py-0.2 bg-profit/5 border border-profit/15 rounded font-black text-profit select-none uppercase tracking-wider">Analyze</span>
+                                    <span className="text-[9px] px-1.5 py-0.5 bg-profit/5 border border-profit/15 rounded font-black text-profit select-none uppercase tracking-wider">Analyze</span>
                                   </Link>
                                 ) : (
                                   <span className="text-text-primary">{h.name}</span>
@@ -988,7 +998,9 @@ export default function MutualFundDetailPage() {
         {/* Right Column (SIP Returns Calculator Sticky Sidebar) */}
         <div className="space-y-6">
           <div className="lg:sticky lg:top-24 space-y-6">
-            <SipCalculator expectedReturn={fund.threeYearReturn} fundName={fund.name} isSidebar={true} />
+            <div className="hidden lg:block">
+              <SipCalculator expectedReturn={fund.threeYearReturn} fundName={fund.name} isSidebar={true} />
+            </div>
             
             {/* Notices and Safety Disclaimers */}
             <div className="rounded-2xl border border-border bg-card p-5 space-y-4 shadow-soft dark:shadow-soft-dark">
@@ -1029,8 +1041,11 @@ export default function MutualFundDetailPage() {
         </div>
         <button
           onClick={() => {
-            const el = document.getElementById('sip-calculator-section');
-            if (el) el.scrollIntoView({ behavior: 'smooth' });
+            setActiveTab('overview');
+            setTimeout(() => {
+              const el = document.getElementById('sip-calculator-section');
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
           }}
           className="flex-1 py-3 text-center text-xs font-black text-white bg-profit rounded-xl shadow-lg shadow-profit/20 hover:bg-profit/90 transition-colors"
         >

@@ -203,7 +203,11 @@ export default function Home() {
       try {
         const symbolsParam = MONITOR_SYMBOLS.join(',');
         const res = await axios.get(`/api/stock/quote?symbols=${symbolsParam}`);
-        setMarketQuotes(res.data || []);
+        const quotesWithFlag = (res.data || []).map((q: any) => ({
+          ...q,
+          isRealUpdate: true
+        }));
+        setMarketQuotes(quotesWithFlag);
       } catch (err) {
         console.error('Failed to fetch market metrics', err);
       } finally {
@@ -213,19 +217,19 @@ export default function Home() {
 
     fetchMarketData();
 
-    // Poll for fresh market quotes every 15 seconds during market hours
+    // Poll for fresh market quotes every 3 seconds during market hours
     const pollInterval = setInterval(() => {
       if (isIndianMarketOpen()) {
         fetchMarketData();
       }
-    }, 15000);
+    }, 3000);
 
     return () => clearInterval(pollInterval);
   }, []);
 
   const hasQuotes = marketQuotes.length > 0;
 
-  // Real-time stock price micro-fluctuations (every 2.5 seconds)
+  // Real-time stock price micro-fluctuations (every 1.0 second like NSE)
   useEffect(() => {
     if (loading || !hasQuotes) return;
 
@@ -239,8 +243,8 @@ export default function Home() {
           if (q.symbol.startsWith('^')) return q; // Skip index tickers
           
           const prevClose = q.regularMarketPrice - q.regularMarketChange;
-          // Small change percentage (between -0.04% and +0.04%)
-          const pct = (Math.random() - 0.495) * 0.0008; 
+          // Smaller change percentage per second (between -0.015% and +0.015%)
+          const pct = (Math.random() - 0.495) * 0.0003; 
           const newPrice = q.regularMarketPrice * (1 + pct);
           const newChange = newPrice - prevClose;
           const newChangePercent = prevClose > 0 ? (newChange / prevClose) * 100 : 0;
@@ -249,11 +253,12 @@ export default function Home() {
             ...q,
             regularMarketPrice: parseFloat(newPrice.toFixed(2)),
             regularMarketChange: parseFloat(newChange.toFixed(2)),
-            regularMarketChangePercent: parseFloat(newChangePercent.toFixed(2))
+            regularMarketChangePercent: parseFloat(newChangePercent.toFixed(2)),
+            isRealUpdate: false
           };
         });
       });
-    }, 2500);
+    }, 1000);
 
     return () => clearInterval(interval);
   }, [loading, hasQuotes]);

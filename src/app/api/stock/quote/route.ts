@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchStockQuoteFromAPI, generateMockQuote } from '@/lib/yahooFinance';
+import { fetchStockQuoteFromAPI, fetchCompanyProfileFromAPI } from '@/lib/yahooFinance';
 
 interface CacheEntry {
   data: any;
@@ -8,8 +8,40 @@ interface CacheEntry {
 
 // Global server-side memory cache
 const quoteCache: Record<string, CacheEntry> = {};
-const FRESH_DURATION = 30000;   // 30 seconds fresh limit
+const FRESH_DURATION = 2000;    // 2 seconds fresh limit for near real-time pricing
 const STALE_DURATION = 600000;  // 10 minutes stale allowed
+
+function mergeProfileIntoQuote(item: any, profile: any) {
+  if (!profile) return;
+  item.sector = profile.sector || item.sector;
+  item.industry = profile.industry || item.industry;
+  item.longBusinessSummary = profile.desc || item.longBusinessSummary;
+  item.website = profile.website || item.website;
+  item.headquarters = profile.headquarters || item.headquarters;
+  if (profile.leadership && profile.leadership.length > 0) {
+    item.leadership = profile.leadership;
+  }
+  if (profile.ceo && profile.ceo !== 'N/A') {
+    item.ceo = profile.ceo;
+  }
+  if (profile.ratios) {
+    item.trailingPE = profile.ratios.pe ?? item.trailingPE;
+    item.priceToBook = profile.ratios.pb ?? item.priceToBook;
+    item.dividendYield = profile.ratios.divYield ?? item.dividendYield;
+    item.epsTrailingTwelveMonths = profile.ratios.eps ?? item.epsTrailingTwelveMonths;
+    item.roe = profile.ratios.roe ?? item.roe;
+    item.sectorPE = profile.ratios.indpe ?? item.sectorPE;
+    item.sectorPB = profile.ratios.indpb ?? item.sectorPB;
+    item.fiftyTwoWeekHigh = profile.ratios.high52w ?? item.fiftyTwoWeekHigh;
+    item.fiftyTwoWeekLow = profile.ratios.low52w ?? item.fiftyTwoWeekLow;
+    if (profile.ratios.marketCap) {
+      item.marketCap = profile.ratios.marketCap * 10000000; // Tickertape marketCap is in Crores, convert to INR
+    }
+  }
+  if (profile.holdings) {
+    item.holdings = profile.holdings;
+  }
+}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -19,7 +51,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Symbols parameter is required' }, { status: 400 });
   }
 
-  const symbols = symbolsParam.split(',').map(s => s.trim().toUpperCase());
+  const symbols = symbolsParam.split(',').map(s => {
+    let clean = s.trim().toUpperCase();
+    if (!clean.startsWith('^') && !clean.endsWith('.NS') && !clean.endsWith('.BO') && !/^\d+$/.test(clean)) {
+      clean = `${clean}.NS`;
+    }
+    return clean;
+  });
   
   if (symbols.length === 0) {
     return NextResponse.json({ error: 'No valid symbols provided' }, { status: 400 });
@@ -53,14 +91,8 @@ export async function GET(request: NextRequest) {
           }
         }
       } else {
-        // Not cached: fetch synchronously for detail pages, otherwise serve mock + fetch in background
-        if (symbols.length > 5) {
-          const mockQuote = generateMockQuote(symbol);
-          cachedData.push(mockQuote);
-          symbolsToFetchAsync.push(symbol);
-        } else {
-          symbolsToFetchSync.push(symbol);
-        }
+        // Not cached: fetch synchronously to ensure real-world data is served on first load
+        symbolsToFetchSync.push(symbol);
       }
     }
 
@@ -68,6 +100,14 @@ export async function GET(request: NextRequest) {
     if (symbolsToFetchSync.length > 0) {
       const freshData = await fetchStockQuoteFromAPI(symbolsToFetchSync);
       for (const item of freshData) {
+        // Fetch real-world company profile (sector, industry, description) if missing or default
+        try {
+          const profile = await fetchCompanyProfileFromAPI(item.symbol);
+          mergeProfileIntoQuote(item, profile);
+        } catch (profileErr) {
+          console.warn(`Failed to fetch company profile for ${item.symbol}:`, profileErr);
+        }
+
         quoteCache[item.symbol] = {
           data: item,
           timestamp: now
@@ -79,9 +119,14 @@ export async function GET(request: NextRequest) {
     // 2. Fetch asynchronously in the background for stale/missing bulk symbols
     if (symbolsToFetchAsync.length > 0) {
       fetchStockQuoteFromAPI(symbolsToFetchAsync)
-        .then(freshData => {
+        .then(async (freshData) => {
           const updateTime = Date.now();
           for (const item of freshData) {
+            try {
+              const profile = await fetchCompanyProfileFromAPI(item.symbol);
+              mergeProfileIntoQuote(item, profile);
+            } catch {}
+
             quoteCache[item.symbol] = {
               data: item,
               timestamp: updateTime

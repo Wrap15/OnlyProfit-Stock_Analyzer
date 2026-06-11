@@ -1,27 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import axios from 'axios';
-import { MUTUAL_FUNDS, SchemeInfo, getAmcLogoUrl } from '@/lib/mutualfunds';
+import { MUTUAL_FUNDS, SchemeInfo, getAmcLogoUrl, fillMissingBusinessDays, getSeededRandom, fetchLatestNAVFromGroww } from '@/lib/mutualfunds';
+import { REAL_MF_DATA } from '@/lib/mutualfundsData';
 
-// Memory cache for specific schemes
+// Memory cache for specific schemes with SWR thresholds
 interface CacheEntry {
   data: any;
   timestamp: number;
 }
 const schemeCache: { [code: string]: CacheEntry } = {};
-const CACHE_DURATION = 3600 * 1000; // 1 hour
-
-// Stable seeded random helper
-function getSeededRandom(seedStr: string) {
-  let seed = 0;
-  for (let i = 0; i < seedStr.length; i++) {
-    seed = seedStr.charCodeAt(i) + (seed << 6) + (seed << 16) - seed;
-  }
-  seed = Math.abs(seed); // Force positive seed to avoid negative modulus results in JavaScript
-  return function() {
-    seed = (seed * 9301 + 49297) % 233280;
-    return seed / 233280;
-  };
-}
 
 // Date parser helper (dd-mm-yyyy)
 function parseMFDate(dateStr: string): Date {
@@ -55,6 +42,22 @@ const MANAGERS = [
   { name: 'Anupam Tiwari', bio: 'Known for high performance in mid-cap and flexi-cap equities. Expert in bottom-up equity research.', tenure: 'Since Apr 2017' }
 ];
 
+async function fetchFromAMFI(code: string) {
+  let res;
+  try {
+    res = await axios.get(`https://api.mfapi.in/mf/${code}`, { timeout: 8000 });
+  } catch (firstErr: any) {
+    console.warn(`First fetch failed for mutual fund ${code} (${firstErr.message}), retrying with longer timeout...`);
+    res = await axios.get(`https://api.mfapi.in/mf/${code}`, { timeout: 12000 });
+  }
+
+  if (res.data && res.data.data && res.data.data.length > 0) {
+    return res.data;
+  } else {
+    throw new Error('Empty API data');
+  }
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { code: string } }
@@ -68,33 +71,45 @@ export async function GET(
 
   const now = Date.now();
   let fullData: any = null;
+  const FRESH_DURATION = 300 * 1000; // 5 minutes fresh duration
+  const STALE_DURATION = 12 * 3600 * 1000; // 12 hours stale limit
+  let triggerUpdate = false;
 
-  // Check cache first
-  if (schemeCache[code] && (now - schemeCache[code].timestamp < CACHE_DURATION)) {
-    fullData = schemeCache[code].data;
-  } else {
-    try {
-      // Fetch details from AMFI with a retry mechanism
-      let res;
-      try {
-        res = await axios.get(`https://api.mfapi.in/mf/${code}`, { timeout: 8000 });
-      } catch (firstErr: any) {
-        console.warn(`First fetch failed for mutual fund ${code} (${firstErr.message}), retrying with longer timeout...`);
-        res = await axios.get(`https://api.mfapi.in/mf/${code}`, { timeout: 12000 });
-      }
-
-      if (res.data && res.data.data && res.data.data.length > 0) {
-        fullData = res.data;
-        schemeCache[code] = {
-          data: fullData,
-          timestamp: now
-        };
-      } else {
-        throw new Error('Empty API data');
-      }
-    } catch (err: any) {
-      console.warn(`Failed to fetch AMFI data for mutual fund ${code}, generating mock data: ${err.message}`);
+  // Check cache first using SWR strategy
+  if (schemeCache[code]) {
+    const age = now - schemeCache[code].timestamp;
+    if (age < FRESH_DURATION) {
+      fullData = schemeCache[code].data;
+    } else if (age < STALE_DURATION) {
+      fullData = schemeCache[code].data;
+      triggerUpdate = true;
     }
+  }
+
+  // Fallback to synchronous fetch if cache miss or too stale
+  if (!fullData) {
+    try {
+      fullData = await fetchFromAMFI(code);
+      schemeCache[code] = {
+        data: fullData,
+        timestamp: Date.now()
+      };
+    } catch (err: any) {
+      console.warn(`Failed to fetch AMFI data for mutual fund ${code}: ${err.message}`);
+    }
+  } else if (triggerUpdate) {
+    // Refresh cache in background
+    fetchFromAMFI(code)
+      .then(freshData => {
+        schemeCache[code] = {
+          data: freshData,
+          timestamp: Date.now()
+        };
+        console.log(`Mutual fund details cache successfully updated in background for ${code}`);
+      })
+      .catch(err => {
+        console.warn(`Background AMFI fetch failed for code ${code}:`, err.message);
+      });
   }
 
   // Fallback Generation if API failed and not cached
@@ -157,7 +172,23 @@ export async function GET(
     });
   }
 
-  const rawPoints = fullData.data; // array of { date, nav } (latest first)
+  // Try to overlay the exact Groww NAV if available
+  let dataPoints = fullData.data;
+  try {
+    const growwData = await fetchLatestNAVFromGroww(code);
+    if (growwData) {
+      if (dataPoints[0] && growwData.date === dataPoints[0].date) {
+        dataPoints[0].nav = growwData.nav.toString();
+      } else {
+        dataPoints = [{ date: growwData.date, nav: growwData.nav.toString() }, ...dataPoints];
+      }
+    }
+  } catch (growwErr: any) {
+    console.warn(`Groww overlay failed for details of ${code}:`, growwErr.message);
+  }
+
+  // Pre-fill missing business days to keep dates and prices realistic
+  const rawPoints = fillMissingBusinessDays(dataPoints, code); // array of { date, nav } (latest first)
   const meta = fullData.meta;
 
   const rawFundName = meta?.scheme_name || (fundConfig ? fundConfig.name : 'Unknown Mutual Fund');
@@ -254,21 +285,25 @@ export async function GET(
   const threeYearReturn = isNaN(threeYearReturnVal) || threeYearReturnVal === 0 ? (fundConfig ? fundConfig.y3Return : getFallbackReturn(category, 3)) : threeYearReturnVal;
   const fiveYearReturn = isNaN(fiveYearReturnVal) || fiveYearReturnVal === 0 ? (fundConfig ? parseFloat((fundConfig.y3Return * 0.9).toFixed(2)) : getFallbackReturn(category, 5)) : fiveYearReturnVal;
 
+  // Get real-world factsheet data if available
+  const realData = REAL_MF_DATA[code];
+
   // Seeded calculations for other metrics
   const rand = getSeededRandom(code);
 
-  const aum = Math.floor(rand() * 38000 + 1200); // Crore
-  const expenseRatio = parseFloat((rand() * 1.3 + 0.25).toFixed(2));
-  const categoryAvgExpenseRatio = parseFloat((expenseRatio + rand() * 0.4 + 0.1).toFixed(2));
+  const aum = realData ? realData.aum : Math.floor(rand() * 38000 + 1200); // Crore
+  const expenseRatio = realData ? realData.expenseRatio : parseFloat((rand() * 1.3 + 0.25).toFixed(2));
+  const categoryAvgExpenseRatio = realData ? realData.categoryAvgExpenseRatio : parseFloat((expenseRatio + rand() * 0.4 + 0.1).toFixed(2));
   const sharpeRatio = parseFloat((rand() * 1.1 + 0.85).toFixed(2));
   const sortinoRatio = parseFloat((sharpeRatio * (1.1 + rand() * 0.3)).toFixed(2));
   const standardDeviation = parseFloat((rand() * 8 + 11).toFixed(2));
   const beta = parseFloat((rand() * 0.3 + 0.8).toFixed(2));
   
-  const minSipAmount = rand() > 0.4 ? 500 : 100;
-  const minLumpsumAmount = rand() > 0.4 ? 5000 : 1000;
-  const exitLoad = rand() > 0.2 ? '1.00% if redeemed within 365 days, Nil thereafter' : 'Nil exit load';
-  const turnOverRatio = parseFloat((rand() * 45 + 15).toFixed(1));
+  const minSipAmount = realData ? realData.minSipAmount : (rand() > 0.4 ? 500 : 100);
+  const minLumpsumAmount = realData ? realData.minLumpsumAmount : (rand() > 0.4 ? 5000 : 1000);
+  const rating = realData ? realData.rating : 4;
+  const exitLoad = realData ? realData.exitLoad : (rand() > 0.2 ? '1.00% if redeemed within 365 days, Nil thereafter' : 'Nil exit load');
+  const turnOverRatio = realData ? realData.turnOverRatio : parseFloat((rand() * 45 + 15).toFixed(1));
 
   // Allocations
   let equityAlloc = 93.5;
@@ -288,32 +323,36 @@ export async function GET(
   }
   const cashAlloc = parseFloat((100 - equityAlloc - debtAlloc).toFixed(1));
 
-  // Seed top 5 holdings
-  const holdingsIndices: number[] = [];
-  while (holdingsIndices.length < 5) {
-    const idx = Math.floor(rand() * BLUECHIP_STOCKS.length);
-    if (!holdingsIndices.includes(idx)) holdingsIndices.push(idx);
-  }
-  
-  let remainingWeight = 36.8;
-  const topHoldings = holdingsIndices.map((idx, index) => {
-    let weight = 0;
-    if (index === 4) {
-      weight = parseFloat(remainingWeight.toFixed(2));
-    } else {
-      weight = parseFloat((remainingWeight * (0.2 + rand() * 0.15)).toFixed(2));
-      remainingWeight -= weight;
+  // Portfolio holdings
+  const topHoldings = realData ? realData.topHoldings : (() => {
+    const holdingsIndices: number[] = [];
+    while (holdingsIndices.length < 5) {
+      const idx = Math.floor(rand() * BLUECHIP_STOCKS.length);
+      if (!holdingsIndices.includes(idx)) holdingsIndices.push(idx);
     }
-    return {
-      name: BLUECHIP_STOCKS[idx].name,
-      sector: BLUECHIP_STOCKS[idx].sector,
-      weight
-    };
-  }).sort((a, b) => b.weight - a.weight);
+    
+    let remainingWeight = 36.8;
+    return holdingsIndices.map((idx, index) => {
+      let weight = 0;
+      if (index === 4) {
+        weight = parseFloat(remainingWeight.toFixed(2));
+      } else {
+        weight = parseFloat((remainingWeight * (0.2 + rand() * 0.15)).toFixed(2));
+        remainingWeight -= weight;
+      }
+      return {
+        name: BLUECHIP_STOCKS[idx].name,
+        sector: BLUECHIP_STOCKS[idx].sector,
+        weight
+      };
+    }).sort((a, b) => b.weight - a.weight);
+  })();
 
-  // Seed Manager
-  const managerIdx = Math.floor(rand() * MANAGERS.length);
-  const manager = MANAGERS[managerIdx];
+  // Fund Manager
+  const manager = realData ? realData.fundManager : (() => {
+    const managerIdx = Math.floor(rand() * MANAGERS.length);
+    return MANAGERS[managerIdx];
+  })();
 
   // Filter chart data by range
   let filterDays = 365;
@@ -390,6 +429,7 @@ export async function GET(
     beta,
     minSipAmount,
     minLumpsumAmount,
+    rating,
     exitLoad,
     turnOverRatio,
     assetAllocation: {
@@ -416,9 +456,6 @@ function generateMockFullData(fund: SchemeInfo) {
   
   // Generate 5 years of daily data (approx 1800 points)
   for (let i = 0; i < 1800; i++) {
-    const change = (rand() - 0.47) * 0.01; // slightly upward bias
-    currentNav = currentNav * (1 + change);
-    
     const d = new Date(startDate.getTime() - i * 24 * 60 * 60 * 1000);
     const day = String(d.getDate()).padStart(2, '0');
     const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -428,6 +465,10 @@ function generateMockFullData(fund: SchemeInfo) {
       date: `${day}-${month}-${year}`,
       nav: parseFloat(currentNav.toFixed(4))
     });
+
+    // Compute previous day's NAV going backwards (de-compounding)
+    const dailyGrowth = (rand() - 0.44) * 0.005; // average positive daily growth
+    currentNav = currentNav / (1 + dailyGrowth);
   }
 
   return {
@@ -441,3 +482,5 @@ function generateMockFullData(fund: SchemeInfo) {
     data: points
   };
 }
+
+export const dynamic = 'force-dynamic';

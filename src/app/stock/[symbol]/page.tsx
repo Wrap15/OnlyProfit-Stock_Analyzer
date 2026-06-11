@@ -60,6 +60,8 @@ interface QuoteData {
   website?: string;
   headquarters?: string;
   leadership?: { name: string; title: string }[];
+  isRealUpdate?: boolean;
+  roe?: number | null;
 }
 
 const RANGES = [
@@ -102,6 +104,8 @@ export default function StockDetailPage() {
   const [finPeriod, setFinPeriod] = useState<'annual' | 'quarterly'>('annual');
   const [finMetric, setFinMetric] = useState<'revenue' | 'profit' | 'ebitda' | 'margin' | 'cashflow'>('revenue');
   const [hoveredFinBar, setHoveredFinBar] = useState<number | null>(null);
+
+  const [financials, setFinancials] = useState<{ annual: any[]; quarterly: any[] } | null>(null);
 
   // Peers and Sidebar states
   const [peerQuotes, setPeerQuotes] = useState<QuoteData[]>([]);
@@ -165,7 +169,10 @@ export default function StockDetailPage() {
         if (showLoadingState) setLoading(true);
         const res = await axios.get(`/api/stock/quote?symbols=${symbol}`);
         if (res.data && res.data.length > 0) {
-          setQuote(res.data[0]);
+          setQuote({
+            ...res.data[0],
+            isRealUpdate: true
+          });
         }
       } catch (err) {
         console.error(`Failed to fetch details for ${symbol}`, err);
@@ -176,17 +183,36 @@ export default function StockDetailPage() {
 
     fetchQuoteData(true);
 
-    // Poll for fresh stock details every 10 seconds during market hours
+    // Poll for fresh stock details every 3 seconds during market hours
     const pollInterval = setInterval(() => {
       if (isIndianMarketOpen()) {
         fetchQuoteData(false);
       }
-    }, 10000);
+    }, 3000);
 
     return () => clearInterval(pollInterval);
   }, [symbol]);
 
-  // Real-time stock price micro-fluctuations (every 2.5 seconds)
+  // Fetch real-world financials from server API
+  useEffect(() => {
+    if (!symbol) return;
+    async function fetchFinancials() {
+      try {
+        const res = await axios.get(`/api/stock/financials?symbol=${symbol}`);
+        if (res.data && res.data.success && res.data.data) {
+          setFinancials(res.data.data);
+        } else {
+          setFinancials(null);
+        }
+      } catch (err) {
+        console.error('Failed to fetch real financials:', err);
+        setFinancials(null);
+      }
+    }
+    fetchFinancials();
+  }, [symbol]);
+
+  // Real-time stock price micro-fluctuations (every 1.0 second like NSE)
   useEffect(() => {
     if (loading) return;
     
@@ -197,8 +223,8 @@ export default function StockDetailPage() {
       setQuote(prev => {
         if (!prev) return null;
         const prevClose = prev.regularMarketPrice - prev.regularMarketChange;
-        // Fluctuation percentage (between -0.04% and +0.04%)
-        const pct = (Math.random() - 0.495) * 0.0008; 
+        // Smaller change percentage per second (between -0.015% and +0.015%)
+        const pct = (Math.random() - 0.495) * 0.0003; 
         const newPrice = prev.regularMarketPrice * (1 + pct);
         const newChange = newPrice - prevClose;
         const newChangePercent = prevClose > 0 ? (newChange / prevClose) * 100 : 0;
@@ -207,10 +233,11 @@ export default function StockDetailPage() {
           ...prev,
           regularMarketPrice: parseFloat(newPrice.toFixed(2)),
           regularMarketChange: parseFloat(newChange.toFixed(2)),
-          regularMarketChangePercent: parseFloat(newChangePercent.toFixed(2))
+          regularMarketChangePercent: parseFloat(newChangePercent.toFixed(2)),
+          isRealUpdate: false
         };
       });
-    }, 2500);
+    }, 1000);
 
     return () => clearInterval(interval);
   }, [loading]);
@@ -219,14 +246,16 @@ export default function StockDetailPage() {
   useEffect(() => {
     if (!quote?.regularMarketPrice) return;
     if (prevPriceRef.current && prevPriceRef.current !== quote.regularMarketPrice) {
-      const dir = quote.regularMarketPrice > prevPriceRef.current ? 'up' : 'down';
-      setPriceFlash(dir);
-      const timer = setTimeout(() => setPriceFlash(null), 800);
-      prevPriceRef.current = quote.regularMarketPrice;
-      return () => clearTimeout(timer);
+      if (quote.isRealUpdate) {
+        const dir = quote.regularMarketPrice > prevPriceRef.current ? 'up' : 'down';
+        setPriceFlash(dir);
+        const timer = setTimeout(() => setPriceFlash(null), 1500); // 1.5s lazy transition
+        prevPriceRef.current = quote.regularMarketPrice;
+        return () => clearTimeout(timer);
+      }
     }
     prevPriceRef.current = quote.regularMarketPrice;
-  }, [quote?.regularMarketPrice]);
+  }, [quote?.regularMarketPrice, quote?.isRealUpdate]);
 
   // Fetch trending stocks
   useEffect(() => {
@@ -470,9 +499,12 @@ export default function StockDetailPage() {
   const marketStatus = getMarketStatus();
 
   // Seeded metric variables
-  const roe = quote.priceToBook && quote.trailingPE && quote.trailingPE > 0
-    ? (quote.priceToBook / quote.trailingPE) * 100
-    : (quote.symbol.charCodeAt(0) % 8) + 12.4; 
+  // Seeded metric variables with real-world fallback
+  const roe = quote.roe !== undefined && quote.roe !== null
+    ? quote.roe
+    : (quote.priceToBook && quote.trailingPE && quote.trailingPE > 0
+      ? (quote.priceToBook / quote.trailingPE) * 100
+      : (quote.symbol.charCodeAt(0) % 8) + 12.4); 
   const roce = roe * 1.25;
 
   const sectorLower = quote.sector.toLowerCase();
@@ -485,8 +517,8 @@ export default function StockDetailPage() {
   const bookValue = quote.regularMarketPrice / (quote.priceToBook || 2.45);
   const eps = quote.epsTrailingTwelveMonths || (quote.regularMarketPrice / (quote.trailingPE || 20));
 
-  // Detail Financial data generator
-  const financialsData = getDetailedFinancials(quote.symbol, quote.marketCap);
+  // Detail Financial data generator (fallbacks to mock data if API call fails or is loading)
+  const financialsData = financials || getDetailedFinancials(quote.symbol, quote.marketCap);
 
   // Technical analysis scores generator
   const technicals = getTechnicalAnalysis(quote.symbol, quote.regularMarketPrice);
@@ -560,12 +592,12 @@ export default function StockDetailPage() {
         {/* Price display and CTA actions */}
         <div className="flex flex-col md:items-end justify-between gap-4 relative z-10 shrink-0">
           <div className="flex flex-col md:items-end">
-            <div className={`text-3xl font-black tracking-tight transition-all duration-1000 ease-out rounded-xl px-2 py-0.5 inline-block ${
+            <div className={`text-3xl font-black tracking-tight transition-colors ease-out rounded-xl px-2 py-0.5 inline-block ${
               priceFlash === 'up' 
-                ? 'text-profit bg-profit/10 duration-0 scale-[1.03]' 
+                ? 'text-profit duration-0' 
                 : priceFlash === 'down' 
-                ? 'text-loss bg-loss/10 duration-0 scale-[1.03]' 
-                : 'text-text-primary bg-transparent'
+                ? 'text-loss duration-0' 
+                : 'text-text-primary duration-[1500ms]'
             }`}>
               ₹{quote.regularMarketPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </div>

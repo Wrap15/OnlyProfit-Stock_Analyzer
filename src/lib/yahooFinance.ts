@@ -1459,7 +1459,7 @@ function getStableLeadership(symbol: string): { name: string; title: string }[] 
 }
 
 // Generates smooth, realistic chart points using a random walk algorithm with OHLC values
-export function generateMockChartData(symbol: string, range: string) {
+export function generateMockChartData(symbol: string, range: string, customBasePrice?: number) {
   let pointsCount = 100;
   let intervalSec = 3600 * 24; // 1 day in seconds
   const now = Math.floor(Date.now() / 1000);
@@ -1490,7 +1490,7 @@ export function generateMockChartData(symbol: string, range: string) {
     intervalSec = 3600 * 24 * 7;
   }
 
-  const basePrice = MOCK_BASE_PRICES[symbol] || 1500;
+  const basePrice = customBasePrice || MOCK_BASE_PRICES[symbol] || 1500;
   
   // Seed random based on symbol, range, and current day to keep data stable
   const dateStr = new Date().toISOString().split('T')[0];
@@ -1926,7 +1926,15 @@ async function fetchFromSparkAPI(symbols: string[]) {
   return allResults.length > 0 ? allResults : null;
 }
 
-let areQuoteEndpointsBlocked = true;
+export let areQuoteEndpointsBlocked = true;
+
+export interface CacheEntry {
+  data: any;
+  timestamp: number;
+}
+
+export const quoteCache: Record<string, CacheEntry> = {};
+export const pendingFetches = new Set<string>();
 
 async function fetchFromQuoteEndpoint(subdomain: string, symbols: string[], profileMap: Record<string, any>) {
   const chunkSize = 30;
@@ -2053,7 +2061,8 @@ function buildQuoteObject(
   prevClose: number,
   volume: number,
   marketCap: number,
-  profile: any
+  profile: any,
+  meta?: any
 ) {
   const change = price - prevClose;
   const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
@@ -2091,13 +2100,13 @@ function buildQuoteObject(
 
   return {
     symbol,
-    shortName: cleanStockName(customMeta.name || symbol.split('.')[0]),
-    longName: cleanStockName(customMeta.name || symbol.split('.')[0]),
+    shortName: cleanStockName(meta?.shortName || meta?.longName || customMeta.name || symbol.split('.')[0]),
+    longName: cleanStockName(meta?.longName || meta?.shortName || customMeta.name || symbol.split('.')[0]),
     regularMarketPrice: parseFloat(price.toFixed(2)),
     regularMarketChange: parseFloat(change.toFixed(2)),
     regularMarketChangePercent: parseFloat(changePercent.toFixed(2)),
-    regularMarketVolume: volume || 1000000,
-    marketCap: marketCap || price * 100000000,
+    regularMarketVolume: volume || meta?.regularMarketVolume || 1000000,
+    marketCap: marketCap || meta?.marketCap || price * 100000000,
     trailingPE: pe,
     epsTrailingTwelveMonths: eps,
     priceToBook: pb,
@@ -2106,10 +2115,10 @@ function buildQuoteObject(
     sectorPB,
     analystRating,
     holdings,
-    regularMarketDayHigh: price * (1.0 + rand() * 0.015),
-    regularMarketDayLow: price * (1.0 - rand() * 0.015),
-    fiftyTwoWeekHigh: price * 1.1,
-    fiftyTwoWeekLow: price * 0.9,
+    regularMarketDayHigh: meta?.regularMarketDayHigh || price * (1.0 + rand() * 0.015),
+    regularMarketDayLow: meta?.regularMarketDayLow || price * (1.0 - rand() * 0.015),
+    fiftyTwoWeekHigh: meta?.fiftyTwoWeekHigh || price * 1.1,
+    fiftyTwoWeekLow: meta?.fiftyTwoWeekLow || price * 0.9,
     sector: profile?.sector || customMeta.sector || 'Financial Services',
     industry: profile?.industry || getStableIndustry(symbol, profile?.sector || customMeta.sector || 'Financial Services'),
     ceo: profile?.ceo || getStableCEOName(symbol),
@@ -2222,7 +2231,8 @@ async function fetchQuotesFromSparkOrChart(symbols: string[], profileMap: Record
           prevClose,
           sparkMeta.regularMarketVolume || 1000000,
           sparkMeta.marketCap || 0,
-          profileMap[symbol]
+          profileMap[symbol],
+          sparkMeta
         );
       }
     }
@@ -2241,30 +2251,20 @@ async function fetchQuotesFromSparkOrChart(symbols: string[], profileMap: Record
           prevClose,
           chartMeta.regularMarketVolume || 1000000,
           chartMeta.marketCap || 0,
-          profileMap[symbol]
+          profileMap[symbol],
+          chartMeta
         );
       }
     } catch (chartErr) {
       console.warn(`Chart-based fallback failed for ${symbol}`, chartErr);
     }
 
-    // 3. Try Mock
-    const customMeta = MOCK_STOCK_INFO[symbol] || {};
-    const profile = profileMap[symbol];
-    const mockQuote = generateMockQuote(symbol);
-    return {
-      ...mockQuote,
-      sector: profile?.sector || customMeta.sector || mockQuote.sector,
-      industry: profile?.industry || getStableIndustry(symbol, profile?.sector || customMeta.sector || mockQuote.sector),
-      ceo: profile?.ceo || getStableCEOName(symbol),
-      longBusinessSummary: profile?.desc || customMeta.desc || mockQuote.longBusinessSummary,
-      website: profile?.website || mockQuote.website || getStableWebsite(symbol),
-      headquarters: profile?.headquarters || mockQuote.headquarters || getStableHeadquarters(symbol),
-      leadership: profile?.leadership || mockQuote.leadership || getStableLeadership(symbol)
-    };
+    // 3. Fail gracefully by returning null instead of fake mock prices
+    return null;
   });
 
-  return Promise.all(promises);
+  const results = await Promise.all(promises);
+  return results.filter((q): q is any => q !== null);
 }
 
 export async function fetchStockQuoteFromAPI(symbols: string[]): Promise<any[]> {
@@ -2275,6 +2275,26 @@ export async function fetchStockQuoteFromAPI(symbols: string[]): Promise<any[]> 
   try {
     const tickertapeQuotes = await fetchStockQuotesFromTickertape(symbols);
     if (tickertapeQuotes && tickertapeQuotes.length > 0) {
+      try {
+        const sparkResults = await fetchFromSparkAPI(tickertapeQuotes.map(q => q.symbol));
+        if (sparkResults && sparkResults.length > 0) {
+          const sparkMap = new Map(sparkResults.map((item: any) => [item.symbol, item?.response?.[0]?.meta]));
+          for (const quote of tickertapeQuotes) {
+            const meta = sparkMap.get(quote.symbol);
+            if (meta) {
+              if (meta.fiftyTwoWeekHigh) quote.fiftyTwoWeekHigh = meta.fiftyTwoWeekHigh;
+              if (meta.fiftyTwoWeekLow) quote.fiftyTwoWeekLow = meta.fiftyTwoWeekLow;
+              if (meta.regularMarketDayHigh) quote.regularMarketDayHigh = meta.regularMarketDayHigh;
+              if (meta.regularMarketDayLow) quote.regularMarketDayLow = meta.regularMarketDayLow;
+              if (meta.longName) quote.longName = cleanStockName(meta.longName);
+              if (meta.shortName) quote.shortName = cleanStockName(meta.shortName);
+            }
+          }
+        }
+      } catch (errSpark) {
+        console.warn('Spark enrichment fetch failed', errSpark);
+      }
+
       const missingSymbols = symbols.filter(s => !tickertapeQuotes.some(q => q.symbol === s));
       if (missingSymbols.length === 0) {
         return tickertapeQuotes;

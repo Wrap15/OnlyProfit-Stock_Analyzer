@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchStockChartFromAPI, generateMockChartData } from '@/lib/yahooFinance';
+import { fetchStockChartFromAPI, generateMockChartData, quoteCache } from '@/lib/yahooFinance';
 
 interface CacheEntry {
   data: any;
@@ -54,13 +54,12 @@ export async function GET(request: NextRequest) {
 
   if (!data) {
     try {
-      data = await Promise.race([
-        fetchAndCacheChart(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1000))
-      ]);
+      data = await fetchAndCacheChart();
     } catch (err: any) {
-      console.warn(`Synchronous chart fetch failed or timed out for ${cleanSymbol}: ${err.message}`);
-      data = generateMockChartData(cleanSymbol, range);
+      console.warn(`Synchronous chart fetch failed for ${cleanSymbol}: ${err.message}`);
+      const cachedQuote = quoteCache[cleanSymbol]?.data;
+      const basePrice = cachedQuote?.regularMarketPrice;
+      data = generateMockChartData(cleanSymbol, range, basePrice);
       triggerUpdate = true;
     }
   } else if (triggerUpdate) {

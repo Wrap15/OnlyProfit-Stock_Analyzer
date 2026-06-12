@@ -1,14 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchStockQuoteFromAPI, fetchCompanyProfileFromAPI, generateMockQuote, MOCK_STOCK_INFO } from '@/lib/yahooFinance';
+import { fetchStockQuoteFromAPI, fetchCompanyProfileFromAPI, quoteCache, pendingFetches } from '@/lib/yahooFinance';
 
-interface CacheEntry {
-  data: any;
-  timestamp: number;
-}
-
-// Global server-side memory cache
-const quoteCache: Record<string, CacheEntry> = {};
-const FRESH_DURATION = 2000;    // 2 seconds fresh limit for near real-time pricing
+const FRESH_DURATION = 12000;   // 12 seconds fresh limit (matches user target of 10-15s and prevents API thrashing)
 const STALE_DURATION = 600000;  // 10 minutes stale allowed
 
 function mergeProfileIntoQuote(item: any, profile: any) {
@@ -78,28 +71,42 @@ export async function GET(request: NextRequest) {
           // Fresh: use cached data directly
           cachedData.push(cached.data);
         } else if (age < STALE_DURATION) {
-          // Stale but usable: use cached data and update in background
+          // Stale but usable: use cached data and update in background if not already pending
           cachedData.push(cached.data);
-          symbolsToFetchAsync.push(symbol);
+          if (!pendingFetches.has(symbol)) {
+            symbolsToFetchAsync.push(symbol);
+          }
         } else {
           // Too stale: fetch synchronously for detail pages, otherwise serve stale + fetch in background
           if (symbols.length > 5) {
             cachedData.push(cached.data);
-            symbolsToFetchAsync.push(symbol);
+            if (!pendingFetches.has(symbol)) {
+              symbolsToFetchAsync.push(symbol);
+            }
           } else {
-            symbolsToFetchSync.push(symbol);
+            if (!pendingFetches.has(symbol)) {
+              symbolsToFetchSync.push(symbol);
+            } else {
+              // A fetch is already pending. Use cached data for now to avoid blocking.
+              cachedData.push(cached.data);
+            }
           }
         }
       } else {
         // Not cached: fetch synchronously to ensure real-world data is served on first load
-        symbolsToFetchSync.push(symbol);
+        if (!pendingFetches.has(symbol)) {
+          symbolsToFetchSync.push(symbol);
+        }
       }
     }
 
-    // 1. Fetch with a 1000ms timeout budget for cache misses
+    // 1. Fetch synchronously for cache misses (no timeout, wait for real prices)
     if (symbolsToFetchSync.length > 0) {
-      const freshData = await Promise.race([
-        fetchStockQuoteFromAPI(symbolsToFetchSync).then(async (data) => {
+      for (const symbol of symbolsToFetchSync) {
+        pendingFetches.add(symbol);
+      }
+      try {
+        const freshData = await fetchStockQuoteFromAPI(symbolsToFetchSync).then(async (data) => {
           if (symbols.length === 1) {
             const promises = data.map(async (item) => {
               try {
@@ -110,44 +117,38 @@ export async function GET(request: NextRequest) {
             await Promise.all(promises);
           }
           return data;
-        }),
-        new Promise<any[]>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1000))
-      ]).catch((err) => {
-        console.warn(`Synchronous quote fetch failed or timed out for ${symbolsToFetchSync.join(',')}: ${err.message}`);
-        symbolsToFetchAsync.push(...symbolsToFetchSync);
-        return [];
-      });
+        });
 
-      const fetchedSymbols = new Set<string>();
-      if (freshData && freshData.length > 0) {
-        for (const item of freshData) {
-          quoteCache[item.symbol] = {
-            data: item,
-            timestamp: Date.now()
-          };
-          cachedData.push(item);
-          fetchedSymbols.add(item.symbol);
+        if (freshData && freshData.length > 0) {
+          for (const item of freshData) {
+            quoteCache[item.symbol] = {
+              data: item,
+              timestamp: Date.now()
+            };
+            cachedData.push(item);
+          }
         }
-      }
-
-      // Return mock quotes immediately for symbols that timed out
-      const missingSymbols = symbolsToFetchSync.filter(s => !fetchedSymbols.has(s));
-      if (missingSymbols.length > 0) {
-        for (const symbol of missingSymbols) {
-          const mockQuote = generateMockQuote(symbol);
-          const customMeta = MOCK_STOCK_INFO[symbol] || {};
-          const item = {
-            ...mockQuote,
-            longBusinessSummary: customMeta.desc || mockQuote.longBusinessSummary,
-            sector: customMeta.sector || mockQuote.sector
-          };
-          cachedData.push(item);
+      } catch (err: any) {
+        console.warn(`Synchronous quote fetch failed for ${symbolsToFetchSync.join(',')}: ${err.message}`);
+        // Stale cache fallback if available
+        for (const symbol of symbolsToFetchSync) {
+          const cached = quoteCache[symbol];
+          if (cached) {
+            cachedData.push(cached.data);
+          }
+        }
+      } finally {
+        for (const symbol of symbolsToFetchSync) {
+          pendingFetches.delete(symbol);
         }
       }
     }
 
     // 2. Fetch asynchronously in the background for stale/missing bulk symbols
     if (symbolsToFetchAsync.length > 0) {
+      for (const symbol of symbolsToFetchAsync) {
+        pendingFetches.add(symbol);
+      }
       fetchStockQuoteFromAPI(symbolsToFetchAsync)
         .then(async (freshData) => {
           const updateTime = Date.now();
@@ -167,6 +168,11 @@ export async function GET(request: NextRequest) {
         })
         .catch(err => {
           console.warn('Background quote prefetch failed:', err);
+        })
+        .finally(() => {
+          for (const symbol of symbolsToFetchAsync) {
+            pendingFetches.delete(symbol);
+          }
         });
     }
 

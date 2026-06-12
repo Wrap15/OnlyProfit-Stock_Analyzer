@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useStockStore } from '@/store/useStockStore';
 import StockCard from '@/components/StockCard';
 import StockLogo from '@/components/StockLogo';
@@ -149,7 +149,7 @@ const SECTOR_ICONS: Record<string, React.ComponentType<any>> = {
 };
 
 
-const TRENDING_SYMBOLS = ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'TRENT.NS', 'HDFCBANK.NS', 'SBIN.NS', 'TMPV.NS', 'TMCV.NS', 'HAL.NS'];
+const TRENDING_SYMBOLS = ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'TRENT.NS', 'HDFCBANK.NS', 'SBIN.NS', 'TMPV.NS', 'TMCV.NS', 'HAL.NS', 'VEDL.NS'];
 const MOST_SEARCHED_SYMBOLS = ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'HDFCBANK.NS', 'TRENT.NS', 'IRCTC.NS', 'RVNL.NS', 'SUNPHARMA.NS'];
 
 // Tickertape-style Curated Collections
@@ -198,16 +198,44 @@ export default function Home() {
     fetchMutualFunds();
   }, [activeMFCategory]);
 
+  // Get active symbols to fetch based on current UI state (optimizes speed & bandwidth)
+  const activeSymbolsToFetch = useMemo(() => {
+    const base = ['^NSEI', '^BSESN'];
+    if (activeTab === 'trending') {
+      return Array.from(new Set([...base, ...TRENDING_SYMBOLS]));
+    }
+    if (activeTab === 'mostsearched') {
+      return Array.from(new Set([...base, ...MOST_SEARCHED_SYMBOLS]));
+    }
+    if (activeTab === 'watchlist') {
+      return Array.from(new Set([...base, ...watchlist]));
+    }
+    if (activeTab === 'explore') {
+      // Fetch currently visible explore symbols (up to 20 for instant rendering)
+      return Array.from(new Set([...base, ...exploreSymbols.slice(0, 20)]));
+    }
+    return base;
+  }, [activeTab, watchlist, exploreSymbols]);
+
   useEffect(() => {
+    if (activeSymbolsToFetch.length === 0) return;
+
     async function fetchMarketData() {
       try {
-        const symbolsParam = MONITOR_SYMBOLS.join(',');
+        const symbolsParam = activeSymbolsToFetch.join(',');
         const res = await axios.get(`/api/stock/quote?symbols=${symbolsParam}`);
         const quotesWithFlag = (res.data || []).map((q: any) => ({
           ...q,
           isRealUpdate: true
         }));
-        setMarketQuotes(quotesWithFlag);
+        // Merge new quotes into state to preserve prices for other tabs
+        setMarketQuotes(prev => {
+          const map = new Map(prev.map(q => [q.symbol, q]));
+          for (const q of quotesWithFlag) {
+            map.set(q.symbol, q);
+          }
+          return Array.from(map.values());
+        });
       } catch (err) {
         console.error('Failed to fetch market metrics', err);
       } finally {
@@ -217,15 +245,15 @@ export default function Home() {
 
     fetchMarketData();
 
-    // Poll for fresh market quotes every 3 seconds during market hours
+    // Poll for fresh market quotes every 4 seconds during market hours
     const pollInterval = setInterval(() => {
       if (isIndianMarketOpen()) {
         fetchMarketData();
       }
-    }, 3000);
+    }, 4000);
 
     return () => clearInterval(pollInterval);
-  }, []);
+  }, [activeSymbolsToFetch]);
 
   const hasQuotes = marketQuotes.length > 0;
 

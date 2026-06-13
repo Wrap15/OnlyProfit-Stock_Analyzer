@@ -9,7 +9,7 @@ import MutualFundCard from '@/components/MutualFundCard';
 import ThematicBaskets from '@/components/ThematicBaskets';
 import { 
   ArrowUpRight, ArrowDownRight, Star, Sparkles, LayoutGrid, Search, BookOpen, Activity,
-  Landmark, Cpu, Cookie, Car, Flame, Wrench, Layers, HeartPulse, PhoneCall, Bolt
+  Landmark, Cpu, Cookie, Car, Flame, Wrench, Layers, HeartPulse, PhoneCall, Bolt, Rocket
 } from 'lucide-react';
 import Link from 'next/link';
 import { MUTUAL_FUNDS } from '@/lib/mutualfunds';
@@ -158,7 +158,7 @@ const HIGH_GROWTH_SYMBOLS = ['TRENT.NS', 'HAL.NS', 'RVNL.NS', 'MARUTI.NS', 'M&M.
 const DIVIDEND_SYMBOLS = ['IOC.NS', 'BPCL.NS', 'ONGC.NS', 'POWERGRID.NS', 'ITC.NS', 'TATASTEEL.NS'];
 const DEBT_FREE_SYMBOLS = ['TCS.NS', 'INFY.NS', 'WIPRO.NS', 'HCLTECH.NS', 'ITC.NS', 'NESTLEIND.NS', 'DIVISLAB.NS'];
 
-type TabType = 'watchlist' | 'trending' | 'mostsearched' | 'explore';
+type TabType = 'watchlist' | 'trending' | 'mostsearched' | 'explore' | 'ipo';
 
 export default function Home() {
   const { watchlist, recentSearches, clearRecentSearches } = useStockStore();
@@ -169,6 +169,11 @@ export default function Home() {
   const [activeCollection, setActiveCollection] = useState<'all' | 'bluechip' | 'growth' | 'dividend' | 'debtfree'>('all');
   const [exploreSymbols, setExploreSymbols] = useState<string[]>(MONITOR_SYMBOLS);
   const [exploreLoading, setExploreLoading] = useState(false);
+
+  // IPO States
+  const [ipoData, setIpoData] = useState<{ open: any[]; closed: any[]; upcoming: any[] } | null>(null);
+  const [ipoLoading, setIpoLoading] = useState(false);
+  const [ipoCategory, setIpoCategory] = useState<'mainboard' | 'sme'>('mainboard');
 
   // Market cap states for movers lists
   const [gainersCap, setGainersCap] = useState<'all' | 'large' | 'mid' | 'small'>('all');
@@ -198,6 +203,38 @@ export default function Home() {
     fetchMutualFunds();
   }, [activeMFCategory]);
 
+  // Fetch IPOs when active tab is ipo
+  useEffect(() => {
+    if (activeTab !== 'ipo') return;
+    
+    async function fetchIPOs() {
+      setIpoLoading(true);
+      try {
+        const res = await axios.get('/api/stock/ipo');
+        setIpoData(res.data);
+      } catch (err) {
+        console.error('Failed to fetch IPOs', err);
+      } finally {
+        setIpoLoading(false);
+      }
+    }
+    
+    fetchIPOs();
+  }, [activeTab]);
+
+  // Date formatting helpers for IPOs
+  const formatDate = (timestamp: number | null | undefined): string => {
+    if (!timestamp) return 'TBA';
+    const date = new Date(timestamp);
+    return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  };
+
+  const formatDateStr = (dateStr: string | null | undefined): string => {
+    if (!dateStr) return 'TBA';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  };
+
   // Get active symbols to fetch based on current UI state (optimizes speed & bandwidth)
   const activeSymbolsToFetch = useMemo(() => {
     const base = ['^NSEI', '^BSESN'];
@@ -223,7 +260,7 @@ export default function Home() {
     async function fetchMarketData() {
       try {
         const symbolsParam = activeSymbolsToFetch.join(',');
-        const res = await axios.get(`/api/stock/quote?symbols=${symbolsParam}`);
+        const res = await axios.get(`/api/stock/quote?symbols=${encodeURIComponent(symbolsParam)}`);
         const quotesWithFlag = (res.data || []).map((q: any) => ({
           ...q,
           isRealUpdate: true
@@ -254,6 +291,48 @@ export default function Home() {
 
     return () => clearInterval(pollInterval);
   }, [activeSymbolsToFetch]);
+
+  // Fetch all market symbols once on mount and poll at a slower interval (e.g. 16 seconds)
+  // to populate and keep Top Gainers, Top Losers, and Most Active updated with real data
+  useEffect(() => {
+    const allSymbols = Array.from(new Set([
+      ...LARGE_CAP_SYMBOLS,
+      ...MID_CAP_SYMBOLS,
+      ...SMALL_CAP_SYMBOLS,
+      ...TRENDING_SYMBOLS,
+      ...MOST_SEARCHED_SYMBOLS
+    ]));
+
+    async function fetchAllMarketData() {
+      try {
+        const symbolsParam = allSymbols.join(',');
+        const res = await axios.get(`/api/stock/quote?symbols=${encodeURIComponent(symbolsParam)}`);
+        const quotesWithFlag = (res.data || []).map((q: any) => ({
+          ...q,
+          isRealUpdate: true
+        }));
+        setMarketQuotes(prev => {
+          const map = new Map(prev.map(q => [q.symbol, q]));
+          for (const q of quotesWithFlag) {
+            map.set(q.symbol, q);
+          }
+          return Array.from(map.values());
+        });
+      } catch (err) {
+        console.error('Failed to fetch full market quotes', err);
+      }
+    }
+
+    fetchAllMarketData();
+
+    const interval = setInterval(() => {
+      if (isIndianMarketOpen()) {
+        fetchAllMarketData();
+      }
+    }, 16000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const hasQuotes = marketQuotes.length > 0;
 
@@ -292,15 +371,16 @@ export default function Home() {
   }, [loading, hasQuotes]);
 
   // Compute gainers & losers with cap filtering
-  const sortedQuotes = [...marketQuotes].sort((a, b) => b.regularMarketChangePercent - a.regularMarketChangePercent);
-  
-  const filteredGainersQuotes = sortedQuotes.filter(q => {
-    if (q.symbol.startsWith('^')) return false;
-    if (gainersCap === 'large') return LARGE_CAP_SYMBOLS.includes(q.symbol);
-    if (gainersCap === 'mid') return MID_CAP_SYMBOLS.includes(q.symbol);
-    if (gainersCap === 'small') return SMALL_CAP_SYMBOLS.includes(q.symbol);
-    return true;
-  });
+  const filteredGainersQuotes = [...marketQuotes]
+    .filter(q => !q.symbol.startsWith('^') && q.regularMarketChangePercent > 0)
+    .filter(q => {
+      if (gainersCap === 'large') return LARGE_CAP_SYMBOLS.includes(q.symbol);
+      if (gainersCap === 'mid') return MID_CAP_SYMBOLS.includes(q.symbol);
+      if (gainersCap === 'small') return SMALL_CAP_SYMBOLS.includes(q.symbol);
+      return true;
+    })
+    .sort((a, b) => b.regularMarketChangePercent - a.regularMarketChangePercent);
+
   const gainers: MarketGainerLoser[] = filteredGainersQuotes.slice(0, 5).map(q => ({
     symbol: q.symbol,
     name: q.shortName,
@@ -308,23 +388,22 @@ export default function Home() {
     changePercent: q.regularMarketChangePercent
   }));
   
-  const filteredLosersQuotes = sortedQuotes
-    .filter(q => !q.symbol.startsWith('^'))
+  const filteredLosersQuotes = [...marketQuotes]
+    .filter(q => !q.symbol.startsWith('^') && q.regularMarketChangePercent < 0)
     .filter(q => {
       if (losersCap === 'large') return LARGE_CAP_SYMBOLS.includes(q.symbol);
       if (losersCap === 'mid') return MID_CAP_SYMBOLS.includes(q.symbol);
       if (losersCap === 'small') return SMALL_CAP_SYMBOLS.includes(q.symbol);
       return true;
-    });
-  const losers: MarketGainerLoser[] = filteredLosersQuotes
-    .slice(-5)
-    .reverse()
-    .map(q => ({
-      symbol: q.symbol,
-      name: q.shortName,
-      price: q.regularMarketPrice,
-      changePercent: q.regularMarketChangePercent
-    }));
+    })
+    .sort((a, b) => a.regularMarketChangePercent - b.regularMarketChangePercent);
+
+  const losers: MarketGainerLoser[] = filteredLosersQuotes.slice(0, 5).map(q => ({
+    symbol: q.symbol,
+    name: q.shortName,
+    price: q.regularMarketPrice,
+    changePercent: q.regularMarketChangePercent
+  }));
 
   // Compute most active stocks by trading volume
   const filteredActiveQuotes = [...marketQuotes]
@@ -514,15 +593,35 @@ export default function Home() {
                 {MONITOR_SYMBOLS.length}
               </span>
             </button>
+
+            <button
+              onClick={() => setActiveTab('ipo')}
+              className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all duration-200 flex items-center gap-1.5 shrink-0 ${
+                activeTab === 'ipo'
+                  ? 'bg-profit/10 text-profit border border-profit/20 shadow-sm'
+                  : 'text-text-secondary hover:text-text-primary hover:bg-background border border-transparent'
+              }`}
+            >
+              <Rocket className="h-3.5 w-3.5" /> IPOs
+            </button>
           </div>
 
           {/* TAB 1: TRENDING */}
           {activeTab === 'trending' && (
             <div className="grid grid-cols-1 gap-2.5 sm:gap-4 sm:grid-cols-2 animate-fade-in gpu-layer">
-              {TRENDING_SYMBOLS.map((symbol) => {
-                const quote = marketQuotes.find(q => q.symbol === symbol);
-                return <StockCard key={symbol} symbol={symbol} initialQuote={quote} />;
-              })}
+              {[...TRENDING_SYMBOLS]
+                .map(symbol => {
+                  const quote = marketQuotes.find(q => q.symbol === symbol);
+                  return { symbol, quote };
+                })
+                .sort((a, b) => {
+                  const priceA = a.quote?.regularMarketPrice ?? 0;
+                  const priceB = b.quote?.regularMarketPrice ?? 0;
+                  return priceB - priceA;
+                })
+                .map(({ symbol, quote }) => (
+                  <StockCard key={symbol} symbol={symbol} initialQuote={quote} />
+                ))}
             </div>
           )}
 
@@ -622,7 +721,340 @@ export default function Home() {
             </div>
           )}
 
+          {/* TAB 5: IPO DETAILS TRACKER */}
+          {activeTab === 'ipo' && (
+            <div className="space-y-6 animate-fade-in gpu-layer">
+              {/* Category Filter Pills (Mainboard vs SME) */}
+              <div className="flex justify-between items-center gap-4">
+                <div className="flex gap-1.5 p-1 bg-card border border-border/70 rounded-xl">
+                  {[
+                    { id: 'mainboard', label: 'Mainboard IPOs' },
+                    { id: 'sme', label: 'SME IPOs' }
+                  ].map((cat) => (
+                    <button
+                      key={cat.id}
+                      onClick={() => setIpoCategory(cat.id as any)}
+                      className={`px-4 py-1.5 rounded-lg text-[10px] font-black shrink-0 transition-all duration-200 ${
+                        ipoCategory === cat.id
+                          ? 'bg-profit/10 text-profit border border-profit/15 shadow-sm'
+                          : 'text-text-secondary hover:text-text-primary hover:bg-background border border-transparent'
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
+                
+                <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider bg-card border border-border/80 px-2 py-1 rounded-lg">
+                  IPO Live Feed
+                </span>
+              </div>
 
+              {ipoLoading ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-3 text-text-secondary">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-profit border-t-transparent" />
+                  <span className="text-xs font-bold">Fetching latest IPO listings...</span>
+                </div>
+              ) : ipoData ? (
+                <div className="space-y-8">
+                  {/* SECTION 1: OPEN IPOS */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="h-2 w-2 rounded-full bg-profit animate-pulse" />
+                      <h3 className="font-extrabold text-sm text-text-primary tracking-tight">Open IPOs</h3>
+                    </div>
+                    {(() => {
+                      const list = (ipoData.open || []).filter(item => ipoCategory === 'sme' ? item.isSme : !item.isSme);
+                      if (list.length === 0) {
+                        return (
+                          <div className="text-center py-8 bg-card/45 border border-dashed border-border rounded-2xl text-xs text-text-secondary font-bold">
+                            No open IPOs in this category right now
+                          </div>
+                        );
+                      }
+                      return (
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                          {list.map((ipo) => {
+                            const details = ipo.categories?.[0] || {};
+                            const priceRange = details.minPrice ? `₹${details.minPrice} - ₹${details.maxPrice}` : 'Price TBA';
+                            const minInvestment = details.lotSize && details.minPrice ? `₹${(details.lotSize * details.minPrice).toLocaleString('en-IN')}` : 'TBA';
+                            const isHot = ipo.overallSubscription && ipo.overallSubscription > 5;
+                            return (
+                              <div key={ipo.symbol} className="rounded-2xl border border-border bg-card p-5 shadow-soft dark:shadow-soft-dark flex flex-col justify-between hover-lift transition-all">
+                                <div className="space-y-4">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                      {ipo.logoUrl ? (
+                                        <img src={ipo.logoUrl} alt={ipo.companyName} className="h-10 w-10 rounded-xl bg-background object-contain border border-border/60 p-1" />
+                                      ) : (
+                                        <div className="h-10 w-10 rounded-xl bg-profit/10 text-profit flex items-center justify-center font-bold text-sm">
+                                          {ipo.symbol.substring(0, 2)}
+                                        </div>
+                                      )}
+                                      <div>
+                                        <h4 className="font-extrabold text-xs text-text-primary line-clamp-1">{ipo.companyName}</h4>
+                                        <span className="text-[10px] font-bold text-text-secondary">{ipo.symbol}</span>
+                                      </div>
+                                    </div>
+                                    <div className="flex flex-col items-end gap-1">
+                                      <span className="text-[9px] font-extrabold bg-profit/10 text-profit px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                        Open
+                                      </span>
+                                      {isHot && (
+                                        <span className="text-[9px] font-extrabold bg-loss/10 text-loss px-2 py-0.5 rounded-full flex items-center gap-0.5">
+                                          🔥 Hot ({ipo.overallSubscription.toFixed(1)}x)
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-3 py-2 border-y border-border/60 text-[11px]">
+                                    <div>
+                                      <span className="text-text-secondary font-medium">Price Band</span>
+                                      <div className="font-extrabold text-text-primary mt-0.5">{priceRange}</div>
+                                    </div>
+                                    <div>
+                                      <span className="text-text-secondary font-medium">Min Investment</span>
+                                      <div className="font-extrabold text-text-primary mt-0.5">{minInvestment}</div>
+                                    </div>
+                                    <div className="col-span-2">
+                                      <span className="text-text-secondary font-medium">Bidding Dates</span>
+                                      <div className="font-extrabold text-text-primary mt-0.5">
+                                        {formatDate(ipo.bidStartTimestamp)} - {formatDate(ipo.bidEndTimestamp)}
+                                      </div>
+                                    </div>
+                                    {ipo.overallSubscription !== undefined && (
+                                      <div className="col-span-2 mt-1">
+                                        <div className="flex justify-between items-center text-[10px] mb-1">
+                                          <span className="text-text-secondary font-medium">Subscription Demand</span>
+                                          <span className={`font-black ${ipo.overallSubscription >= 1 ? 'text-profit' : 'text-text-secondary'}`}>
+                                            {ipo.overallSubscription ? `${ipo.overallSubscription.toFixed(2)}x` : '0.00x'} 
+                                            {ipo.overallSubscription >= 1 ? ' (Fully Subscribed)' : ''}
+                                          </span>
+                                        </div>
+                                        <div className="h-1.5 w-full bg-border/40 rounded-full overflow-hidden">
+                                          <div 
+                                            className={`h-full rounded-full transition-all duration-500 ${
+                                              ipo.overallSubscription >= 5 
+                                                ? 'bg-loss animate-pulse' 
+                                                : ipo.overallSubscription >= 1 
+                                                  ? 'bg-profit' 
+                                                  : 'bg-primary'
+                                            }`}
+                                            style={{ width: `${Math.min((ipo.overallSubscription || 0) * 100, 100)}%` }}
+                                          />
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="mt-4 flex gap-2">
+                                  <a
+                                    href={`https://groww.in/ipo/${ipo.searchId}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex-1 text-center py-2 bg-profit text-white rounded-xl text-xs font-bold hover:bg-profit-dark transition-colors"
+                                  >
+                                    View in OnlyProfit
+                                  </a>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* SECTION 2: UPCOMING IPOS */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="h-2 w-2 rounded-full bg-primary" />
+                      <h3 className="font-extrabold text-sm text-text-primary tracking-tight">Upcoming IPOs</h3>
+                    </div>
+                    {(() => {
+                      const list = (ipoData.upcoming || []).filter(item => ipoCategory === 'sme' ? item.isSme : !item.isSme);
+                      if (list.length === 0) {
+                        return (
+                          <div className="text-center py-8 bg-card/45 border border-dashed border-border rounded-2xl text-xs text-text-secondary font-bold">
+                            No upcoming IPOs announced in this category
+                          </div>
+                        );
+                      }
+                      return (
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                          {list.map((ipo) => {
+                            return (
+                              <div key={ipo.symbol} className="rounded-2xl border border-border bg-card p-5 shadow-soft dark:shadow-soft-dark flex flex-col justify-between hover-lift transition-all">
+                                <div className="flex items-center justify-between mb-4">
+                                  <div className="flex items-center gap-3">
+                                    {ipo.logoUrl ? (
+                                      <img src={ipo.logoUrl} alt={ipo.companyName} className="h-10 w-10 rounded-xl bg-background object-contain border border-border/60 p-1" />
+                                    ) : (
+                                      <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
+                                        {ipo.symbol.substring(0, 2)}
+                                      </div>
+                                    )}
+                                    <div>
+                                      <h4 className="font-extrabold text-xs text-text-primary line-clamp-1">{ipo.companyName}</h4>
+                                      <span className="text-[10px] font-bold text-text-secondary">{ipo.symbol}</span>
+                                    </div>
+                                  </div>
+                                  <span className="text-[9px] font-extrabold bg-primary/10 text-primary px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                    Upcoming
+                                  </span>
+                                </div>
+                                <div className="flex gap-2">
+                                  {ipo.documentUrl ? (
+                                    <a
+                                      href={ipo.documentUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex-1 text-center py-2 border border-border text-text-primary rounded-xl text-xs font-bold hover:bg-background transition-colors"
+                                    >
+                                      Draft Prospectus (SEBI)
+                                    </a>
+                                  ) : (
+                                    <span className="flex-1 text-center py-2 text-text-secondary text-xs font-bold">
+                                      Dates & Pricing TBA
+                                    </span>
+                                  )}
+                                  <a
+                                    href={`https://groww.in/ipo/${ipo.searchId}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex-1 text-center py-2 bg-card border border-border text-text-primary rounded-xl text-xs font-bold hover:bg-background transition-colors"
+                                  >
+                                    Track on OnlyProfit
+                                  </a>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* SECTION 3: CLOSED/LISTED IPOS */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="h-2 w-2 rounded-full bg-text-secondary" />
+                      <h3 className="font-extrabold text-sm text-text-primary tracking-tight">Closed / Recently Listed</h3>
+                    </div>
+                    {(() => {
+                      const list = (ipoData.closed || []).filter(item => ipoCategory === 'sme' ? item.isSme : !item.isSme);
+                      if (list.length === 0) {
+                        return (
+                          <div className="text-center py-8 bg-card/45 border border-dashed border-border rounded-2xl text-xs text-text-secondary font-bold">
+                            No recently closed IPOs listed
+                          </div>
+                        );
+                      }
+                      return (
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                          {list.map((ipo) => {
+                            const listingDate = ipo.listingTimestamp ? formatDate(ipo.listingTimestamp) : 'TBA';
+                            return (
+                              <div key={ipo.symbol} className="rounded-2xl border border-border bg-card p-5 shadow-soft dark:shadow-soft-dark flex flex-col justify-between hover-lift transition-all">
+                                <div className="space-y-4">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                      {ipo.logoUrl ? (
+                                        <img src={ipo.logoUrl} alt={ipo.companyName} className="h-10 w-10 rounded-xl bg-background object-contain border border-border/60 p-1" />
+                                      ) : (
+                                        <div className="h-10 w-10 rounded-xl bg-background text-text-secondary flex items-center justify-center font-bold text-sm border border-border/60">
+                                          {ipo.symbol.substring(0, 2)}
+                                        </div>
+                                      )}
+                                      <div>
+                                        <h4 className="font-extrabold text-xs text-text-primary line-clamp-1">{ipo.companyName}</h4>
+                                        <span className="text-[10px] font-bold text-text-secondary">{ipo.symbol}</span>
+                                      </div>
+                                    </div>
+                                    <span className="text-[9px] font-extrabold bg-border text-text-secondary px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                      Closed
+                                    </span>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-3 py-2 border-y border-border/60 text-[11px]">
+                                    <div>
+                                      <span className="text-text-secondary font-medium">Issue Price</span>
+                                      <div className="font-extrabold text-text-primary mt-0.5">₹{ipo.issuePrice || 'TBA'}</div>
+                                    </div>
+                                    {ipo.isListed && ipo.listingPrice ? (
+                                      <div>
+                                        <span className="text-text-secondary font-medium">Listing Price</span>
+                                        <div className="font-extrabold text-text-primary mt-0.5">₹{ipo.listingPrice}</div>
+                                      </div>
+                                    ) : (
+                                      <div>
+                                        <span className="text-text-secondary font-medium">Subscription Rate</span>
+                                        <div className="font-extrabold text-text-primary mt-0.5">
+                                          {ipo.overallSubscription ? `${ipo.overallSubscription.toFixed(2)}x` : 'TBA'}
+                                        </div>
+                                      </div>
+                                    )}
+                                    <div>
+                                      <span className="text-text-secondary font-medium">Bidding Dates</span>
+                                      <div className="font-extrabold text-text-primary mt-0.5">
+                                        {formatDateStr(ipo.openingDate)} - {formatDateStr(ipo.closingDate)}
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <span className="text-text-secondary font-medium">Listing Date</span>
+                                      <div className="font-extrabold text-text-primary mt-0.5">{listingDate}</div>
+                                    </div>
+                                    {ipo.isListed && ipo.listingReturn !== null && ipo.listingReturn !== undefined && (
+                                      <div className="col-span-2 flex items-center justify-between mt-1 pt-1.5 border-t border-dashed border-border/60">
+                                        <span className="text-text-secondary font-medium">Listing Performance</span>
+                                        <span className={`font-black px-2 py-0.5 rounded text-[10px] flex items-center gap-0.5 ${
+                                          ipo.listingReturn >= 0 
+                                            ? 'bg-profit/10 text-profit' 
+                                            : 'bg-loss/10 text-loss'
+                                        }`}>
+                                          {ipo.listingReturn >= 0 ? '▲' : '▼'}{' '}
+                                          {ipo.listingReturn >= 0 ? '+' : ''}{ipo.listingReturn.toFixed(2)}%
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="mt-4 flex gap-2">
+                                  {ipo.rtaLink ? (
+                                    <a
+                                      href={ipo.rtaLink}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex-1 text-center py-2 border border-border text-text-primary rounded-xl text-xs font-bold hover:bg-background transition-colors"
+                                    >
+                                      Check Allotment (RTA)
+                                    </a>
+                                  ) : null}
+                                  <a
+                                    href={`https://groww.in/ipo/${ipo.searchId}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex-1 text-center py-2 bg-card border border-border text-text-primary rounded-xl text-xs font-bold hover:bg-background transition-colors"
+                                  >
+                                    View Details in OnlyProfit
+                                  </a>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-12 text-sm text-text-secondary font-bold">
+                  Failed to load IPO data. Please try again.
+                </div>
+              )}
+            </div>
+          )}
 
         </div>
 

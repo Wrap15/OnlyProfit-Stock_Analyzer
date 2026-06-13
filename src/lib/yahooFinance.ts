@@ -72,12 +72,12 @@ export const TICKERTAPE_SID_MAP: Record<string, string> = {
   'INDUSINDBK.NS': 'INBK',
   'PNB.NS': 'PNB',
   'BOB.NS': 'BOB',
-  'HAL.NS': 'HAEA',
-  'BEL.NS': 'BHE',
+  'HAL.NS': 'HIAE',
+  'BEL.NS': 'BAJE',
   'RVNL.NS': 'RAIL',
   'IRCTC.NS': 'INIR',
   'IRFC.NS': 'INRY',
-  'BHEL.NS': 'BHL',
+  'BHEL.NS': 'BHEL',
   'PFC.NS': 'PWFC',
   'RECLTD.NS': 'RECT',
   'MUTHOOTFIN.NS': 'MUTT',
@@ -2288,6 +2288,20 @@ export async function fetchStockQuoteFromAPI(symbols: string[]): Promise<any[]> 
               if (meta.regularMarketDayLow) quote.regularMarketDayLow = meta.regularMarketDayLow;
               if (meta.longName) quote.longName = cleanStockName(meta.longName);
               if (meta.shortName) quote.shortName = cleanStockName(meta.shortName);
+
+              // Validate price alignment to prevent incorrect mappings (e.g. BEL.NS mapped to BHE returning ~16 instead of ~407)
+              if (meta.regularMarketPrice && quote.regularMarketPrice) {
+                const diffRatio = Math.abs(quote.regularMarketPrice - meta.regularMarketPrice) / meta.regularMarketPrice;
+                if (diffRatio > 0.1) { // 10% discrepancy threshold
+                  console.warn(`[Price Validation] Mismatch detected for ${quote.symbol}: Tickertape = ${quote.regularMarketPrice}, Yahoo Spark = ${meta.regularMarketPrice}. Using Yahoo Spark price.`);
+                  quote.regularMarketPrice = meta.regularMarketPrice;
+                  const prev = meta.previousClose || meta.chartPreviousClose || meta.regularMarketPrice;
+                  quote.regularMarketChange = parseFloat((meta.regularMarketPrice - prev).toFixed(2));
+                  quote.regularMarketChangePercent = parseFloat((prev > 0 ? ((meta.regularMarketPrice - prev) / prev) * 100 : 0).toFixed(2));
+                  if (meta.regularMarketDayHigh) quote.regularMarketDayHigh = meta.regularMarketDayHigh;
+                  if (meta.regularMarketDayLow) quote.regularMarketDayLow = meta.regularMarketDayLow;
+                }
+              }
             }
           }
         }

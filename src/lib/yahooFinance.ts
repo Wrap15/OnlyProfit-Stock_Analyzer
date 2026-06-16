@@ -94,7 +94,9 @@ export const TICKERTAPE_SID_MAP: Record<string, string> = {
   'TATACONSUM.NS': 'TACN',
   'VBL.NS': 'VARB',
   'UBL.NS': 'UBBW',
-  'UNITDSPR.NS': 'UNSP'
+  'UNITDSPR.NS': 'UNSP',
+  'INDIGO.NS': 'INGL',
+  'MAXHEALTH.NS': 'MAXH'
 };
 
 export function getTickertapeSid(symbol: string): string {
@@ -463,6 +465,11 @@ export const MOCK_STOCK_INFO: Record<string, { name: string; sector: string; des
     name: 'Trent Limited',
     sector: 'Consumer Discretionary',
     desc: 'Trent Limited is the retail hand of the Tata Group, operating popular lifestyle apparel and department store chains including Westside and Zudio.'
+  },
+  'INDIGO.NS': {
+    name: 'InterGlobe Aviation Limited (IndiGo)',
+    sector: 'Consumer Discretionary',
+    desc: 'InterGlobe Aviation Limited, operating as IndiGo, is India\'s largest passenger airline by market share and passenger carryings.'
   },
   'DMART.NS': {
     name: 'Avenue Supermarts Limited (DMart)',
@@ -1243,6 +1250,7 @@ const MOCK_BASE_PRICES: Record<string, number> = {
   'BAJAJ-AUTO.NS': 9150.00,
   'TITAN.NS': 3325.00,
   'TRENT.NS': 4850.50,
+  'INDIGO.NS': 4250.00,
   'DMART.NS': 4620.00,
   'PAGEIND.NS': 35800.00,
   'BATAINDIA.NS': 1385.40,

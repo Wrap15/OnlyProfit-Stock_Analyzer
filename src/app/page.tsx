@@ -832,6 +832,7 @@ export default function Home() {
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                       {ipo.logoUrl ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
                                         <img src={ipo.logoUrl} alt={ipo.companyName} className="h-10 w-10 rounded-xl bg-background object-contain border border-border/60 p-1" />
                                       ) : (
                                         <div className="h-10 w-10 rounded-xl bg-profit/10 text-profit flex items-center justify-center font-bold text-sm">
@@ -934,6 +935,7 @@ export default function Home() {
                                 <div className="flex items-center justify-between mb-4">
                                   <div className="flex items-center gap-3">
                                     {ipo.logoUrl ? (
+                                      // eslint-disable-next-line @next/next/no-img-element
                                       <img src={ipo.logoUrl} alt={ipo.companyName} className="h-10 w-10 rounded-xl bg-background object-contain border border-border/60 p-1" />
                                     ) : (
                                       <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
@@ -1004,6 +1006,7 @@ export default function Home() {
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                       {ipo.logoUrl ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
                                         <img src={ipo.logoUrl} alt={ipo.companyName} className="h-10 w-10 rounded-xl bg-background object-contain border border-border/60 p-1" />
                                       ) : (
                                         <div className="h-10 w-10 rounded-xl bg-background text-text-secondary flex items-center justify-center font-bold text-sm border border-border/60">

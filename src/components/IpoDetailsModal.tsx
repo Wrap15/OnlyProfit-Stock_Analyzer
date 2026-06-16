@@ -122,6 +122,7 @@ export default function IpoDetailsModal({ searchId, onClose }: IpoDetailsModalPr
           ) : data ? (
             <div className="flex items-center gap-3">
               {data.logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img 
                   src={data.logoUrl} 
                   alt={data.companyName} 

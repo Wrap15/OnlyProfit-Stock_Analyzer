@@ -13,6 +13,8 @@ import { apiClient as axios } from '@/lib/apiClient';
 import { isIndianMarketOpen } from '@/lib/marketHours';
 import dynamic from 'next/dynamic';
 import StockLogo from '@/components/StockLogo';
+import NiftyTracker from '@/components/NiftyTracker';
+import SensexTracker from '@/components/SensexTracker';
 
 // Dynamically import StockChart to disable SSR
 const StockChart = dynamic(() => import('@/components/StockChart'), {
@@ -491,6 +493,26 @@ export default function StockDetailPage() {
           <ChevronLeft className="h-4 w-4" /> Return to Dashboard
         </button>
       </div>
+    );
+  }
+
+  if (symbol === '^NSEI') {
+    return (
+      <NiftyTracker 
+        symbol={symbol} 
+        indexQuote={quote} 
+        onBack={() => router.push('/')} 
+      />
+    );
+  }
+
+  if (symbol === '^BSESN') {
+    return (
+      <SensexTracker 
+        symbol={symbol} 
+        indexQuote={quote} 
+        onBack={() => router.push('/')} 
+      />
     );
   }
 

@@ -115,6 +115,7 @@ export default function StockLogo({ symbol, website, size = 'md', name }: StockL
     if (mfLogoUrl) {
       return (
         <div className={`relative flex items-center justify-center bg-white dark:bg-slate-800 overflow-hidden shrink-0 shadow-sm border border-border/40 hover:border-profit/20 transition-all duration-300 ${sizeClasses[size]}`}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={mfLogoUrl}
             alt={name || symbol}
@@ -146,6 +147,7 @@ export default function StockLogo({ symbol, website, size = 'md', name }: StockL
     const clearbitUrl = `https://logo.clearbit.com/${domain}`;
     return (
       <div className={`relative flex items-center justify-center bg-white dark:bg-slate-800 overflow-hidden shrink-0 shadow-sm border border-border/40 hover:border-profit/20 transition-all duration-300 ${sizeClasses[size]}`}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={clearbitUrl}
           alt={cleanTicker}
@@ -161,6 +163,7 @@ export default function StockLogo({ symbol, website, size = 'md', name }: StockL
     const googleFaviconUrl = `https://www.google.com/s2/favicons?sz=128&domain=${domain}`;
     return (
       <div className={`relative flex items-center justify-center bg-white dark:bg-slate-800 overflow-hidden shrink-0 shadow-sm border border-border/40 hover:border-profit/20 transition-all duration-300 ${sizeClasses[size]}`}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={googleFaviconUrl}
           alt={cleanTicker}
@@ -176,6 +179,7 @@ export default function StockLogo({ symbol, website, size = 'md', name }: StockL
     const tickertapeUrl = `https://assets.tickertape.in/stock-logos/${getTickertapeSid(symbol)}.png`;
     return (
       <div className={`relative flex items-center justify-center bg-white dark:bg-slate-800 overflow-hidden shrink-0 shadow-sm border border-border/40 hover:border-profit/20 transition-all duration-300 ${sizeClasses[size]}`}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={tickertapeUrl}
           alt={cleanTicker}

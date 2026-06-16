@@ -18,6 +18,7 @@ interface StockState {
   removeFromWatchlist: (symbol: string) => void;
   toggleWatchlist: (symbol: string) => void;
   addToRecentSearches: (symbol: string) => void;
+  removeFromRecentSearches: (symbol: string) => void;
   clearRecentSearches: () => void;
   setTheme: (theme: 'light' | 'dark') => void;
   toggleTheme: () => void;
@@ -61,6 +62,10 @@ export const useStockStore = create<StockState>()(
             recentSearches: [cleanSymbol, ...filtered].slice(0, 5), // Keep last 5 unique searches
           };
         }),
+      removeFromRecentSearches: (symbol) =>
+        set((state) => ({
+          recentSearches: state.recentSearches.filter((s) => s !== symbol.toUpperCase()),
+        })),
       clearRecentSearches: () =>
         set({ recentSearches: [] }),
       setTheme: (theme) => {

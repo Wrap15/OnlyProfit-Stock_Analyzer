@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import axios from 'axios';
 
 const HEADERS = {
@@ -11,7 +11,7 @@ let cachedIpoData: any = null;
 let lastFetchTime = 0;
 const CACHE_DURATION = 3600000; // 1 hour in milliseconds
 
-export async function GET(_request: NextRequest) {
+export async function GET() {
   const now = Date.now();
   if (cachedIpoData && (now - lastFetchTime < CACHE_DURATION)) {
     return NextResponse.json(cachedIpoData);

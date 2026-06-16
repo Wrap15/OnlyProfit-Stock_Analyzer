@@ -425,6 +425,7 @@ export default function MutualFundDetailPage() {
           {/* AMC visual badge representation */}
           {fund.logoUrl && !logoError ? (
             <div className="relative flex h-16 w-16 items-center justify-center bg-white dark:bg-slate-900 overflow-hidden shrink-0 shadow-sm border border-border rounded-2xl">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={fund.logoUrl}
                 alt={fund.name}

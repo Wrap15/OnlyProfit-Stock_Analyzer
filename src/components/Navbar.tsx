@@ -16,12 +16,16 @@ interface SearchResult {
 
 export default function Navbar() {
   const router = useRouter();
-  const { theme, toggleTheme, addToRecentSearches } = useStockStore();
+  const { 
+    theme, toggleTheme, addToRecentSearches, 
+    recentSearches, clearRecentSearches, removeFromRecentSearches 
+  } = useStockStore();
   const [mounted, setMounted] = useState(false);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -81,6 +85,7 @@ export default function Navbar() {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setShowDropdown(false);
+        setIsFocused(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -132,7 +137,10 @@ export default function Navbar() {
                   placeholder="Search stocks & mutual funds (e.g. SBI, Reliance)"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  onFocus={() => query.trim().length >= 2 && setShowDropdown(true)}
+                  onFocus={() => {
+                    setIsFocused(true);
+                    if (query.trim().length >= 2) setShowDropdown(true);
+                  }}
                   className="w-full h-10 pl-10 pr-8 rounded-full border border-border bg-background text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-profit/20 focus:border-profit transition-all duration-200"
                 />
                 {query && (
@@ -146,9 +154,63 @@ export default function Navbar() {
               </div>
 
               {/* Desktop Dropdown Menu */}
-              {showDropdown && (
-                <div className="absolute left-0 mt-2 w-full max-h-80 overflow-y-auto rounded-2xl border border-border bg-card p-2 shadow-premium dark:shadow-premium-dark animate-in fade-in slide-in-from-top-2 duration-150">
-                  {loading ? (
+              {(showDropdown || (isFocused && query.trim().length === 0 && recentSearches && recentSearches.length > 0)) && (
+                <div className="absolute left-0 mt-2 w-full max-h-80 overflow-y-auto rounded-2xl border border-border bg-card p-2 shadow-premium dark:shadow-premium-dark animate-in fade-in slide-in-from-top-2 duration-150 z-50">
+                  {query.trim().length === 0 ? (
+                    /* Search History List */
+                    <div>
+                      <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/40 mb-1">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-text-secondary">Recent Searches</span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            clearRecentSearches();
+                          }}
+                          className="text-[9px] font-bold text-text-secondary hover:text-loss transition-colors"
+                        >
+                          Clear All
+                        </button>
+                      </div>
+                      <div className="space-y-0.5">
+                        {recentSearches.map((sym) => {
+                          const isMf = /^\d+$/.test(sym);
+                          const displayName = sym.split('.')[0];
+                          return (
+                            <div
+                              key={sym}
+                              className="flex items-center justify-between rounded-xl hover:bg-background transition-colors group/item"
+                            >
+                              <button
+                                onClick={() => {
+                                  addToRecentSearches(sym);
+                                  setShowDropdown(false);
+                                  setIsFocused(false);
+                                  if (isMf) {
+                                    router.push(`/mutualfund/${sym}`);
+                                  } else {
+                                    router.push(`/stock/${sym}`);
+                                  }
+                                }}
+                                className="flex-1 px-3 py-2 text-left font-bold text-xs text-text-primary truncate"
+                              >
+                                {displayName}
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeFromRecentSearches(sym);
+                                }}
+                                className="p-2 mr-1 rounded-lg text-text-secondary hover:text-loss hover:bg-background-secondary/20 transition-all opacity-0 group-hover/item:opacity-100 focus:opacity-100"
+                                title="Remove from search history"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : loading ? (
                     <div className="flex items-center justify-center py-6 text-sm text-text-secondary">
                       <div className="h-4 w-4 animate-spin rounded-full border-2 border-profit border-t-transparent mr-2" />
                       Searching markets...
@@ -264,10 +326,60 @@ export default function Navbar() {
           {/* Results Area */}
           <div className="flex-1 overflow-y-auto p-4 bg-background">
             {query.trim().length < 2 ? (
-              <div className="flex flex-col items-center justify-center h-48 text-center text-text-secondary">
-                <Search className="h-8 w-8 opacity-40 mb-2" />
-                <p className="text-xs font-semibold">Type at least 2 characters to search stocks & mutual funds.</p>
-              </div>
+              recentSearches && recentSearches.length > 0 ? (
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between px-2 pb-1 border-b border-border/40">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-text-secondary">Recent Searches</span>
+                    <button
+                      onClick={clearRecentSearches}
+                      className="text-[9px] font-bold text-text-secondary hover:text-loss transition-colors"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                  <div className="space-y-1">
+                    {recentSearches.map((sym) => {
+                      const isMf = /^\d+$/.test(sym);
+                      const displayName = sym.split('.')[0];
+                      return (
+                        <div
+                          key={sym}
+                          className="flex items-center justify-between rounded-xl border border-border/30 bg-card p-1"
+                        >
+                          <button
+                            onClick={() => {
+                              addToRecentSearches(sym);
+                              setIsMobileSearchOpen(false);
+                              if (isMf) {
+                                router.push(`/mutualfund/${sym}`);
+                              } else {
+                                router.push(`/stock/${sym}`);
+                              }
+                            }}
+                            className="flex-1 px-3 py-2.5 text-left font-bold text-xs text-text-primary truncate"
+                          >
+                            {displayName}
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeFromRecentSearches(sym);
+                            }}
+                            className="p-3 text-text-secondary hover:text-loss"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-48 text-center text-text-secondary">
+                  <Search className="h-8 w-8 opacity-40 mb-2" />
+                  <p className="text-xs font-semibold">Type at least 2 characters to search stocks & mutual funds.</p>
+                </div>
+              )
             ) : loading ? (
               <div className="flex flex-col items-center justify-center h-48 text-text-secondary">
                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-profit border-t-transparent mb-2" />

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
+import BottomNav from "@/components/BottomNav";
 import TopGreetingBanner from "@/components/TopGreetingBanner";
 import TopIndexStrip from "@/components/TopIndexStrip";
 import GlobalLoadingBar from "@/components/GlobalLoadingBar";
@@ -70,7 +71,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="bg-background text-foreground min-h-screen flex flex-col">
+      <body className="bg-background text-foreground min-h-screen flex flex-col pb-16 sm:pb-0">
         <GlobalLoadingBar />
         <TopGreetingBanner />
         <Navbar />
@@ -78,6 +79,7 @@ export default function RootLayout({
         <main className="flex-grow">
           {children}
         </main>
+        <BottomNav />
         
         <footer className="border-t border-border bg-card/65 backdrop-blur-md pt-10 pb-6 text-text-secondary select-none font-semibold mt-auto">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

@@ -222,28 +222,35 @@ export default function ComparePage() {
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
       
       {/* Header */}
-      <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <button
-            onClick={() => router.push('/')}
-            className="inline-flex items-center gap-1 text-xs font-bold text-text-secondary hover:text-text-primary mb-3 transition-colors"
-          >
-            <ChevronLeft className="h-4 w-4" /> Back to Dashboard
-          </button>
-          <h1 className="text-3xl font-extrabold tracking-tight text-text-primary flex items-center gap-2">
-            <GitCompare className="h-7 w-7 text-profit" /> Compare Stocks
-          </h1>
-          <p className="mt-1 text-sm text-text-secondary font-medium">
-            Analyze up to three NSE equities side by side with real-time quotes, technical ratios, and performance metrics.
-          </p>
+      <div className="mb-8 p-6 rounded-3xl border border-border bg-glass shadow-premium relative overflow-hidden animate-fade-in">
+        <div className="absolute top-0 right-0 h-40 w-40 bg-gradient-to-br from-profit/5 to-indigo-500/5 rounded-full blur-3xl pointer-events-none select-none" />
+        
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <button
+              onClick={() => router.push('/')}
+              className="inline-flex items-center gap-1 text-xs font-bold text-text-secondary hover:text-text-primary mb-3 transition-colors"
+            >
+              <ChevronLeft className="h-4 w-4" /> Back to Dashboard
+            </button>
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-text-primary flex items-center gap-2.5">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-profit/15 text-profit border border-profit/20">
+                <GitCompare className="h-5 w-5" />
+              </span>
+              <span>Compare Equities</span>
+            </h1>
+            <p className="mt-1 text-xs sm:text-sm text-text-secondary font-medium max-w-2xl leading-relaxed">
+              Analyze up to three NSE equities side by side with real-time quotes, technical ratios, and performance metrics.
+            </p>
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-4 items-start">
         
         {/* Search & presets controls (Left column on large screen) */}
-        <div className="lg:col-span-1 space-y-6">
-          <div className="bg-card border border-border p-5 rounded-2xl shadow-soft dark:shadow-soft-dark space-y-4">
+        <div className="lg:col-span-1 space-y-6 animate-fade-in">
+          <div className="bg-glass border border-border/75 p-5 rounded-2xl shadow-premium space-y-4">
             <h3 className="font-extrabold text-sm text-text-primary">Add Tickers</h3>
             <p className="text-xs text-text-secondary leading-relaxed font-medium">
               Search and add NSE equities to compare valuation, fundamentals, and margins.
@@ -309,7 +316,7 @@ export default function ComparePage() {
           </div>
 
           {/* Presets List */}
-          <div className="bg-card border border-border p-5 rounded-2xl shadow-soft dark:shadow-soft-dark space-y-4">
+          <div className="bg-glass border border-border/75 p-5 rounded-2xl shadow-premium space-y-4">
             <h3 className="font-extrabold text-sm text-text-primary">Popular Comparisons</h3>
             <div className="flex flex-col gap-2">
               {PRESET_COMPARISONS.map((preset) => (
@@ -330,8 +337,8 @@ export default function ComparePage() {
         <div className="lg:col-span-3">
           {selectedSymbols.length === 0 ? (
             /* Empty State */
-            <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border py-20 px-6 bg-card text-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-profit/10 text-profit mb-4 animate-bounce">
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-border/70 py-20 px-6 bg-glass shadow-premium text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-profit/10 text-profit mb-4">
                 <GitCompare className="h-8 w-8" />
               </div>
               <h3 className="font-extrabold text-base text-text-primary">Comparison sheet is empty</h3>
@@ -355,8 +362,8 @@ export default function ComparePage() {
             </div>
           ) : loading ? (
             /* Main Loader Grid */
-            <div className="bg-card border border-border rounded-2xl p-6 space-y-6">
-              <div className="grid grid-cols-4 gap-4 items-center border-b border-border pb-4">
+            <div className="bg-glass border border-border/85 rounded-2xl p-6 shadow-premium space-y-6">
+              <div className="grid grid-cols-4 gap-4 items-center border-b border-border/50 pb-4">
                 <div className="h-5 w-24 animate-shimmer rounded" />
                 {selectedSymbols.map((sym, idx) => (
                   <div key={idx} className="space-y-2">
@@ -378,7 +385,7 @@ export default function ComparePage() {
             </div>
           ) : (
             /* Premium Responsive Comparison Grid */
-            <div className="bg-card border border-border rounded-2xl shadow-soft dark:shadow-soft-dark overflow-hidden">
+            <div className="bg-glass border border-border/80 rounded-2xl shadow-premium overflow-hidden">
               <div className="overflow-x-auto scrollbar-none">
                 <table className="w-full border-collapse text-left">
                   <thead>

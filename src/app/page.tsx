@@ -7,8 +7,9 @@ import StockLogo from '@/components/StockLogo';
 import { apiClient as axios } from '@/lib/apiClient';
 import MutualFundCard from '@/components/MutualFundCard';
 import ThematicBaskets from '@/components/ThematicBaskets';
+import IpoDetailsModal from '@/components/IpoDetailsModal';
 import { 
-  ArrowUpRight, ArrowDownRight, Star, Sparkles, LayoutGrid, Search, BookOpen, Activity,
+  ArrowUpRight, ArrowDownRight, Star, Sparkles, LayoutGrid, Search, Activity,
   Landmark, Cpu, Cookie, Car, Flame, Wrench, Layers, HeartPulse, PhoneCall, Bolt, Rocket
 } from 'lucide-react';
 import Link from 'next/link';
@@ -174,6 +175,7 @@ export default function Home() {
   const [ipoData, setIpoData] = useState<{ open: any[]; closed: any[]; upcoming: any[] } | null>(null);
   const [ipoLoading, setIpoLoading] = useState(false);
   const [ipoCategory, setIpoCategory] = useState<'mainboard' | 'sme'>('mainboard');
+  const [selectedIpoSearchId, setSelectedIpoSearchId] = useState<string | null>(null);
 
   // Market cap states for movers lists
   const [gainersCap, setGainersCap] = useState<'all' | 'large' | 'mid' | 'small'>('all');
@@ -184,6 +186,18 @@ export default function Home() {
   const [activeMFCategory, setActiveMFCategory] = useState<string>('all');
   const [mutualFunds, setMutualFunds] = useState<any[]>([]);
   const [mfLoading, setMFLoading] = useState<boolean>(true);
+
+  // Clock state for realworld live dashboard feel
+  const [timeStr, setTimeStr] = useState<string>('');
+  useEffect(() => {
+    const updateClock = () => {
+      const now = new Date();
+      setTimeStr(now.toLocaleTimeString('en-IN', { hour12: false }));
+    };
+    updateClock();
+    const interval = setInterval(updateClock, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     async function fetchMutualFunds() {
@@ -486,19 +500,52 @@ export default function Home() {
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 transition-colors duration-300">
       
-      {/* Hero Header Section */}
-      <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-text-primary sm:text-4xl">
-            OnlyProfit — <span className="text-profit">Smart Investing</span>
-          </h1>
-          <p className="mt-2 text-base text-text-secondary max-w-2xl font-medium">
-            Real-time analytics, charts, and key performance metrics for NSE-listed Indian equities. 
-          </p>
-        </div>
-        <div className="flex items-center gap-2 text-xs font-bold text-text-secondary bg-card border border-border px-3 py-1.5 rounded-xl">
-          <BookOpen className="h-4 w-4 text-profit" />
-          <span>NSE Exchange Feed Active</span>
+      {/* Hero Header Command Center Section */}
+      <div className="mb-8 p-6 rounded-3xl border border-border bg-glass shadow-premium relative overflow-hidden animate-fade-in">
+        {/* Decorative corner background gradient blur glow */}
+        <div className="absolute top-0 right-0 h-40 w-40 bg-gradient-to-br from-emerald-500/5 to-indigo-500/5 rounded-full blur-3xl pointer-events-none select-none" />
+        
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[10px] font-black uppercase tracking-widest bg-profit/15 text-profit px-2 py-0.5 rounded-md border border-profit/20">
+                PRO PLATFORM
+              </span>
+              <div className="flex items-center gap-1.5 text-xs text-text-secondary font-bold">
+                <span className="h-1.5 w-1.5 rounded-full bg-border" />
+                <span>Exchange: NSE India</span>
+              </div>
+            </div>
+            
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-text-primary mt-1">
+              Market Command Center — <span className="bg-gradient-to-r from-profit to-teal-500 bg-clip-text text-transparent">OnlyProfit</span>
+            </h1>
+            <p className="text-xs sm:text-sm text-text-secondary font-medium max-w-2xl leading-relaxed">
+              Real-time analytics, interactive trading charts, and sector valuation metrics for NSE-listed equities.
+            </p>
+          </div>
+          
+          {/* Status widgets panel */}
+          <div className="flex items-center gap-3 self-start md:self-auto flex-wrap">
+            {/* Live Clock Widget */}
+            {timeStr && (
+              <div className="px-4 py-2 rounded-2xl bg-background border border-border/80 flex flex-col items-center justify-center shadow-inner select-none font-mono">
+                <span className="text-[8px] font-extrabold text-text-secondary uppercase tracking-widest">LOCAL TIME</span>
+                <span className="text-xs font-black text-text-primary tracking-wider mt-0.5">{timeStr}</span>
+              </div>
+            )}
+            
+            {/* Live Market Hours Status Widget */}
+            <div className="px-4 py-2 rounded-2xl bg-background border border-border/80 flex flex-col items-start shadow-inner select-none">
+              <span className="text-[8px] font-extrabold text-text-secondary uppercase tracking-widest">MARKET STATUS</span>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className={`h-2 w-2 rounded-full ${isIndianMarketOpen() ? 'bg-profit animate-pulse' : 'bg-text-secondary'} shrink-0`} />
+                <span className={`text-[10px] font-black uppercase ${isIndianMarketOpen() ? 'text-profit' : 'text-text-secondary'}`}>
+                  {isIndianMarketOpen() ? 'NSE MARKET OPEN' : 'NSE MARKET CLOSED'}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -849,14 +896,12 @@ export default function Home() {
                                   </div>
                                 </div>
                                 <div className="mt-4 flex gap-2">
-                                  <a
-                                    href={`https://groww.in/ipo/${ipo.searchId}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
+                                  <button
+                                    onClick={() => setSelectedIpoSearchId(ipo.searchId)}
                                     className="flex-1 text-center py-2 bg-profit text-white rounded-xl text-xs font-bold hover:bg-profit-dark transition-colors"
                                   >
                                     View in OnlyProfit
-                                  </a>
+                                  </button>
                                 </div>
                               </div>
                             );
@@ -919,14 +964,12 @@ export default function Home() {
                                       Dates & Pricing TBA
                                     </span>
                                   )}
-                                  <a
-                                    href={`https://groww.in/ipo/${ipo.searchId}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
+                                  <button
+                                    onClick={() => setSelectedIpoSearchId(ipo.searchId)}
                                     className="flex-1 text-center py-2 bg-card border border-border text-text-primary rounded-xl text-xs font-bold hover:bg-background transition-colors"
                                   >
                                     Track on OnlyProfit
-                                  </a>
+                                  </button>
                                 </div>
                               </div>
                             );
@@ -1031,14 +1074,12 @@ export default function Home() {
                                       Check Allotment (RTA)
                                     </a>
                                   ) : null}
-                                  <a
-                                    href={`https://groww.in/ipo/${ipo.searchId}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
+                                  <button
+                                    onClick={() => setSelectedIpoSearchId(ipo.searchId)}
                                     className="flex-1 text-center py-2 bg-card border border-border text-text-primary rounded-xl text-xs font-bold hover:bg-background transition-colors"
                                   >
                                     View Details in OnlyProfit
-                                  </a>
+                                  </button>
                                 </div>
                               </div>
                             );
@@ -1433,6 +1474,11 @@ export default function Home() {
             "description": "Analyze Indian Equities in real-time with interactive charts, technical indicators, and live market data. Estimate mutual fund yields with the built-in SIP/Lumpsum calculator."
           })
         }}
+      />
+
+      <IpoDetailsModal
+        searchId={selectedIpoSearchId}
+        onClose={() => setSelectedIpoSearchId(null)}
       />
     </div>
   );

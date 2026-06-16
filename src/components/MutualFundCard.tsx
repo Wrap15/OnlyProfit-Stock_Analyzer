@@ -65,7 +65,11 @@ export default function MutualFundCard({ fund }: MutualFundCardProps) {
   const config = getCategoryConfig(fund.category);
 
   return (
-    <div className="flex flex-col w-full rounded-2xl border border-border bg-card p-5 shadow-soft dark:shadow-soft-dark hover:shadow-premium dark:hover:shadow-premium-dark hover:border-profit/20 hover:scale-[1.01] active:scale-[0.99] transition-all duration-200 overflow-hidden animate-fade-in gpu-layer">
+    <div className={`flex flex-col w-full rounded-2xl border bg-glass p-5 overflow-hidden animate-fade-in gpu-layer cursor-pointer ${
+      isPositive 
+        ? 'border-emerald-500/10 dark:border-emerald-500/5 shadow-glow-profit hover-glow-profit' 
+        : 'border-rose-500/10 dark:border-rose-500/5 shadow-glow-loss hover-glow-loss'
+    }`}>
       
       <Link href={`/mutualfund/${fund.code}`} className="group flex flex-col flex-grow cursor-pointer">
         {/* Header Info */}

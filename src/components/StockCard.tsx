@@ -254,7 +254,11 @@ export default function StockCard({ symbol, initialQuote }: StockCardProps) {
       <Link href={`/stock/${symbol}`} className="block w-full animate-fade-in">
       
       {/* MOBILE LAYOUT: Compact List Row */}
-      <div className="flex sm:hidden items-center justify-between w-full p-4 rounded-xl border border-border bg-card hover:bg-border/30 active:scale-[0.99] transition-all duration-200">
+      <div className={`flex sm:hidden items-center justify-between w-full p-4 rounded-xl border bg-glass transition-all duration-200 ${
+        isPositive 
+          ? 'border-emerald-500/10 dark:border-emerald-500/5 shadow-glow-profit hover:bg-emerald-500/5 active:scale-[0.98]' 
+          : 'border-rose-500/10 dark:border-rose-500/5 shadow-glow-loss hover:bg-rose-500/5 active:scale-[0.98]'
+      }`}>
         {/* Left Ticker & Name & PE Badge */}
         <div className="flex items-center gap-3 min-w-0 max-w-[55%]">
           <StockLogo symbol={symbol} size="sm" />
@@ -312,7 +316,11 @@ export default function StockCard({ symbol, initialQuote }: StockCardProps) {
       </div>
 
       {/* DESKTOP LAYOUT: Premium Grid Card */}
-      <div className="hidden sm:flex flex-col w-full rounded-2xl border border-border bg-card p-5 shadow-soft dark:shadow-soft-dark hover:shadow-premium dark:hover:shadow-premium-dark hover:border-profit/20 hover:scale-[1.01] active:scale-[0.99] transition-all duration-200 overflow-hidden cursor-pointer">
+      <div className={`hidden sm:flex flex-col w-full rounded-2xl border bg-glass p-5 overflow-hidden cursor-pointer ${
+        isPositive 
+          ? 'border-emerald-500/10 dark:border-emerald-500/5 shadow-glow-profit hover-glow-profit' 
+          : 'border-rose-500/10 dark:border-rose-500/5 shadow-glow-loss hover-glow-loss'
+      }`}>
         {/* Header Row */}
         <div className="flex justify-between items-start gap-2">
           <div className="flex items-center gap-3 min-w-0">

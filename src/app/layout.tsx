@@ -8,6 +8,7 @@ import TopIndexStrip from "@/components/TopIndexStrip";
 import GlobalLoadingBar from "@/components/GlobalLoadingBar";
 import Link from "next/link";
 import { TrendingUp } from "lucide-react";
+import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -80,6 +81,7 @@ export default function RootLayout({
           {children}
         </main>
         <BottomNav />
+        <Analytics />
         
         <footer className="border-t border-border bg-card/65 backdrop-blur-md pt-10 pb-6 text-text-secondary select-none font-semibold mt-auto">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

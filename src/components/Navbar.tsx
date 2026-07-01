@@ -134,7 +134,7 @@ export default function Navbar() {
               {mounted && !userId && (
                 <button
                   onClick={() => setIsProModalOpen(true)}
-                  className="h-10 px-3 rounded-xl border flex items-center gap-1 text-xs font-bold transition-all duration-200 select-none cursor-pointer bg-gradient-to-r from-amber-500/5 to-yellow-500/5 border-amber-500/20 text-amber-600 dark:text-amber-400 hover:from-amber-500/10 hover:to-yellow-500/10"
+                  className="hidden sm:flex h-10 px-3 rounded-xl border items-center gap-1 text-xs font-bold transition-all duration-200 select-none cursor-pointer bg-gradient-to-r from-amber-500/5 to-yellow-500/5 border-amber-500/20 text-amber-600 dark:text-amber-400 hover:from-amber-500/10 hover:to-yellow-500/10"
                   title="Upgrade to OnlyProfit Pro"
                 >
                   <Zap className="h-4 w-4 shrink-0 text-amber-500" />

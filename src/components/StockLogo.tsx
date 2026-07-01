@@ -7,7 +7,7 @@ import { getTickertapeSid } from '@/lib/yahooFinance';
 interface StockLogoProps {
   symbol: string;
   website?: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   name?: string;
 }
 
@@ -84,6 +84,7 @@ export default function StockLogo({ symbol, website, size = 'md', name }: StockL
   const cleanTicker = symbol.split('.')[0].replace('^', '').toUpperCase();
 
   const sizeClasses = {
+    xs: 'h-4 w-4 text-[6px] rounded-sm',
     sm: 'h-8 w-8 text-[10px] rounded-lg',
     md: 'h-10 w-10 text-[12px] rounded-xl',
     lg: 'h-14 w-14 text-[16px] rounded-2xl',

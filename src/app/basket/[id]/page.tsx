@@ -71,6 +71,42 @@ const RANGES = [
   { label: '5Y', value: '5y' }
 ];
 
+function generateClientMockBasketChart(cagr: number, range: string) {
+  const points = [];
+  const now = new Date();
+  let filterDays = 365;
+  switch (range) {
+    case '1mo': filterDays = 30; break;
+    case '6mo': filterDays = 180; break;
+    case '1y': filterDays = 365; break;
+    case '5y': filterDays = 5 * 365; break;
+    default: filterDays = 365; break;
+  }
+  
+  let currentVal = 100;
+  const stepReturn = Math.pow(1 + (cagr / 100), 1 / 250) - 1;
+  let seed = filterDays;
+  const rand = () => {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  };
+  
+  const count = Math.min(filterDays, 260);
+  for (let i = count; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+    const dayOfWeek = d.getDay();
+    if (dayOfWeek === 0 || dayOfWeek === 6) continue;
+    
+    const noise = (rand() - 0.49) * 2.0;
+    currentVal = currentVal * (1 + stepReturn) + noise;
+    points.push({
+      time: Math.floor(d.getTime() / 1000),
+      value: parseFloat(currentVal.toFixed(2))
+    });
+  }
+  return points;
+}
+
 export default function BasketDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -90,6 +126,63 @@ export default function BasketDetailPage() {
     async function fetchBasketDetails() {
       try {
         setLoading(true);
+        
+        // Intercept custom baskets from LocalStorage
+        if (id.startsWith('custom_')) {
+          const stored = localStorage.getItem(`basket_${id}`);
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            
+            // Get constituent quotes
+            const syms = parsed.constituents.map((c: any) => c.symbol).join(',');
+            let quotesData: any[] = [];
+            if (syms) {
+              const quoteRes = await axios.get(`/api/stock/quote?symbols=${syms}`);
+              quotesData = quoteRes.data || [];
+            }
+            
+            const constituents = parsed.constituents.map((c: any) => {
+              const quote = quotesData.find((q: any) => q.symbol === c.symbol) || {};
+              return {
+                symbol: c.symbol,
+                ticker: c.symbol.split('.')[0],
+                name: quote.shortName || quote.longName || c.symbol.split('.')[0],
+                price: quote.regularMarketPrice || 1250.0,
+                changePercent: quote.regularMarketChangePercent || 0.0,
+                sector: quote.sector || 'Equities',
+                weight: c.weight
+              };
+            });
+
+            let changePercent1D = 0;
+            constituents.forEach((c: any) => {
+              changePercent1D += c.changePercent * (c.weight / 100);
+            });
+
+            const chartData = generateClientMockBasketChart(parsed.cagr, activeRange);
+
+            setBasket({
+              id: parsed.id,
+              name: parsed.name,
+              type: 'Custom',
+              description: parsed.description,
+              volatility: 'Medium Volatility',
+              category: 'Custom Watchlist Basket',
+              cagr: parsed.cagr,
+              aum: 0,
+              minInvestmentAmount: parsed.minInvestmentAmount || 5000,
+              managementFee: 0,
+              launchDate: parsed.launchDate || new Date().toLocaleDateString(),
+              rebalancingFrequency: 'On Demand',
+              changePercent1D,
+              constituents,
+              chartData
+            });
+            setLoading(false);
+            return;
+          }
+        }
+
         const res = await axios.get(`/api/stock/basket/${id}?range=${activeRange}`);
         setBasket(res.data);
       } catch (err) {

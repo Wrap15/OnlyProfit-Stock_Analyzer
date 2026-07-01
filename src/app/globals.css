@@ -305,3 +305,14 @@ input[type="range"]::-moz-range-thumb:hover {
   transform: translateY(0) scale(0.99);
 }
 
+/* Tabular Numbers utility and selectors to prevent numerical layout shifts */
+.tabular-nums,
+[class*="price"],
+[class*="percent"],
+[class*="volume"],
+[class*="nav"],
+[class*="cagr"] {
+  font-variant-numeric: tabular-nums;
+}
+
+

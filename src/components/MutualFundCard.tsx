@@ -101,7 +101,7 @@ export default function MutualFundCard({ fund }: MutualFundCardProps) {
         <div className="mt-5 flex items-baseline justify-between">
           <div>
             <span className="block text-[10px] font-extrabold text-text-secondary uppercase tracking-wider">Net Asset Value (NAV)</span>
-            <div className="text-xl font-black text-text-primary tracking-tight mt-0.5">
+            <div className="text-xl font-black text-text-primary tracking-tight mt-0.5 tabular-nums">
               ₹{fund.nav.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </div>
           </div>
@@ -109,7 +109,7 @@ export default function MutualFundCard({ fund }: MutualFundCardProps) {
           {/* CAGR Return Badge */}
           <div className="text-right">
             <span className="block text-[10px] font-extrabold text-text-secondary uppercase tracking-wider">3Y Return (cagr)</span>
-            <span className="inline-flex items-center mt-1 px-2 py-0.5 rounded-lg bg-profit/10 text-profit border border-profit/15 text-xs font-black">
+            <span className="inline-flex items-center mt-1 px-2 py-0.5 rounded-lg bg-profit/10 text-profit border border-profit/15 text-xs font-black tabular-nums">
               {fund.threeYearReturn.toFixed(2)}% p.a.
             </span>
           </div>
@@ -121,7 +121,7 @@ export default function MutualFundCard({ fund }: MutualFundCardProps) {
             <span className="text-[10px] font-extrabold text-text-secondary uppercase tracking-wider">
               1Y Return
             </span>
-            <span className={`text-xs font-black mt-0.5 ${fund.oneYearReturn >= 0 ? 'text-profit' : 'text-loss'}`}>
+            <span className={`text-xs font-black mt-0.5 tabular-nums ${fund.oneYearReturn >= 0 ? 'text-profit' : 'text-loss'}`}>
               {fund.oneYearReturn >= 0 ? '+' : ''}{fund.oneYearReturn.toFixed(2)}%
             </span>
           </div>
@@ -131,7 +131,7 @@ export default function MutualFundCard({ fund }: MutualFundCardProps) {
               <span className="text-[10px] font-extrabold text-text-secondary uppercase tracking-wider">
                 Min. SIP
               </span>
-              <span className="text-xs font-black text-text-primary mt-0.5">
+              <span className="text-xs font-black text-text-primary mt-0.5 tabular-nums">
                 ₹{fund.minSipAmount}
               </span>
             </div>

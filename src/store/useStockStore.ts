@@ -14,6 +14,9 @@ interface StockState {
   selectedStock: string | null;
   theme: 'light' | 'dark';
   alerts: PriceAlert[];
+  isProUser: boolean;
+  userId: string | null;
+  userEmail: string | null;
   addToWatchlist: (symbol: string) => void;
   removeFromWatchlist: (symbol: string) => void;
   toggleWatchlist: (symbol: string) => void;
@@ -25,6 +28,9 @@ interface StockState {
   setSelectedStock: (symbol: string | null) => void;
   addAlert: (alert: PriceAlert) => void;
   removeAlert: (symbol: string, price: number, condition: 'above' | 'below') => void;
+  activatePro: () => void;
+  deactivatePro: () => void;
+  setUser: (userId: string | null, userEmail: string | null) => void;
 }
 
 export const useStockStore = create<StockState>()(
@@ -35,6 +41,9 @@ export const useStockStore = create<StockState>()(
       selectedStock: null,
       theme: 'light',
       alerts: [],
+      isProUser: false,
+      userId: null,
+      userEmail: null,
       addToWatchlist: (symbol) =>
         set((state) => ({
           watchlist: state.watchlist.includes(symbol)
@@ -103,6 +112,9 @@ export const useStockStore = create<StockState>()(
             (a) => !(a.symbol === symbol && a.price === price && a.condition === condition)
           ),
         })),
+      activatePro: () => set({ isProUser: true }),
+      deactivatePro: () => set({ isProUser: false }),
+      setUser: (userId, userEmail) => set({ userId, userEmail }),
     }),
     {
       name: 'onlyprofit-storage', // local storage key
@@ -111,6 +123,9 @@ export const useStockStore = create<StockState>()(
         recentSearches: state.recentSearches,
         theme: state.theme,
         alerts: state.alerts,
+        isProUser: state.isProUser,
+        userId: state.userId,
+        userEmail: state.userEmail,
       }),
     }
   )

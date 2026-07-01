@@ -67,7 +67,7 @@ export default function IndexCard({
         <span className="text-[10px] sm:text-[11px] font-extrabold text-text-secondary tracking-wide uppercase">
           {name}
         </span>
-        <span className={`text-xs sm:text-sm font-extrabold mt-0.5 transition-colors ease-out rounded px-1.5 py-0.5 inline-block ${
+        <span className={`text-xs sm:text-sm font-extrabold mt-0.5 transition-colors ease-out rounded px-1.5 py-0.5 inline-block tabular-nums ${
           flash === 'up'
             ? 'text-profit duration-0'
             : flash === 'down'
@@ -80,14 +80,14 @@ export default function IndexCard({
 
       <div className="flex flex-col items-end">
         <span
-          className={`text-xs font-bold ${
+          className={`text-xs font-bold tabular-nums ${
             isPositive ? 'text-profit' : 'text-loss'
           }`}
         >
           {isPositive ? '▲' : '▼'}{isPositive ? '+' : ''}{changePercent.toFixed(2)}%
         </span>
         <span
-          className={`text-[9px] sm:text-[10px] font-bold ${
+          className={`text-[9px] sm:text-[10px] font-bold tabular-nums ${
             isPositive ? 'text-profit/85' : 'text-loss/85'
           }`}
         >

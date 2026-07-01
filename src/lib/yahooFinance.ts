@@ -2279,12 +2279,21 @@ export async function fetchStockQuoteFromAPI(symbols: string[]): Promise<any[]> 
   // Skip slow profile fetches for performance; rely on custom static profiles
   const profileMap: Record<string, any> = {};
 
-  // Try Tickertape Quotes API first for Indian Equities (provides live real-time prices)
+  // Try Tickertape Quotes API and Yahoo Spark API concurrently (provides massive performance speed-up)
   try {
-    const tickertapeQuotes = await fetchStockQuotesFromTickertape(symbols);
+    const [tickertapeQuotes, sparkResults] = await Promise.all([
+      fetchStockQuotesFromTickertape(symbols).catch(err => {
+        console.warn('Concurrent Tickertape fetch failed', err);
+        return null;
+      }),
+      fetchFromSparkAPI(symbols).catch(err => {
+        console.warn('Concurrent Yahoo Spark fetch failed', err);
+        return null;
+      })
+    ]);
+
     if (tickertapeQuotes && tickertapeQuotes.length > 0) {
       try {
-        const sparkResults = await fetchFromSparkAPI(tickertapeQuotes.map(q => q.symbol));
         if (sparkResults && sparkResults.length > 0) {
           const sparkMap = new Map(sparkResults.map((item: any) => [item.symbol, item?.response?.[0]?.meta]));
           for (const quote of tickertapeQuotes) {

@@ -1,106 +1,85 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Search, Sun, Moon, TrendingUp, X, ArrowLeft, GitCompare } from 'lucide-react';
+import { Search, Sun, Moon, TrendingUp, GitCompare, Zap, LogOut } from 'lucide-react';
 import { useStockStore } from '@/store/useStockStore';
-import axios from 'axios';
-
-interface SearchResult {
-  symbol: string;
-  name: string;
-  exchange: string;
-  type: string;
-}
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase';
+import SearchCommandCenter from './SearchCommandCenter';
+import SaaSProModal from './SaaSProModal';
+import FirebaseAuthModal from './FirebaseAuthModal';
 
 export default function Navbar() {
-  const router = useRouter();
   const { 
-    theme, toggleTheme, addToRecentSearches, 
-    recentSearches, clearRecentSearches, removeFromRecentSearches 
+    theme, 
+    toggleTheme, 
+    userId, 
+    userEmail, 
+    setUser, 
+    activatePro, 
+    deactivatePro 
   } = useStockStore();
-  const [mounted, setMounted] = useState(false);
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<SearchResult[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [isFocused, setIsFocused] = useState(false);
-  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
-  
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const mobileInputRef = useRef<HTMLInputElement>(null);
 
+  const [mounted, setMounted] = useState(false);
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const [isProModalOpen, setIsProModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  
   // Avoid hydration mismatch
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Fetch search results on query change
+  // Listen for Firebase Auth session status
   useEffect(() => {
-    const delayDebounce = setTimeout(async () => {
-      if (query.trim().length >= 2) {
-        setLoading(true);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
         try {
-          const res = await axios.get(`/api/stock/search?q=${encodeURIComponent(query)}`);
-          setResults(res.data || []);
-          setShowDropdown(true);
+          const userRef = doc(db, 'users', user.uid);
+          const userSnap = await getDoc(userRef);
+          let isPro = false;
+          if (userSnap.exists()) {
+            isPro = !!userSnap.data().isProUser;
+          }
+          setUser(user.uid, user.email);
+          if (isPro) {
+            activatePro();
+          } else {
+            deactivatePro();
+          }
         } catch (err) {
-          console.error('Failed to search', err);
-        } finally {
-          setLoading(false);
+          console.error('Session restoration fail', err);
+          setUser(user.uid, user.email);
         }
       } else {
-        setResults([]);
-        setShowDropdown(false);
+        setUser(null, null);
+        deactivatePro();
       }
-    }, 300);
+    });
+    return () => unsubscribe();
+  }, [setUser, activatePro, deactivatePro]);
 
-    return () => clearTimeout(delayDebounce);
-  }, [query]);
-
-  // Focus mobile search input when overlay opens
+  // Ctrl + K key binding
   useEffect(() => {
-    if (isMobileSearchOpen && mobileInputRef.current) {
-      setTimeout(() => {
-        mobileInputRef.current?.focus();
-      }, 150);
-    }
-  }, [isMobileSearchOpen]);
-
-  // Toggle body scroll lock when mobile search overlay is open
-  useEffect(() => {
-    if (isMobileSearchOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsSearchModalOpen(prev => !prev);
+      }
     };
-  }, [isMobileSearchOpen]);
-
-  // Click outside listener for desktop search
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowDropdown(false);
-        setIsFocused(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const handleSelect = (item: SearchResult) => {
-    setQuery('');
-    setShowDropdown(false);
-    setIsMobileSearchOpen(false);
-    addToRecentSearches(item.symbol);
-    if (item.type === 'MUTUALFUND') {
-      router.push(`/mutualfund/${item.symbol}`);
-    } else {
-      router.push(`/stock/${item.symbol}`);
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      setUser(null, null);
+      deactivatePro();
+    } catch (err) {
+      console.error('Error signing out user', err);
     }
   };
 
@@ -126,140 +105,42 @@ export default function Navbar() {
               </div>
             </Link>
 
-            {/* Desktop Search Bar (Hidden on Mobile) */}
-            <div className="hidden sm:block relative flex-1 max-w-lg" ref={dropdownRef}>
-              <div className="relative group">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                  <Search className="h-4 w-4 text-text-secondary group-focus-within:text-profit transition-colors" />
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search stocks & mutual funds (e.g. SBI, Reliance)"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onFocus={() => {
-                    setIsFocused(true);
-                    if (query.trim().length >= 2) setShowDropdown(true);
-                  }}
-                  className="w-full h-10 pl-10 pr-8 rounded-full border border-border bg-background text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-profit/20 focus:border-profit transition-all duration-200"
-                />
-                {query && (
-                  <button 
-                    onClick={() => setQuery('')}
-                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-text-secondary hover:text-text-primary"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
+            {/* Desktop Search Button (Triggering Search Modal) */}
+            <button
+              onClick={() => setIsSearchModalOpen(true)}
+              className="hidden sm:flex relative flex-1 max-w-lg items-center justify-between h-10 pl-10 pr-4 rounded-full border border-border bg-background text-sm text-text-secondary hover:text-text-primary transition-all duration-200 hover:border-profit/35 hover:bg-slate-50/50 dark:hover:bg-slate-800/10 cursor-pointer select-none text-left"
+            >
+              <div className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none">
+                <Search className="h-4 w-4 text-text-secondary" />
               </div>
-
-              {/* Desktop Dropdown Menu */}
-              {(showDropdown || (isFocused && query.trim().length === 0 && recentSearches && recentSearches.length > 0)) && (
-                <div className="absolute left-0 mt-2 w-full max-h-80 overflow-y-auto rounded-2xl border border-border bg-card p-2 shadow-premium dark:shadow-premium-dark animate-in fade-in slide-in-from-top-2 duration-150 z-50">
-                  {query.trim().length === 0 ? (
-                    /* Search History List */
-                    <div>
-                      <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/40 mb-1">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-text-secondary">Recent Searches</span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            clearRecentSearches();
-                          }}
-                          className="text-[9px] font-bold text-text-secondary hover:text-loss transition-colors"
-                        >
-                          Clear All
-                        </button>
-                      </div>
-                      <div className="space-y-0.5">
-                        {recentSearches.map((sym) => {
-                          const isMf = /^\d+$/.test(sym);
-                          const displayName = sym.split('.')[0];
-                          return (
-                            <div
-                              key={sym}
-                              className="flex items-center justify-between rounded-xl hover:bg-background transition-colors group/item"
-                            >
-                              <button
-                                onClick={() => {
-                                  addToRecentSearches(sym);
-                                  setShowDropdown(false);
-                                  setIsFocused(false);
-                                  if (isMf) {
-                                    router.push(`/mutualfund/${sym}`);
-                                  } else {
-                                    router.push(`/stock/${sym}`);
-                                  }
-                                }}
-                                className="flex-1 px-3 py-2 text-left font-bold text-xs text-text-primary truncate"
-                              >
-                                {displayName}
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  removeFromRecentSearches(sym);
-                                }}
-                                className="p-2 mr-1 rounded-lg text-text-secondary hover:text-loss hover:bg-background-secondary/20 transition-all opacity-0 group-hover/item:opacity-100 focus:opacity-100"
-                                title="Remove from search history"
-                              >
-                                <X className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ) : loading ? (
-                    <div className="flex items-center justify-center py-6 text-sm text-text-secondary">
-                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-profit border-t-transparent mr-2" />
-                      Searching markets...
-                    </div>
-                  ) : results.length > 0 ? (
-                    <div className="space-y-0.5">
-                      {results.map((item) => (
-                        <button
-                          key={item.symbol}
-                          onClick={() => handleSelect(item)}
-                          className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-background transition-colors text-left"
-                        >
-                          <div>
-                            <div className="font-bold text-sm text-text-primary">
-                              {item.type === 'MUTUALFUND' ? item.name : item.symbol.split('.')[0]}
-                            </div>
-                            <div className="text-xs text-text-secondary truncate max-w-[200px] sm:max-w-xs">
-                              {item.type === 'MUTUALFUND' ? `Mutual Fund • Code ${item.symbol}` : item.name}
-                            </div>
-                          </div>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
-                            item.type === 'MUTUALFUND' 
-                              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400' 
-                              : 'bg-background border-border text-text-secondary'
-                          }`}>
-                            {item.exchange}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="py-6 text-center text-sm text-text-secondary">
-                      No results found for &quot;{query}&quot;
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+              <span>Search stocks, mutual funds, baskets...</span>
+              <kbd className="px-2 py-0.5 rounded bg-card border border-border/80 text-[10px] text-text-secondary font-mono select-none flex items-center gap-0.5">
+                <span className="text-[8px]">Ctrl</span><span>K</span>
+              </kbd>
+            </button>
 
             {/* Right Buttons Section */}
             <div className="flex items-center gap-2 sm:gap-3 shrink-0">
               {/* Mobile Search Button trigger (Visible on Mobile Only) */}
               <button
-                onClick={() => setIsMobileSearchOpen(true)}
+                onClick={() => setIsSearchModalOpen(true)}
                 className="flex sm:hidden h-10 w-10 items-center justify-center rounded-xl border border-border bg-card hover:bg-background text-text-primary transition-all duration-200"
                 aria-label="Search"
               >
                 <Search className="h-5 w-5" />
               </button>
+
+              {/* SaaS Pro Tier Badge */}
+              {mounted && !userId && (
+                <button
+                  onClick={() => setIsProModalOpen(true)}
+                  className="h-10 px-3 rounded-xl border flex items-center gap-1 text-xs font-bold transition-all duration-200 select-none cursor-pointer bg-gradient-to-r from-amber-500/5 to-yellow-500/5 border-amber-500/20 text-amber-600 dark:text-amber-400 hover:from-amber-500/10 hover:to-yellow-500/10"
+                  title="Upgrade to OnlyProfit Pro"
+                >
+                  <Zap className="h-4 w-4 shrink-0 text-amber-500" />
+                  <span className="hidden sm:inline">Go Pro</span>
+                </button>
+              )}
 
               {/* Compare Page Link */}
               <Link
@@ -271,11 +152,43 @@ export default function Navbar() {
                 <span className="hidden xs:inline">Compare</span>
               </Link>
 
+              {/* User Account State details */}
+              {mounted && (
+                userId ? (
+                  <div className="flex items-center gap-2 border border-border bg-background px-3 py-1.5 h-10 rounded-xl select-none max-w-[140px] sm:max-w-[200px]">
+                    <span className="relative flex h-1.5 w-1.5 shrink-0">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                    </span>
+                    <span 
+                      className="text-[11px] font-bold text-text-primary truncate"
+                      title={`${userEmail} (Firebase Cloud Connected)`}
+                    >
+                      {userEmail?.split('@')[0]}
+                    </span>
+                    <button
+                      onClick={handleSignOut}
+                      className="p-1 rounded-lg text-text-secondary hover:text-loss transition-colors cursor-pointer shrink-0"
+                      title="Sign Out"
+                    >
+                      <LogOut className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setIsAuthModalOpen(true)}
+                    className="h-10 px-3.5 rounded-xl border border-border bg-card hover:bg-background text-text-primary text-xs font-bold transition-all duration-200 cursor-pointer"
+                  >
+                    Sign In
+                  </button>
+                )
+              )}
+
               {/* Theme Toggle */}
               {mounted && (
                 <button
                   onClick={toggleTheme}
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card hover:bg-background text-text-primary transition-all duration-200"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card hover:bg-background text-text-primary transition-all duration-200 cursor-pointer"
                   aria-label="Toggle theme"
                 >
                   {theme === 'dark' ? <Sun className="h-5 w-5 text-amber-400" /> : <Moon className="h-5 w-5" />}
@@ -287,138 +200,24 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* MOBILE SEARCH OVERLAY (Visible only when triggered on Mobile) */}
-      {isMobileSearchOpen && (
-        <div className="fixed inset-0 z-[100] flex flex-col bg-background animate-in fade-in slide-in-from-bottom duration-200">
-          {/* Header Row */}
-          <div className="flex h-16 items-center px-4 gap-3 border-b border-border bg-card">
-            <button
-              onClick={() => {
-                setIsMobileSearchOpen(false);
-                setQuery('');
-              }}
-              className="p-1 rounded-lg text-text-secondary hover:text-text-primary"
-              aria-label="Back"
-            >
-              <ArrowLeft className="h-6 w-6" />
-            </button>
-            
-            <div className="relative flex-1">
-              <input
-                ref={mobileInputRef}
-                type="text"
-                placeholder="Search stocks & mutual funds (e.g. SBI, Reliance)"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="w-full h-10 pl-3 pr-8 rounded-xl border border-border bg-background text-sm text-text-primary focus:outline-none focus:border-profit transition-colors"
-              />
-              {query && (
-                <button 
-                  onClick={() => setQuery('')}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-text-secondary"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-          </div>
+      {/* Global Search Command Center Modal */}
+      <SearchCommandCenter 
+        isOpen={isSearchModalOpen} 
+        onClose={() => setIsSearchModalOpen(false)} 
+      />
 
-          {/* Results Area */}
-          <div className="flex-1 overflow-y-auto p-4 bg-background">
-            {query.trim().length < 2 ? (
-              recentSearches && recentSearches.length > 0 ? (
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between px-2 pb-1 border-b border-border/40">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-text-secondary">Recent Searches</span>
-                    <button
-                      onClick={clearRecentSearches}
-                      className="text-[9px] font-bold text-text-secondary hover:text-loss transition-colors"
-                    >
-                      Clear All
-                    </button>
-                  </div>
-                  <div className="space-y-1">
-                    {recentSearches.map((sym) => {
-                      const isMf = /^\d+$/.test(sym);
-                      const displayName = sym.split('.')[0];
-                      return (
-                        <div
-                          key={sym}
-                          className="flex items-center justify-between rounded-xl border border-border/30 bg-card p-1"
-                        >
-                          <button
-                            onClick={() => {
-                              addToRecentSearches(sym);
-                              setIsMobileSearchOpen(false);
-                              if (isMf) {
-                                router.push(`/mutualfund/${sym}`);
-                              } else {
-                                router.push(`/stock/${sym}`);
-                              }
-                            }}
-                            className="flex-1 px-3 py-2.5 text-left font-bold text-xs text-text-primary truncate"
-                          >
-                            {displayName}
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removeFromRecentSearches(sym);
-                            }}
-                            className="p-3 text-text-secondary hover:text-loss"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-48 text-center text-text-secondary">
-                  <Search className="h-8 w-8 opacity-40 mb-2" />
-                  <p className="text-xs font-semibold">Type at least 2 characters to search stocks & mutual funds.</p>
-                </div>
-              )
-            ) : loading ? (
-              <div className="flex flex-col items-center justify-center h-48 text-text-secondary">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-profit border-t-transparent mb-2" />
-                <p className="text-xs font-semibold">Searching markets...</p>
-              </div>
-            ) : results.length > 0 ? (
-              <div className="space-y-1">
-                {results.map((item) => (
-                  <button
-                    key={item.symbol}
-                    onClick={() => handleSelect(item)}
-                    className="w-full flex items-center justify-between p-3.5 rounded-xl border border-border/30 bg-card hover:bg-border/30 transition-colors text-left"
-                  >
-                    <div>
-                      <div className="font-extrabold text-sm text-text-primary">
-                        {item.type === 'MUTUALFUND' ? item.name : item.symbol.split('.')[0]}
-                      </div>
-                      <div className="text-xs text-text-secondary truncate max-w-[220px]">
-                        {item.type === 'MUTUALFUND' ? `Mutual Fund • Code ${item.symbol}` : item.name}
-                      </div>
-                    </div>
-                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded border uppercase ${
-                      item.type === 'MUTUALFUND' 
-                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400' 
-                        : 'bg-background border-border text-text-secondary'
-                    }`}>
-                      {item.exchange}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-48 text-center text-text-secondary">
-                <p className="text-xs font-semibold">No results found matching &quot;{query}&quot;</p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* SaaS Pro Modal */}
+      <SaaSProModal 
+        isOpen={isProModalOpen} 
+        onClose={() => setIsProModalOpen(false)} 
+        onAuthPrompt={() => setIsAuthModalOpen(true)}
+      />
+
+      {/* Firebase Account Auth Modal */}
+      <FirebaseAuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
     </>
   );
 }

@@ -8,6 +8,7 @@ import { apiClient as axios } from '@/lib/apiClient';
 import MutualFundCard from '@/components/MutualFundCard';
 import ThematicBaskets from '@/components/ThematicBaskets';
 import IpoDetailsModal from '@/components/IpoDetailsModal';
+import AISignalsWidget from '@/components/AISignalsWidget';
 import { 
   ArrowUpRight, ArrowDownRight, Star, Sparkles, LayoutGrid, Search, Activity,
   Landmark, Cpu, Cookie, Car, Flame, Wrench, Layers, HeartPulse, PhoneCall, Bolt, Rocket
@@ -16,12 +17,32 @@ import Link from 'next/link';
 import { MUTUAL_FUNDS } from '@/lib/mutualfunds';
 import { mapToStandardSector, MOCK_STOCK_INFO } from '@/lib/yahooFinance';
 import { isIndianMarketOpen } from '@/lib/marketHours';
+import MiniSparkline from '@/components/MiniSparkline';
 
 interface MarketGainerLoser {
   symbol: string;
   name: string;
   price: number;
   changePercent: number;
+  chart?: number[];
+}
+
+function generateMockSparklineData(price: number, changePercent: number, symbol: string): number[] {
+  const seed = symbol.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const points: number[] = [];
+  const steps = 6;
+  const startPrice = price / (1 + changePercent / 100);
+  
+  for (let i = 0; i <= steps; i++) {
+    const fraction = i / steps;
+    let val = startPrice + (price - startPrice) * fraction;
+    if (i > 0 && i < steps) {
+      const noise = (Math.sin(seed + i) * 0.15 * Math.abs(price - startPrice)) / steps;
+      val += noise;
+    }
+    points.push(parseFloat(val.toFixed(2)));
+  }
+  return points;
 }
 
 const MONITOR_SYMBOLS = [
@@ -306,20 +327,12 @@ export default function Home() {
     return () => clearInterval(pollInterval);
   }, [activeSymbolsToFetch]);
 
-  // Fetch all market symbols once on mount and poll at a slower interval (e.g. 16 seconds)
-  // to populate and keep Top Gainers, Top Losers, and Most Active updated with real data
+  // Fetch market symbols in staggered chunks on mount to prevent blocking Next.js API processes
+  // (Large Cap immediately, Mid Cap after 3s, Small Cap after 6s)
   useEffect(() => {
-    const allSymbols = Array.from(new Set([
-      ...LARGE_CAP_SYMBOLS,
-      ...MID_CAP_SYMBOLS,
-      ...SMALL_CAP_SYMBOLS,
-      ...TRENDING_SYMBOLS,
-      ...MOST_SEARCHED_SYMBOLS
-    ]));
-
-    async function fetchAllMarketData() {
+    const fetchSymbolsChunk = async (symbols: string[]) => {
       try {
-        const symbolsParam = allSymbols.join(',');
+        const symbolsParam = symbols.join(',');
         const res = await axios.get(`/api/stock/quote?symbols=${encodeURIComponent(symbolsParam)}`);
         const quotesWithFlag = (res.data || []).map((q: any) => ({
           ...q,
@@ -333,19 +346,41 @@ export default function Home() {
           return Array.from(map.values());
         });
       } catch (err) {
-        console.error('Failed to fetch full market quotes', err);
+        console.error('Failed to fetch market symbols chunk', err);
       }
-    }
+    };
 
-    fetchAllMarketData();
+    // Staggered initial loads
+    fetchSymbolsChunk([...LARGE_CAP_SYMBOLS, ...TRENDING_SYMBOLS, ...MOST_SEARCHED_SYMBOLS]);
+    
+    const midTimeout = setTimeout(() => {
+      fetchSymbolsChunk(MID_CAP_SYMBOLS);
+    }, 3000);
 
-    const interval = setInterval(() => {
+    const smallTimeout = setTimeout(() => {
+      fetchSymbolsChunk(SMALL_CAP_SYMBOLS);
+    }, 6000);
+
+    // Staggered polling intervals during market hours
+    const pollInterval = setInterval(() => {
       if (isIndianMarketOpen()) {
-        fetchAllMarketData();
-      }
-    }, 16000);
+        fetchSymbolsChunk([...LARGE_CAP_SYMBOLS, ...TRENDING_SYMBOLS, ...MOST_SEARCHED_SYMBOLS]);
+        
+        setTimeout(() => {
+          fetchSymbolsChunk(MID_CAP_SYMBOLS);
+        }, 4000);
 
-    return () => clearInterval(interval);
+        setTimeout(() => {
+          fetchSymbolsChunk(SMALL_CAP_SYMBOLS);
+        }, 8000);
+      }
+    }, 24000); // Poll main chunks every 24 seconds, staggered
+
+    return () => {
+      clearTimeout(midTimeout);
+      clearTimeout(smallTimeout);
+      clearInterval(pollInterval);
+    };
   }, []);
 
   const hasQuotes = marketQuotes.length > 0;
@@ -395,12 +430,17 @@ export default function Home() {
     })
     .sort((a, b) => b.regularMarketChangePercent - a.regularMarketChangePercent);
 
-  const gainers: MarketGainerLoser[] = filteredGainersQuotes.slice(0, 5).map(q => ({
-    symbol: q.symbol,
-    name: q.shortName,
-    price: q.regularMarketPrice,
-    changePercent: q.regularMarketChangePercent
-  }));
+  const gainers: MarketGainerLoser[] = filteredGainersQuotes.slice(0, 5).map(q => {
+    const price = q.regularMarketPrice || 0;
+    const pct = q.regularMarketChangePercent || 0;
+    return {
+      symbol: q.symbol,
+      name: q.shortName,
+      price: price,
+      changePercent: pct,
+      chart: generateMockSparklineData(price, pct, q.symbol)
+    };
+  });
   
   const filteredLosersQuotes = [...marketQuotes]
     .filter(q => !q.symbol.startsWith('^') && q.regularMarketChangePercent < 0)
@@ -412,12 +452,17 @@ export default function Home() {
     })
     .sort((a, b) => a.regularMarketChangePercent - b.regularMarketChangePercent);
 
-  const losers: MarketGainerLoser[] = filteredLosersQuotes.slice(0, 5).map(q => ({
-    symbol: q.symbol,
-    name: q.shortName,
-    price: q.regularMarketPrice,
-    changePercent: q.regularMarketChangePercent
-  }));
+  const losers: MarketGainerLoser[] = filteredLosersQuotes.slice(0, 5).map(q => {
+    const price = q.regularMarketPrice || 0;
+    const pct = q.regularMarketChangePercent || 0;
+    return {
+      symbol: q.symbol,
+      name: q.shortName,
+      price: price,
+      changePercent: pct,
+      chart: generateMockSparklineData(price, pct, q.symbol)
+    };
+  });
 
   // Compute most active stocks by trading volume
   const filteredActiveQuotes = [...marketQuotes]
@@ -429,13 +474,18 @@ export default function Home() {
       return true;
     })
     .sort((a, b) => b.regularMarketVolume - a.regularMarketVolume);
-  const mostActive = filteredActiveQuotes.slice(0, 5).map(q => ({
-    symbol: q.symbol,
-    name: q.shortName,
-    price: q.regularMarketPrice,
-    changePercent: q.regularMarketChangePercent,
-    volume: q.regularMarketVolume
-  }));
+  const mostActive = filteredActiveQuotes.slice(0, 5).map(q => {
+    const price = q.regularMarketPrice || 0;
+    const pct = q.regularMarketChangePercent || 0;
+    return {
+      symbol: q.symbol,
+      name: q.shortName,
+      price: price,
+      changePercent: pct,
+      volume: q.regularMarketVolume,
+      chart: generateMockSparklineData(price, pct, q.symbol)
+    };
+  });
 
 
 
@@ -498,7 +548,7 @@ export default function Home() {
   }, [searchFilter, activeCollection, activeTab, marketQuotes]);
 
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 transition-colors duration-300">
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 md:py-12 transition-colors duration-300">
       
       {/* Hero Header Command Center Section */}
       <div className="mb-8 p-6 rounded-3xl border border-border bg-glass shadow-premium relative overflow-hidden animate-fade-in">
@@ -549,14 +599,14 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-8 md:gap-10 lg:grid-cols-3">
         
         {/* Left Column: Explorer Board (Grid Column Span 2) */}
         <div className="lg:col-span-2 space-y-6">
           
           {/* Recently Viewed Panel */}
           {recentSearches && recentSearches.length > 0 && (
-            <div className="bg-card border border-border p-4 rounded-2xl animate-fade-in">
+            <div className="bg-card border border-border p-5 md:p-6 rounded-2xl animate-fade-in">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-xs font-extrabold uppercase tracking-wider text-text-secondary flex items-center gap-1.5">
                   <Search className="h-3.5 w-3.5 text-profit animate-pulse" /> Recently Viewed
@@ -827,7 +877,7 @@ export default function Home() {
                             const minInvestment = details.lotSize && details.minPrice ? `₹${(details.lotSize * details.minPrice).toLocaleString('en-IN')}` : 'TBA';
                             const isHot = ipo.overallSubscription && ipo.overallSubscription > 5;
                             return (
-                              <div key={ipo.symbol} className="rounded-2xl border border-border bg-card p-5 shadow-soft dark:shadow-soft-dark flex flex-col justify-between hover-lift transition-all">
+                              <div key={ipo.symbol} className="rounded-2xl border border-border bg-card p-5 md:p-6 shadow-soft dark:shadow-soft-dark flex flex-col justify-between hover-lift transition-all">
                                 <div className="space-y-4">
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
@@ -931,7 +981,7 @@ export default function Home() {
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                           {list.map((ipo) => {
                             return (
-                              <div key={ipo.symbol} className="rounded-2xl border border-border bg-card p-5 shadow-soft dark:shadow-soft-dark flex flex-col justify-between hover-lift transition-all">
+                              <div key={ipo.symbol} className="rounded-2xl border border-border bg-card p-5 md:p-6 shadow-soft dark:shadow-soft-dark flex flex-col justify-between hover-lift transition-all">
                                 <div className="flex items-center justify-between mb-4">
                                   <div className="flex items-center gap-3">
                                     {ipo.logoUrl ? (
@@ -1001,7 +1051,7 @@ export default function Home() {
                           {list.map((ipo) => {
                             const listingDate = ipo.listingTimestamp ? formatDate(ipo.listingTimestamp) : 'TBA';
                             return (
-                              <div key={ipo.symbol} className="rounded-2xl border border-border bg-card p-5 shadow-soft dark:shadow-soft-dark flex flex-col justify-between hover-lift transition-all">
+                              <div key={ipo.symbol} className="rounded-2xl border border-border bg-card p-5 md:p-6 shadow-soft dark:shadow-soft-dark flex flex-col justify-between hover-lift transition-all">
                                 <div className="space-y-4">
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
@@ -1106,7 +1156,7 @@ export default function Home() {
         <div className="space-y-6">
           
           {/* Top Gainers Card */}
-          <div className="rounded-2xl border border-border bg-card p-5 shadow-soft dark:shadow-soft-dark">
+          <div className="rounded-2xl border border-border bg-card p-5 md:p-6 shadow-soft dark:shadow-soft-dark">
             <div className="flex items-center justify-between mb-3 pb-3 border-b border-border/55">
               <div className="flex items-center gap-2">
                 <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-profit/10 text-profit">
@@ -1159,29 +1209,34 @@ export default function Home() {
                 ))}
               </div>
             ) : gainers.length > 0 ? (
-              <div className="space-y-1 animate-fade-in">
+              <div className="divide-y divide-slate-100 dark:divide-slate-800/60 animate-fade-in">
                 {gainers.map((stock) => (
                   <Link
                     key={stock.symbol}
                     href={`/stock/${stock.symbol}`}
-                    className="flex items-center justify-between p-2 rounded-xl hover:bg-background transition-colors group"
+                    className="flex items-center justify-between py-3 px-1 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all duration-200 group"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <StockLogo symbol={stock.symbol} size="sm" />
                       <div className="min-w-0">
-                        <div className="font-bold text-xs text-text-primary group-hover:text-profit transition-colors truncate">
+                        <div className="font-semibold text-sm text-text-primary group-hover:text-profit transition-colors truncate">
                           {stock.symbol.split('.')[0]}
                         </div>
-                        <div className="text-[10px] text-text-secondary truncate max-w-[100px] font-medium">
+                        <div className="text-xs text-text-secondary truncate max-w-[150px] font-medium">
                           {stock.name}
                         </div>
                       </div>
                     </div>
+                    {stock.chart && stock.chart.length > 0 && (
+                      <div className="h-6 w-16 opacity-85 hover:opacity-100 transition-opacity hidden sm:block shrink-0">
+                        <MiniSparkline data={stock.chart} isPositive={stock.changePercent >= 0} width={64} height={20} />
+                      </div>
+                    )}
                     <div className="flex flex-col items-end shrink-0">
-                      <span className="text-xs font-bold text-text-primary">
+                      <span className="text-sm font-bold text-text-primary tabular-nums">
                         ₹{stock.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </span>
-                      <span className="text-[10px] font-extrabold text-profit flex items-center gap-0.5 mt-0.5">
+                      <span className="text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 mt-1.5 tabular-nums">
                         +{stock.changePercent.toFixed(2)}%
                       </span>
                     </div>
@@ -1196,7 +1251,7 @@ export default function Home() {
           </div>
 
           {/* Top Losers Card */}
-          <div className="rounded-2xl border border-border bg-card p-5 shadow-soft dark:shadow-soft-dark">
+          <div className="rounded-2xl border border-border bg-card p-5 md:p-6 shadow-soft dark:shadow-soft-dark">
             <div className="flex items-center justify-between mb-3 pb-3 border-b border-border/55">
               <div className="flex items-center gap-2">
                 <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-loss/10 text-loss">
@@ -1249,29 +1304,34 @@ export default function Home() {
                 ))}
               </div>
             ) : losers.length > 0 ? (
-              <div className="space-y-1 animate-fade-in">
+              <div className="divide-y divide-slate-100 dark:divide-slate-800/60 animate-fade-in">
                 {losers.map((stock) => (
                   <Link
                     key={stock.symbol}
                     href={`/stock/${stock.symbol}`}
-                    className="flex items-center justify-between p-2 rounded-xl hover:bg-background transition-colors group"
+                    className="flex items-center justify-between py-3 px-1 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all duration-200 group"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <StockLogo symbol={stock.symbol} size="sm" />
                       <div className="min-w-0">
-                        <div className="font-bold text-xs text-text-primary group-hover:text-loss transition-colors truncate">
+                        <div className="font-semibold text-sm text-text-primary group-hover:text-loss transition-colors truncate">
                           {stock.symbol.split('.')[0]}
                         </div>
-                        <div className="text-[10px] text-text-secondary truncate max-w-[100px] font-medium">
+                        <div className="text-xs text-text-secondary truncate max-w-[150px] font-medium">
                           {stock.name}
                         </div>
                       </div>
                     </div>
+                    {stock.chart && stock.chart.length > 0 && (
+                      <div className="h-6 w-16 opacity-85 hover:opacity-100 transition-opacity hidden sm:block shrink-0">
+                        <MiniSparkline data={stock.chart} isPositive={stock.changePercent >= 0} width={64} height={20} />
+                      </div>
+                    )}
                     <div className="flex flex-col items-end shrink-0">
-                      <span className="text-xs font-bold text-text-primary">
+                      <span className="text-sm font-bold text-text-primary tabular-nums">
                         ₹{stock.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </span>
-                      <span className="text-[10px] font-extrabold text-loss flex items-center gap-0.5 mt-0.5">
+                      <span className="text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-0.5 mt-1.5 tabular-nums">
                         {stock.changePercent.toFixed(2)}%
                       </span>
                     </div>
@@ -1286,7 +1346,7 @@ export default function Home() {
           </div>
 
           {/* Most Active Stocks Card */}
-          <div className="rounded-2xl border border-border bg-card p-5 shadow-soft dark:shadow-soft-dark">
+          <div className="rounded-2xl border border-border bg-card p-5 md:p-6 shadow-soft dark:shadow-soft-dark">
             <div className="flex items-center justify-between mb-3 pb-3 border-b border-border/55">
               <div className="flex items-center gap-2">
                 <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-500">
@@ -1339,31 +1399,40 @@ export default function Home() {
                 ))}
               </div>
             ) : mostActive.length > 0 ? (
-              <div className="space-y-1 animate-fade-in">
+              <div className="divide-y divide-slate-100 dark:divide-slate-800/60 animate-fade-in">
                 {mostActive.map((stock) => {
                   const isStockPositive = stock.changePercent >= 0;
                   return (
                     <Link
                       key={stock.symbol}
                       href={`/stock/${stock.symbol}`}
-                      className="flex items-center justify-between p-2 rounded-xl hover:bg-background transition-colors group"
+                      className="flex items-center justify-between py-3 px-1 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all duration-200 group"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <StockLogo symbol={stock.symbol} size="sm" />
                         <div className="min-w-0">
-                          <div className="font-bold text-xs text-text-primary group-hover:text-profit transition-colors truncate">
+                          <div className="font-semibold text-sm text-text-primary group-hover:text-profit transition-colors truncate">
                             {stock.symbol.split('.')[0]}
                           </div>
-                          <div className="text-[10px] text-text-secondary truncate max-w-[100px] font-medium">
+                          <div className="text-xs text-text-secondary truncate max-w-[150px] font-medium">
                             Vol: {formatVolume(stock.volume)}
                           </div>
                         </div>
                       </div>
+                      {stock.chart && stock.chart.length > 0 && (
+                        <div className="h-6 w-16 opacity-85 hover:opacity-100 transition-opacity hidden sm:block shrink-0">
+                          <MiniSparkline data={stock.chart} isPositive={stock.changePercent >= 0} width={64} height={20} />
+                        </div>
+                      )}
                       <div className="flex flex-col items-end shrink-0">
-                        <span className="text-xs font-bold text-text-primary">
+                        <span className="text-sm font-bold text-text-primary tabular-nums">
                           ₹{stock.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </span>
-                        <span className={`text-[10px] font-extrabold flex items-center gap-0.5 mt-0.5 ${isStockPositive ? 'text-profit' : 'text-loss'}`}>
+                        <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full flex items-center gap-0.5 mt-1.5 tabular-nums ${
+                          isStockPositive 
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' 
+                            : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                        }`}>
                           {isStockPositive ? '+' : ''}{stock.changePercent.toFixed(2)}%
                         </span>
                       </div>
@@ -1459,6 +1528,11 @@ export default function Home() {
             No mutual funds found in this category.
           </div>
         )}
+      </div>
+
+      {/* AI Market Alerts / SaaS Pro signals */}
+      <div id="ai-signals" className="mt-12 pt-10 border-t border-border/60">
+        <AISignalsWidget />
       </div>
 
       {/* Thematic Stock Baskets Section (Smallcases mock) */}

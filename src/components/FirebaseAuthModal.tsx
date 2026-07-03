@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { X, ShieldAlert, CheckCircle, Mail, Lock, Shield, ArrowRight, RefreshCw, KeyRound, Eye, EyeOff } from 'lucide-react';
+import { X, ShieldAlert, CheckCircle, Mail, Lock, Shield, ArrowRight, RefreshCw, KeyRound, Eye, EyeOff, User } from 'lucide-react';
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signInWithPopup,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  updateProfile
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '@/lib/firebase';
@@ -24,21 +25,24 @@ export default function FirebaseAuthModal({ isOpen, onClose, onSuccess }: Fireba
   const [isResetMode, setIsResetMode] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   
+  // Input fields
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Focus email input on load
+  // Focus and fields reset on modal launch
   useEffect(() => {
     if (isOpen) {
       setError(null);
       setSuccessMsg(null);
+      setName('');
       setEmail('');
       setPassword('');
       setConfirmPassword('');
@@ -48,7 +52,7 @@ export default function FirebaseAuthModal({ isOpen, onClose, onSuccess }: Fireba
     }
   }, [isOpen]);
 
-  // Click outside to close
+  // Click outside backdrop to close
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
@@ -65,26 +69,32 @@ export default function FirebaseAuthModal({ isOpen, onClose, onSuccess }: Fireba
 
   if (!isOpen) return null;
 
-  const handleSyncUserProStatus = async (user: any) => {
+  const handleSyncUserProStatus = async (user: any, customName?: string) => {
     try {
       const userRef = doc(db, 'users', user.uid);
       const userSnap = await getDoc(userRef);
       
       let isPro = false;
+      let displayName = customName || user.displayName || '';
+      
       if (userSnap.exists()) {
         const data = userSnap.data();
         isPro = !!data.isProUser;
+        if (data.displayName) {
+          displayName = data.displayName;
+        }
       } else {
-        // Create user document
+        // Create user document in database
         await setDoc(userRef, {
-          email: user.email,
+          email: user.email || '',
+          displayName: displayName,
           isProUser: false,
           createdAt: new Date().toISOString()
         });
       }
       
-      // Sync store
-      setUser(user.uid, user.email);
+      // Sync Zustand store
+      setUser(user.uid, user.email, displayName);
       if (isPro) {
         activatePro();
       }
@@ -99,12 +109,13 @@ export default function FirebaseAuthModal({ isOpen, onClose, onSuccess }: Fireba
     setSuccessMsg(null);
 
     const emailClean = email.trim();
-    if (!emailClean || !password) {
-      setError('Please fill in all credentials.');
-      return;
-    }
-
     if (isRegisterMode) {
+      const nameClean = name.trim();
+
+      if (!nameClean || !emailClean || !password) {
+        setError('Please fill in all register fields.');
+        return;
+      }
       if (password.length < 6) {
         setError('Password must be at least 6 characters.');
         return;
@@ -113,39 +124,64 @@ export default function FirebaseAuthModal({ isOpen, onClose, onSuccess }: Fireba
         setError('Passwords do not match.');
         return;
       }
-    }
 
-    setLoading(true);
-    try {
-      if (isRegisterMode) {
+      setLoading(true);
+      try {
         const userCred = await createUserWithEmailAndPassword(auth, emailClean, password);
+        // Save name to Auth Profile
+        await updateProfile(userCred.user, { displayName: nameClean });
         setSuccessMsg('Account registered successfully!');
-        await handleSyncUserProStatus(userCred.user);
-      } else {
+        
+        // Save to Firestore and sync store
+        await handleSyncUserProStatus(userCred.user, nameClean);
+
+        setTimeout(() => {
+          if (onSuccess) onSuccess();
+          onClose();
+        }, 1000);
+      } catch (err: any) {
+        console.error('Registration Error', err);
+        let friendlyError = 'Registration failed. Check details.';
+        if (err.code === 'auth/email-already-in-use') {
+          friendlyError = 'This email address is already in use.';
+        } else if (err.code === 'auth/invalid-email') {
+          friendlyError = 'Invalid email format.';
+        } else if (err.code === 'auth/weak-password') {
+          friendlyError = 'Password is too weak.';
+        }
+        setError(friendlyError);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // Email Login
+      if (!emailClean || !password) {
+        setError('Please fill in email and password.');
+        return;
+      }
+
+      setLoading(true);
+      try {
         const userCred = await signInWithEmailAndPassword(auth, emailClean, password);
         setSuccessMsg('Logged in successfully!');
         await handleSyncUserProStatus(userCred.user);
-      }
 
-      setTimeout(() => {
-        if (onSuccess) onSuccess();
-        onClose();
-      }, 1000);
-    } catch (err: any) {
-      console.error('Email Authentication Error', err);
-      let friendlyError = 'Authentication failed. Please verify credentials.';
-      if (err.code === 'auth/email-already-in-use') {
-        friendlyError = 'This email address is already in use.';
-      } else if (err.code === 'auth/invalid-credential') {
-        friendlyError = 'Invalid email or password.';
-      } else if (err.code === 'auth/weak-password') {
-        friendlyError = 'Weak password. Use at least 6 characters.';
-      } else if (err.code === 'auth/invalid-email') {
-        friendlyError = 'Invalid email address format.';
+        setTimeout(() => {
+          if (onSuccess) onSuccess();
+          onClose();
+        }, 1000);
+      } catch (err: any) {
+        console.error('Login Error', err);
+        let friendlyError = 'Invalid credentials. Please try again.';
+        if (err.code === 'auth/invalid-credential') {
+          friendlyError = 'Invalid email or password.';
+        } else if (err.code === 'auth/invalid-email') {
+          friendlyError = 'Invalid email format.';
+        }
+        setError(friendlyError);
+      } finally {
+        setLoading(false);
       }
-      setError(friendlyError);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -166,11 +202,9 @@ export default function FirebaseAuthModal({ isOpen, onClose, onSuccess }: Fireba
       setSuccessMsg('Reset password link has been sent to your email.');
     } catch (err: any) {
       console.error('Password Reset Error', err);
-      let friendlyError = 'Failed to send reset link. Please try again.';
+      let friendlyError = 'Failed to send reset link.';
       if (err.code === 'auth/user-not-found') {
         friendlyError = 'No account found matching this email.';
-      } else if (err.code === 'auth/invalid-email') {
-        friendlyError = 'Invalid email address format.';
       }
       setError(friendlyError);
     } finally {
@@ -194,8 +228,14 @@ export default function FirebaseAuthModal({ isOpen, onClose, onSuccess }: Fireba
       }, 1000);
     } catch (err: any) {
       console.error('Google Sign In Error', err);
-      if (err.code !== 'auth/popup-closed-by-user') {
-        setError('Google sign-in failed. Please try again.');
+      if (err.code === 'auth/popup-closed-by-user') {
+        setError('Popup was closed before completing authentication.');
+      } else if (err.code === 'auth/operation-not-allowed') {
+        setError('Google authentication is not enabled in your Firebase Console. Go to Authentication > Sign-in method to enable it.');
+      } else if (err.code === 'auth/popup-blocked') {
+        setError('Google popup was blocked by the browser. Please allow popups and try again.');
+      } else {
+        setError(`Google login error: ${err.message || 'Please check your configuration.'}`);
       }
     } finally {
       setLoading(false);
@@ -208,7 +248,7 @@ export default function FirebaseAuthModal({ isOpen, onClose, onSuccess }: Fireba
         ref={containerRef}
         className="w-full max-w-md bg-card border border-border rounded-3xl shadow-2xl overflow-hidden relative animate-in zoom-in-95 duration-200"
       >
-        {/* Close Button */}
+        {/* Close button */}
         <button 
           onClick={onClose}
           className="absolute top-4 right-4 z-10 p-1.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
@@ -231,14 +271,14 @@ export default function FirebaseAuthModal({ isOpen, onClose, onSuccess }: Fireba
           </div>
         </div>
 
-        {/* Auth Mode Toggle Tabs (Only show if not in reset mode) */}
+        {/* Auth Mode Tabs (Sign In / Create Account) */}
         {!isResetMode && (
           <div className="flex border-b border-border/40 text-xs font-bold text-center select-none">
             <button 
               type="button"
-              onClick={() => { setIsRegisterMode(false); setError(null); }}
+              onClick={() => { setIsRegisterMode(false); setError(null); setSuccessMsg(null); }}
               className={`flex-1 py-3 transition-colors cursor-pointer ${
-                !isRegisterMode 
+                !isRegisterMode
                   ? 'border-b-2 border-profit text-profit bg-slate-500/5' 
                   : 'text-text-secondary hover:text-text-primary'
               }`}
@@ -247,9 +287,9 @@ export default function FirebaseAuthModal({ isOpen, onClose, onSuccess }: Fireba
             </button>
             <button 
               type="button"
-              onClick={() => { setIsRegisterMode(true); setError(null); }}
+              onClick={() => { setIsRegisterMode(true); setError(null); setSuccessMsg(null); }}
               className={`flex-1 py-3 transition-colors cursor-pointer ${
-                isRegisterMode 
+                isRegisterMode
                   ? 'border-b-2 border-profit text-profit bg-slate-500/5' 
                   : 'text-text-secondary hover:text-text-primary'
               }`}
@@ -259,10 +299,10 @@ export default function FirebaseAuthModal({ isOpen, onClose, onSuccess }: Fireba
           </div>
         )}
 
-        {/* Body content / forms */}
+        {/* Form Body Workspace */}
         <div className="p-6 space-y-4">
           
-          {/* Error and Success Notification Banners */}
+          {/* Notification Banners */}
           {error && (
             <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/25 flex gap-2.5 items-start text-xs text-rose-600 dark:text-rose-400 animate-fade-in font-semibold">
               <ShieldAlert className="h-4.5 w-4.5 shrink-0 mt-0.5" />
@@ -320,8 +360,8 @@ export default function FirebaseAuthModal({ isOpen, onClose, onSuccess }: Fireba
                 Back to Sign In
               </button>
             </form>
-          ) : (
-            /* Email / Password Form */
+          ) : !isRegisterMode ? (
+            /* Email & Password login form */
             <form onSubmit={handleEmailAuthSubmit} className="space-y-3">
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block">Email Address</label>
@@ -343,15 +383,13 @@ export default function FirebaseAuthModal({ isOpen, onClose, onSuccess }: Fireba
               <div className="space-y-1">
                 <div className="flex justify-between items-center">
                   <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block">Password</label>
-                  {!isRegisterMode && (
-                    <button 
-                      type="button" 
-                      onClick={() => { setIsResetMode(true); setError(null); setSuccessMsg(null); }}
-                      className="text-[10px] text-profit hover:underline font-bold cursor-pointer focus:outline-none"
-                    >
-                      Forgot Password?
-                    </button>
-                  )}
+                  <button 
+                    type="button" 
+                    onClick={() => { setIsResetMode(true); setError(null); setSuccessMsg(null); }}
+                    className="text-[10px] text-profit hover:underline font-bold cursor-pointer focus:outline-none"
+                  >
+                    Forgot Password?
+                  </button>
                 </div>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-text-secondary pointer-events-none">
@@ -375,32 +413,100 @@ export default function FirebaseAuthModal({ isOpen, onClose, onSuccess }: Fireba
                 </div>
               </div>
 
-              {/* Confirm Password field in registration mode */}
-              {isRegisterMode && (
-                <div className="space-y-1 animate-in slide-in-from-top-1 duration-150">
-                  <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block">Confirm Password</label>
-                  <div className="relative">
-                    <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-text-secondary pointer-events-none">
-                      <Lock className="h-4 w-4" />
-                    </span>
-                    <input 
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="Verify password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full h-11 pl-10 pr-10 rounded-xl border border-border bg-background text-sm text-text-primary placeholder:text-text-secondary focus:border-profit focus:ring-0 focus:outline-none"
-                      required={isRegisterMode}
-                    />
-                    <button 
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-text-secondary hover:text-text-primary cursor-pointer focus:outline-none"
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full h-11 rounded-xl bg-profit hover:brightness-105 disabled:brightness-95 disabled:cursor-not-allowed text-white font-extrabold text-sm shadow-md shadow-profit/15 transition-all flex items-center justify-center gap-1.5 cursor-pointer mt-4"
+              >
+                {loading ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <span>Sign In</span>
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
+              </button>
+            </form>
+          ) : (
+            /* Create Account Form (captures name, email, password) */
+            <form onSubmit={handleEmailAuthSubmit} className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block">Full Name</label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-text-secondary pointer-events-none">
+                    <User className="h-4 w-4" />
+                  </span>
+                  <input 
+                    type="text"
+                    placeholder="John Doe"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full h-11 pl-10 pr-4 rounded-xl border border-border bg-background text-sm text-text-primary placeholder:text-text-secondary focus:border-profit focus:ring-0 focus:outline-none"
+                    required
+                  />
                 </div>
-              )}
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block">Email Address</label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-text-secondary pointer-events-none">
+                    <Mail className="h-4 w-4" />
+                  </span>
+                  <input 
+                    type="email"
+                    placeholder="name@domain.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full h-11 pl-10 pr-4 rounded-xl border border-border bg-background text-sm text-text-primary placeholder:text-text-secondary focus:border-profit focus:ring-0 focus:outline-none"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Password */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block">Password</label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-text-secondary pointer-events-none">
+                    <Lock className="h-4 w-4" />
+                  </span>
+                  <input 
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Min 6 characters"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full h-11 pl-10 pr-10 rounded-xl border border-border bg-background text-sm text-text-primary placeholder:text-text-secondary focus:border-profit focus:ring-0 focus:outline-none"
+                    required
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-text-secondary hover:text-text-primary cursor-pointer focus:outline-none"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Confirm Password */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider block">Confirm Password</label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-text-secondary pointer-events-none">
+                    <Lock className="h-4 w-4" />
+                  </span>
+                  <input 
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Verify password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full h-11 pl-10 pr-10 rounded-xl border border-border bg-background text-sm text-text-primary placeholder:text-text-secondary focus:border-profit focus:ring-0 focus:outline-none"
+                    required={isRegisterMode}
+                  />
+                </div>
+              </div>
 
               <button
                 type="submit"
@@ -411,7 +517,7 @@ export default function FirebaseAuthModal({ isOpen, onClose, onSuccess }: Fireba
                   <RefreshCw className="h-4 w-4 animate-spin" />
                 ) : (
                   <>
-                    <span>{isRegisterMode ? 'Register Account' : 'Sign In'}</span>
+                    <span>Create Free Account</span>
                     <ArrowRight className="h-4 w-4" />
                   </>
                 )}
@@ -419,7 +525,7 @@ export default function FirebaseAuthModal({ isOpen, onClose, onSuccess }: Fireba
             </form>
           )}
 
-          {/* Social Divider (Only show if not in reset mode) */}
+          {/* Social Divider */}
           {!isResetMode && (
             <>
               <div className="relative flex py-2 items-center text-[10px] font-black uppercase text-text-secondary tracking-widest select-none">

@@ -514,7 +514,7 @@ export default function AISignalsWidget() {
         </div>
 
         {/* Signals List Layout */}
-        <div className={`flex-1 divide-y divide-border/30 transition-all duration-300 ${
+        <div className={`flex-1 flex flex-col gap-3 p-4 md:p-0 md:gap-0 md:divide-y md:divide-border/30 transition-all duration-300 ${
           !userId ? 'blur-sm select-none pointer-events-none' : ''
         }`}>
           {signals.map((item) => {
@@ -616,19 +616,19 @@ export default function AISignalsWidget() {
                 </div>
 
                 {/* 2. MOBILE CARD LAYOUT (Hidden on desktop, md:hidden) */}
-                <div className="md:hidden flex flex-col p-4.5 gap-3 bg-card border-b border-border/20 hover:bg-slate-500/5 active:scale-[0.99] transition-all duration-200 cursor-pointer">
+                <div className="md:hidden flex flex-col p-4.5 gap-2.5 bg-background dark:bg-slate-800/20 border border-border/80 rounded-2xl hover:border-profit/30 active:scale-[0.98] transition-all duration-200 cursor-pointer shadow-sm">
                   {/* Top card row */}
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-background border border-border shrink-0 select-none">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-card border border-border shrink-0 select-none">
                         {isMf ? (
-                          <Shield className="h-4.5 w-4.5 text-emerald-500" />
+                          <Shield className="h-5 w-5 text-emerald-500" />
                         ) : (
-                          <StockLogo symbol={item.symbol} size="xs" />
+                          <StockLogo symbol={item.symbol} size="sm" />
                         )}
                       </div>
                       <div className="min-w-0">
-                        <span className="font-extrabold text-xs text-text-primary block truncate">
+                        <span className="font-extrabold text-sm text-text-primary block truncate">
                           {item.symbol.split('.')[0]}
                         </span>
                         <span className="text-[10px] text-text-secondary font-semibold block truncate">
@@ -636,28 +636,60 @@ export default function AISignalsWidget() {
                         </span>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <span className="text-xs font-black text-text-primary block tabular-nums">
+                    <div className="text-right shrink-0">
+                      <span className="text-sm font-black text-text-primary block tabular-nums">
                         ₹{quote.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </span>
-                      <span className={`text-[9px] font-black block tabular-nums ${isPositive ? 'text-profit' : 'text-loss'}`}>
+                      <span className={`text-[10px] font-black block tabular-nums ${isPositive ? 'text-profit' : 'text-loss'}`}>
                         {isPositive ? '▲' : '▼'}{quote.changePercent !== 0 ? `${isPositive ? '+' : ''}${quote.changePercent.toFixed(2)}%` : '0.00%'}
                       </span>
                     </div>
                   </div>
 
-                  {/* Bottom details card row */}
-                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/30">
-                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-text-primary/90 min-w-0">
+                  {/* Mid card row: Technical trigger and sparkline preview */}
+                  <div className="flex items-center justify-between gap-4 mt-1">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-text-primary/95 min-w-0">
                       <Activity className="h-3.5 w-3.5 text-profit shrink-0" />
                       <span className="truncate">{item.indicator}</span>
                     </div>
 
+                    <div className="h-5 w-12 opacity-80 shrink-0 select-none">
+                      <MiniSparkline data={sparkPoints} isPositive={isPositive} width={48} height={18} />
+                    </div>
+                  </div>
+
+                  {/* Target & Stop Loss Pills */}
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    <span className="text-[9px] font-black px-2 py-0.5 rounded bg-slate-50 dark:bg-slate-800/40 border border-border/60 text-text-secondary">
+                      T: ₹{item.targetPrice.toFixed(1)}
+                    </span>
+                    <span className="text-[9px] font-black px-2 py-0.5 rounded bg-slate-50 dark:bg-slate-800/40 border border-border/60 text-text-secondary">
+                      SL: ₹{item.stopLoss.toFixed(1)}
+                    </span>
+                    <span className="text-[9px] font-black px-2 py-0.5 rounded bg-slate-50 dark:bg-slate-800/40 border border-border/60 text-text-secondary font-mono">
+                      R:R {item.riskReward}
+                    </span>
+                  </div>
+
+                  {/* Bottom details card row */}
+                  <div className="flex items-center justify-between gap-2 pt-2.5 mt-1 border-t border-border/30">
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className={`text-[8px] font-black px-1.5 py-0.5 rounded border tracking-wider uppercase ${getSignalBadge(item.signal)}`}>
+                      <span className={`text-[9px] font-black px-2 py-0.5 rounded-md border tracking-wider uppercase flex items-center gap-1.5 ${getSignalBadge(item.signal)}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full animate-pulse ${
+                          item.signal.includes('BUY') ? 'bg-emerald-500' : 'bg-rose-500'
+                        }`} />
                         {getSignalLabel(item.signal)}
                       </span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
                       <span className="text-[9px] text-text-secondary font-bold font-mono">{item.confidence}% Conf</span>
+                      <div className="w-16 bg-slate-100 dark:bg-slate-800/80 h-1 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full ${getSignalColorClass(item.signal)}`} 
+                          style={{ width: `${item.confidence}%` }}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

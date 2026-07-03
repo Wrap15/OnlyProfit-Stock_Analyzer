@@ -17,6 +17,7 @@ interface StockState {
   isProUser: boolean;
   userId: string | null;
   userEmail: string | null;
+  userName: string | null;
   addToWatchlist: (symbol: string) => void;
   removeFromWatchlist: (symbol: string) => void;
   toggleWatchlist: (symbol: string) => void;
@@ -30,7 +31,8 @@ interface StockState {
   removeAlert: (symbol: string, price: number, condition: 'above' | 'below') => void;
   activatePro: () => void;
   deactivatePro: () => void;
-  setUser: (userId: string | null, userEmail: string | null) => void;
+  setUser: (userId: string | null, userEmail: string | null, userName?: string | null) => void;
+  setUserName: (userName: string | null) => void;
 }
 
 export const useStockStore = create<StockState>()(
@@ -44,6 +46,7 @@ export const useStockStore = create<StockState>()(
       isProUser: false,
       userId: null,
       userEmail: null,
+      userName: null,
       addToWatchlist: (symbol) =>
         set((state) => ({
           watchlist: state.watchlist.includes(symbol)
@@ -114,7 +117,8 @@ export const useStockStore = create<StockState>()(
         })),
       activatePro: () => set({ isProUser: true }),
       deactivatePro: () => set({ isProUser: false }),
-      setUser: (userId, userEmail) => set({ userId, userEmail }),
+      setUser: (userId, userEmail, userName = null) => set({ userId, userEmail, userName }),
+      setUserName: (userName) => set({ userName }),
     }),
     {
       name: 'onlyprofit-storage', // local storage key
@@ -126,6 +130,7 @@ export const useStockStore = create<StockState>()(
         isProUser: state.isProUser,
         userId: state.userId,
         userEmail: state.userEmail,
+        userName: state.userName,
       }),
     }
   )

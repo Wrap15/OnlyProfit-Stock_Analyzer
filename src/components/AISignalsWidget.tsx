@@ -616,11 +616,12 @@ export default function AISignalsWidget() {
                 </div>
 
                 {/* 2. MOBILE CARD LAYOUT (Hidden on desktop, md:hidden) */}
-                <div className="md:hidden flex flex-col p-4.5 gap-2.5 bg-background dark:bg-slate-800/20 border border-border/80 rounded-2xl hover:border-profit/30 active:scale-[0.98] transition-all duration-200 cursor-pointer shadow-sm">
-                  {/* Top card row */}
-                  <div className="flex items-start justify-between">
+                <div className="md:hidden flex flex-col p-4.5 gap-3.5 bg-card border border-border/75 rounded-2xl hover:border-profit/30 active:scale-[0.985] transition-all duration-255 cursor-pointer shadow-soft">
+                  
+                  {/* Header Row: Logo, Symbol & Live Price */}
+                  <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-card border border-border shrink-0 select-none">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-background border border-border shrink-0 select-none shadow-sm">
                         {isMf ? (
                           <Shield className="h-5 w-5 text-emerald-500" />
                         ) : (
@@ -636,18 +637,20 @@ export default function AISignalsWidget() {
                         </span>
                       </div>
                     </div>
+                    
                     <div className="text-right shrink-0">
                       <span className="text-sm font-black text-text-primary block tabular-nums">
                         ₹{quote.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </span>
-                      <span className={`text-[10px] font-black block tabular-nums ${isPositive ? 'text-profit' : 'text-loss'}`}>
-                        {isPositive ? '▲' : '▼'}{quote.changePercent !== 0 ? `${isPositive ? '+' : ''}${quote.changePercent.toFixed(2)}%` : '0.00%'}
+                      <span className={`text-[10px] font-black flex items-center justify-end gap-0.5 tabular-nums ${isPositive ? 'text-profit' : 'text-loss'}`}>
+                        <span>{isPositive ? '▲' : '▼'}</span>
+                        <span>{quote.changePercent !== 0 ? `${isPositive ? '+' : ''}${quote.changePercent.toFixed(2)}%` : '0.00%'}</span>
                       </span>
                     </div>
                   </div>
 
-                  {/* Mid card row: Technical trigger and sparkline preview */}
-                  <div className="flex items-center justify-between gap-4 mt-1">
+                  {/* Indicator & Sparkline Row */}
+                  <div className="flex items-center justify-between gap-4 py-1.5 border-y border-border/40 bg-slate-50/50 dark:bg-slate-800/10 px-2.5 rounded-xl">
                     <div className="flex items-center gap-1.5 text-xs font-bold text-text-primary/95 min-w-0">
                       <Activity className="h-3.5 w-3.5 text-profit shrink-0" />
                       <span className="truncate">{item.indicator}</span>
@@ -658,23 +661,26 @@ export default function AISignalsWidget() {
                     </div>
                   </div>
 
-                  {/* Target & Stop Loss Pills */}
-                  <div className="flex flex-wrap gap-1.5 mt-1">
-                    <span className="text-[9px] font-black px-2 py-0.5 rounded bg-slate-50 dark:bg-slate-800/40 border border-border/60 text-text-secondary">
-                      T: ₹{item.targetPrice.toFixed(1)}
-                    </span>
-                    <span className="text-[9px] font-black px-2 py-0.5 rounded bg-slate-50 dark:bg-slate-800/40 border border-border/60 text-text-secondary">
-                      SL: ₹{item.stopLoss.toFixed(1)}
-                    </span>
-                    <span className="text-[9px] font-black px-2 py-0.5 rounded bg-slate-50 dark:bg-slate-800/40 border border-border/60 text-text-secondary font-mono">
-                      R:R {item.riskReward}
-                    </span>
+                  {/* Enhanced 3-Column Target, Stop Loss & Risk Reward Slabs */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-emerald-500/[0.04] dark:bg-emerald-500/[0.08] border border-emerald-500/15 text-center">
+                      <span className="text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Target</span>
+                      <span className="text-[10px] font-black text-text-primary mt-0.5 tabular-nums">₹{item.targetPrice.toFixed(1)}</span>
+                    </div>
+                    <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-rose-500/[0.04] dark:bg-rose-500/[0.08] border border-rose-500/15 text-center">
+                      <span className="text-[8px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-wider">Stop Loss</span>
+                      <span className="text-[10px] font-black text-text-primary mt-0.5 tabular-nums">₹{item.stopLoss.toFixed(1)}</span>
+                    </div>
+                    <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-indigo-500/[0.04] dark:bg-indigo-500/[0.08] border border-indigo-500/15 text-center">
+                      <span className="text-[8px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Risk Reward</span>
+                      <span className="text-[10px] font-black text-text-primary mt-0.5 font-mono">{item.riskReward}</span>
+                    </div>
                   </div>
 
-                  {/* Bottom details card row */}
-                  <div className="flex items-center justify-between gap-2 pt-2.5 mt-1 border-t border-border/30">
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className={`text-[9px] font-black px-2 py-0.5 rounded-md border tracking-wider uppercase flex items-center gap-1.5 ${getSignalBadge(item.signal)}`}>
+                  {/* Footer Row: Signal Strength & Confidence score */}
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <div className="shrink-0">
+                      <span className={`text-[9px] font-black px-2.5 py-1 rounded-lg border tracking-wider uppercase flex items-center gap-1.5 ${getSignalBadge(item.signal)}`}>
                         <span className={`h-1.5 w-1.5 rounded-full animate-pulse ${
                           item.signal.includes('BUY') ? 'bg-emerald-500' : 'bg-rose-500'
                         }`} />
@@ -682,9 +688,9 @@ export default function AISignalsWidget() {
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <span className="text-[9px] text-text-secondary font-bold font-mono">{item.confidence}% Conf</span>
-                      <div className="w-16 bg-slate-100 dark:bg-slate-800/80 h-1 rounded-full overflow-hidden">
+                    <div className="flex items-center gap-1.5 shrink-0 bg-background border border-border/80 px-2 py-1 rounded-lg shadow-inner">
+                      <span className="text-[9px] text-text-secondary font-black font-mono">{item.confidence}% Conf</span>
+                      <div className="w-12 bg-slate-100 dark:bg-slate-800/80 h-1 rounded-full overflow-hidden">
                         <div 
                           className={`h-full rounded-full ${getSignalColorClass(item.signal)}`} 
                           style={{ width: `${item.confidence}%` }}
@@ -692,6 +698,7 @@ export default function AISignalsWidget() {
                       </div>
                     </div>
                   </div>
+
                 </div>
 
               </div>

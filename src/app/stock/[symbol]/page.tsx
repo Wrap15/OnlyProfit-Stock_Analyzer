@@ -1248,7 +1248,7 @@ export default function StockDetailPage() {
                 {/* Support and Resistance values */}
                 <div className="p-4 bg-background/40 border border-border/50 rounded-xl space-y-3">
                   <h4 className="text-xs font-black text-text-primary uppercase tracking-wider">Pivot Support & Resistance Points</h4>
-                  <div className="grid grid-cols-4 gap-4 text-center">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 text-center">
                     <div className="space-y-1">
                       <span className="block text-[8px] font-black text-text-secondary uppercase">Support 2 (S2)</span>
                       <span className="text-xs font-black text-loss">₹{technicals.support2}</span>

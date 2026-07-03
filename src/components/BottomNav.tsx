@@ -3,10 +3,12 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, TrendingUp, GitCompare, Landmark } from 'lucide-react';
+import { Home, TrendingUp, Landmark, Menu } from 'lucide-react';
+import { useStockStore } from '@/store/useStockStore';
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const { isMobileMenuOpen, toggleMobileMenu } = useStockStore();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -19,7 +21,7 @@ export default function BottomNav() {
     { label: 'Home', href: '/', icon: Home },
     { label: 'Nifty 50', href: '/stock/%5ENSEI', icon: TrendingUp },
     { label: 'SENSEX', href: '/stock/%5EBSESN', icon: Landmark },
-    { label: 'Compare', href: '/compare', icon: GitCompare }
+    { label: 'Menu', href: '#menu', icon: Menu }
   ];
 
   return (
@@ -27,19 +29,43 @@ export default function BottomNav() {
       <div className="flex items-center justify-between gap-2">
         {tabs.map((tab) => {
           const Icon = tab.icon;
-          const isActive = pathname === tab.href || (tab.href === '/' ? pathname === '/' : pathname.startsWith(tab.href.split('%')[0]));
+          const isMenuTab = tab.label === 'Menu';
+          const isActive = isMenuTab 
+            ? isMobileMenuOpen 
+            : pathname === tab.href || (tab.href === '/' ? pathname === '/' : pathname.startsWith(tab.href.split('%')[0]));
+
+          const content = (
+            <>
+              <Icon className="h-5 w-5" />
+              <span className="text-[9px] font-black uppercase tracking-wider">{tab.label}</span>
+            </>
+          );
+
+          const className = `flex flex-col items-center gap-1 flex-1 py-1 transition-all cursor-pointer ${
+            isActive 
+              ? 'text-profit scale-105' 
+              : 'text-text-secondary hover:text-text-primary'
+          }`;
+
+          if (isMenuTab) {
+            return (
+              <button
+                key={tab.label}
+                onClick={() => toggleMobileMenu()}
+                className={className}
+              >
+                {content}
+              </button>
+            );
+          }
+
           return (
             <Link
               key={tab.label}
               href={tab.href}
-              className={`flex flex-col items-center gap-1 flex-1 py-1 transition-all ${
-                isActive 
-                  ? 'text-profit scale-105' 
-                  : 'text-text-secondary hover:text-text-primary'
-              }`}
+              className={className}
             >
-              <Icon className="h-5 w-5" />
-              <span className="text-[9px] font-black uppercase tracking-wider">{tab.label}</span>
+              {content}
             </Link>
           );
         })}

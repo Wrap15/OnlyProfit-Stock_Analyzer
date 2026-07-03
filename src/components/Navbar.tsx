@@ -21,7 +21,9 @@ export default function Navbar() {
     setUser, 
     setUserName,
     activatePro, 
-    deactivatePro 
+    deactivatePro,
+    isMobileMenuOpen,
+    toggleMobileMenu
   } = useStockStore();
 
   const [mounted, setMounted] = useState(false);
@@ -31,7 +33,6 @@ export default function Navbar() {
   
   const [isEditNameOpen, setIsEditNameOpen] = useState(false);
   const [customNameInput, setCustomNameInput] = useState('');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Avoid hydration mismatch
   useEffect(() => {
@@ -131,16 +132,16 @@ export default function Navbar() {
   return (
     <>
       <nav className="sticky top-0 z-50 border-b border-border bg-card/85 backdrop-blur-md transition-colors duration-300">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between gap-4">
+        <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
+          <div className="flex h-14 sm:h-16 items-center justify-between gap-2.5 sm:gap-4">
             
             {/* Logo details */}
             <div className="flex items-center gap-8">
-              <Link href="/" className="flex items-center gap-2 select-none group">
-                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white shadow-lg shadow-emerald-500/10 group-hover:brightness-105 transition-all">
-                  <TrendingUp className="h-5.5 w-5.5" />
+              <Link href="/" className="flex items-center gap-1.5 sm:gap-2 select-none group">
+                <span className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-xl sm:rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white shadow-lg shadow-emerald-500/10 group-hover:brightness-105 transition-all">
+                  <TrendingUp className="h-4.5 w-4.5 sm:h-5.5 sm:w-5.5" />
                 </span>
-                <span className="font-black text-base tracking-tight text-text-primary group-hover:text-profit transition-colors">
+                <span className="font-black text-xs sm:text-base tracking-tight text-text-primary group-hover:text-profit transition-colors">
                   OnlyProfit
                 </span>
               </Link>
@@ -163,14 +164,14 @@ export default function Navbar() {
             </div>
 
             {/* Header action menus */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               {/* Mobile Search trigger */}
               <button
                 onClick={() => setIsSearchModalOpen(true)}
-                className="flex sm:hidden h-10 w-10 items-center justify-center rounded-xl border border-border bg-card hover:bg-background text-text-primary transition-all duration-200"
+                className="flex sm:hidden h-8 w-8 items-center justify-center rounded-lg border border-border bg-card hover:bg-background text-text-primary transition-all duration-200"
                 aria-label="Search"
               >
-                <Search className="h-5 w-5" />
+                <Search className="h-4 w-4" />
               </button>
 
               {/* SaaS Pro Tier Badge */}
@@ -241,20 +242,20 @@ export default function Navbar() {
               {mounted && (
                 <button
                   onClick={toggleTheme}
-                  className="hidden sm:flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card hover:bg-background text-text-primary transition-all duration-200 cursor-pointer"
+                  className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-lg sm:rounded-xl border border-border bg-card hover:bg-background text-text-primary transition-all duration-200 cursor-pointer animate-fade-in"
                   aria-label="Toggle theme"
                 >
-                  {theme === 'dark' ? <Sun className="h-5 w-5 text-amber-400" /> : <Moon className="h-5 w-5" />}
+                  {theme === 'dark' ? <Sun className="h-4 w-4 sm:h-5 sm:w-5 text-amber-400" /> : <Moon className="h-4 w-4 sm:h-5 sm:w-5" />}
                 </button>
               )}
 
               {/* Mobile menu toggle */}
               <button
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="flex sm:hidden h-10 w-10 items-center justify-center rounded-xl border border-border bg-card hover:bg-background text-text-primary transition-all duration-200"
+                onClick={() => toggleMobileMenu()}
+                className="flex sm:hidden h-8 w-8 items-center justify-center rounded-lg border border-border bg-card hover:bg-background text-text-primary transition-all duration-200"
                 aria-label="Toggle menu"
               >
-                {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5.5 w-5.5" />}
+                {isMobileMenuOpen ? <X className="h-4.5 w-4.5" /> : <Menu className="h-4.5 w-4.5" />}
               </button>
             </div>
 
@@ -268,7 +269,7 @@ export default function Navbar() {
           {/* Compare Link */}
           <Link
             href="/compare"
-            onClick={() => setIsMobileMenuOpen(false)}
+            onClick={() => toggleMobileMenu(false)}
             className="flex items-center gap-3 px-4 py-3 rounded-2xl border border-border bg-background hover:bg-slate-50 dark:hover:bg-slate-800/40 text-xs font-black text-text-primary transition-all"
           >
             <GitCompare className="h-4.5 w-4.5 text-profit" />
@@ -289,7 +290,7 @@ export default function Navbar() {
               </div>
             ) : (
               <button
-                onClick={() => { setIsProModalOpen(true); setIsMobileMenuOpen(false); }}
+                onClick={() => { setIsProModalOpen(true); toggleMobileMenu(false); }}
                 className="w-full flex items-center justify-between p-4 rounded-2xl border border-amber-500/20 bg-gradient-to-r from-amber-500/5 to-yellow-500/5 text-amber-600 dark:text-amber-400 hover:from-amber-500/10 hover:to-yellow-500/10 transition-all font-black text-xs"
               >
                 <div className="flex items-center gap-2">
@@ -316,7 +317,7 @@ export default function Navbar() {
                     </span>
                   </div>
                   <button
-                    onClick={() => { setIsEditNameOpen(true); setIsMobileMenuOpen(false); }}
+                    onClick={() => { setIsEditNameOpen(true); toggleMobileMenu(false); }}
                     className="flex items-center gap-1 text-[10px] font-black text-profit hover:underline"
                   >
                     <Edit2 className="h-3 w-3" />
@@ -325,7 +326,7 @@ export default function Navbar() {
                 </div>
                 
                 <button
-                  onClick={() => { handleSignOut(); setIsMobileMenuOpen(false); }}
+                  onClick={() => { handleSignOut(); toggleMobileMenu(false); }}
                   className="w-full h-10 mt-2 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 font-extrabold text-xs flex items-center justify-center gap-2 hover:bg-rose-500/15 transition-all"
                 >
                   <LogOut className="h-4 w-4" />
@@ -334,7 +335,7 @@ export default function Navbar() {
               </div>
             ) : (
               <button
-                onClick={() => { setIsAuthModalOpen(true); setIsMobileMenuOpen(false); }}
+                onClick={() => { setIsAuthModalOpen(true); toggleMobileMenu(false); }}
                 className="w-full h-11 rounded-2xl bg-profit hover:brightness-105 text-white font-black text-xs transition-all shadow-md shadow-profit/15 flex items-center justify-center gap-2"
               >
                 <User className="h-4.5 w-4.5" />
@@ -343,21 +344,6 @@ export default function Navbar() {
             )
           )}
 
-          {/* Theme Selector Toggle */}
-          {mounted && (
-            <button
-              onClick={() => { toggleTheme(); }}
-              className="w-full flex items-center justify-between px-4 py-3 rounded-2xl border border-border bg-background hover:bg-slate-50 dark:hover:bg-slate-800/40 text-xs font-black text-text-primary transition-all"
-            >
-              <div className="flex items-center gap-3">
-                {theme === 'dark' ? <Sun className="h-5 w-5 text-amber-400" /> : <Moon className="h-5 w-5 text-text-secondary" />}
-                <span>{theme === 'dark' ? 'Light Theme' : 'Dark Theme'}</span>
-              </div>
-              <span className="text-[9px] text-text-secondary font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md border border-border/40">
-                {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-              </span>
-            </button>
-          )}
         </div>
       )}
 

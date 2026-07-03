@@ -124,7 +124,7 @@ export default function TopIndexStrip() {
   }, [hasLoaded]);
 
   return (
-    <div className="sticky top-16 z-40 w-full border-b border-border bg-card/75 backdrop-blur-md transition-all select-none">
+    <div className="sticky top-14 sm:top-16 z-40 w-full border-b border-border bg-card/75 backdrop-blur-md transition-all select-none">
       <div className="relative max-w-7xl mx-auto w-full">
         {/* Gradient fades on mobile to indicate horizontal scrollability */}
         <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-card to-transparent pointer-events-none z-10 sm:hidden" />

@@ -33,6 +33,8 @@ interface StockState {
   deactivatePro: () => void;
   setUser: (userId: string | null, userEmail: string | null, userName?: string | null) => void;
   setUserName: (userName: string | null) => void;
+  isMobileMenuOpen: boolean;
+  toggleMobileMenu: (open?: boolean) => void;
 }
 
 export const useStockStore = create<StockState>()(
@@ -119,6 +121,10 @@ export const useStockStore = create<StockState>()(
       deactivatePro: () => set({ isProUser: false }),
       setUser: (userId, userEmail, userName = null) => set({ userId, userEmail, userName }),
       setUserName: (userName) => set({ userName }),
+      isMobileMenuOpen: false,
+      toggleMobileMenu: (open) => set((state) => ({
+        isMobileMenuOpen: open !== undefined ? open : !state.isMobileMenuOpen
+      })),
     }),
     {
       name: 'onlyprofit-storage', // local storage key

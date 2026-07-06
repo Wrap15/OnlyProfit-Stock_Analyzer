@@ -2,8 +2,9 @@
 
 import React from 'react';
 import Link from 'next/link';
-import MiniSparkline from './MiniSparkline';
-import { Shield, Sparkles, Layers, TrendingUp, Compass } from 'lucide-react';
+import { Bookmark } from 'lucide-react';
+import { useStockStore } from '@/store/useStockStore';
+import { getAmcLogoUrl } from '@/lib/mutualfunds';
 
 interface MutualFundData {
   code: string;
@@ -20,133 +21,136 @@ interface MutualFundData {
 
 interface MutualFundCardProps {
   fund: MutualFundData;
+  returnDuration?: '1y' | '3y';
 }
 
-export default function MutualFundCard({ fund }: MutualFundCardProps) {
-  const isPositive = fund.oneYearReturn >= 0;
+export default function MutualFundCard({ fund, returnDuration = '1y' }: MutualFundCardProps) {
+  const { watchlist, toggleWatchlist } = useStockStore();
+  const isBookmarked = watchlist.includes(fund.code);
+  const [imgError, setImgError] = React.useState(false);
 
-  // Resolve category icon and theme color
-  const getCategoryConfig = (cat: string) => {
-    switch (cat.toLowerCase()) {
-      case 'smallcap':
-        return {
-          icon: <Sparkles className="h-4.5 w-4.5 text-emerald-500" />,
-          bgColor: 'bg-emerald-500/10 dark:bg-emerald-500/20 border-emerald-500/20',
-          textColor: 'text-emerald-600 dark:text-emerald-400'
-        };
-      case 'midcap':
-        return {
-          icon: <TrendingUp className="h-4.5 w-4.5 text-orange-500" />,
-          bgColor: 'bg-orange-500/10 dark:bg-orange-500/20 border-orange-500/20',
-          textColor: 'text-orange-600 dark:text-orange-400'
-        };
-      case 'flexicap':
-        return {
-          icon: <Compass className="h-4.5 w-4.5 text-blue-500" />,
-          bgColor: 'bg-blue-500/10 dark:bg-blue-500/20 border-blue-500/20',
-          textColor: 'text-blue-600 dark:text-blue-400'
-        };
-      case 'multicap':
-        return {
-          icon: <Layers className="h-4.5 w-4.5 text-purple-500" />,
-          bgColor: 'bg-purple-500/10 dark:bg-purple-500/20 border-purple-500/20',
-          textColor: 'text-purple-600 dark:text-purple-400'
-        };
-      case 'index':
-      default:
-        return {
-          icon: <Shield className="h-4.5 w-4.5 text-teal-500" />,
-          bgColor: 'bg-teal-500/10 dark:bg-teal-500/20 border-teal-500/20',
-          textColor: 'text-teal-600 dark:text-teal-400'
-        };
+  const returnVal = returnDuration === '1y' ? fund.oneYearReturn : fund.threeYearReturn;
+  const isPositive = returnVal >= 0;
+
+  // Clean fund name: e.g., strip ' - Growth' or ' - Direct Plan' for minimal clean UI
+  const displayName = fund.name
+    .replace(/\s*-\s*Growth/i, '')
+    .replace(/\s*-\s*Direct Plan/i, '')
+    .replace(/\s*-\s*Direct/i, '');
+
+  const logoUrl = getAmcLogoUrl('', fund.name);
+
+  // Resolve subclass label
+  let subLabel = 'Equity • Growth';
+  if (fund.category === 'etf') {
+    subLabel = 'ETF • Passive';
+  } else if (fund.category === 'index') {
+    subLabel = 'Index • Passive';
+  }
+
+  // Get initials from displayName
+  const getAmcInitials = (name: string) => {
+    const words = name.split(/\s+/).filter(Boolean);
+    if (words.length >= 2) {
+      const first = words[0][0] || '';
+      const second = words[1][0] || '';
+      // skip common words if they are the second word
+      if (['mutual', 'fund', 'etf', 'index', 'growth', 'direct', 'large', 'mid', 'small', 'plan'].includes(words[1].toLowerCase())) {
+        return first.toUpperCase();
+      }
+      return (first + second).toUpperCase();
     }
+    return name.substring(0, 2).toUpperCase();
   };
 
-  const config = getCategoryConfig(fund.category);
+  const initials = getAmcInitials(displayName);
+
+  // Simple hash to resolve a beautiful gradient color background for the placeholder
+  const getAmcGradient = (name: string) => {
+    const gradients = [
+      'from-rose-500 to-orange-500',
+      'from-blue-500 to-indigo-600',
+      'from-emerald-500 to-teal-600',
+      'from-amber-500 to-yellow-600',
+      'from-purple-500 to-indigo-500',
+      'from-fuchsia-500 to-pink-500',
+      'from-sky-500 to-blue-600',
+      'from-cyan-500 to-teal-600'
+    ];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % gradients.length;
+    return gradients[index];
+  };
+
+  const gradientClass = getAmcGradient(displayName);
+
+  const handleBookmarkClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleWatchlist(fund.code);
+  };
 
   return (
-    <div className={`flex flex-col w-full rounded-2xl border bg-glass p-5 overflow-hidden animate-fade-in gpu-layer cursor-pointer ${
-      isPositive 
-        ? 'border-emerald-500/10 dark:border-emerald-500/5 shadow-glow-profit hover-glow-profit' 
-        : 'border-rose-500/10 dark:border-rose-500/5 shadow-glow-loss hover-glow-loss'
-    }`}>
-      
-      <Link href={`/mutualfund/${fund.code}`} className="group flex flex-col flex-grow cursor-pointer">
-        {/* Header Info */}
-        <div className="flex items-start justify-between gap-2.5">
-          <div className="flex items-center gap-3 min-w-0">
-            {/* Category Avatar Icon */}
-            <div className={`flex h-9 w-9 items-center justify-center rounded-xl border ${config.bgColor}`}>
-              {config.icon}
-            </div>
-            <div className="min-w-0">
-              <h3 className="font-extrabold text-sm text-text-primary tracking-tight truncate group-hover:text-profit transition-colors duration-200">
-                {fund.name.replace(' - Growth', '')}
-              </h3>
-              <div className="flex items-center gap-2 mt-1">
-                <span className={`inline-block text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md border ${config.bgColor} ${config.textColor}`}>
-                  {fund.categoryLabel}
-                </span>
-                {fund.rating !== undefined && (
-                  <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/15 text-amber-500 select-none">
-                    ★ {fund.rating.toFixed(1)}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* NAV Display Section */}
-        <div className="mt-5 flex items-baseline justify-between">
-          <div>
-            <span className="block text-[10px] font-extrabold text-text-secondary uppercase tracking-wider">Net Asset Value (NAV)</span>
-            <div className="text-xl font-black text-text-primary tracking-tight mt-0.5 tabular-nums">
-              ₹{fund.nav.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-            </div>
-          </div>
-          
-          {/* CAGR Return Badge */}
-          <div className="text-right">
-            <span className="block text-[10px] font-extrabold text-text-secondary uppercase tracking-wider">3Y Return (cagr)</span>
-            <span className="inline-flex items-center mt-1 px-2 py-0.5 rounded-lg bg-profit/10 text-profit border border-profit/15 text-xs font-black tabular-nums">
-              {fund.threeYearReturn.toFixed(2)}% p.a.
-            </span>
-          </div>
-        </div>
-
-        {/* Sparkline Visual History */}
-        <div className="flex items-end justify-between mt-6 pt-3 border-t border-border/30">
-          <div className="flex flex-col">
-            <span className="text-[10px] font-extrabold text-text-secondary uppercase tracking-wider">
-              1Y Return
-            </span>
-            <span className={`text-xs font-black mt-0.5 tabular-nums ${fund.oneYearReturn >= 0 ? 'text-profit' : 'text-loss'}`}>
-              {fund.oneYearReturn >= 0 ? '+' : ''}{fund.oneYearReturn.toFixed(2)}%
-            </span>
-          </div>
-          
-          {fund.minSipAmount !== undefined && (
-            <div className="flex flex-col items-center">
-              <span className="text-[10px] font-extrabold text-text-secondary uppercase tracking-wider">
-                Min. SIP
-              </span>
-              <span className="text-xs font-black text-text-primary mt-0.5 tabular-nums">
-                ₹{fund.minSipAmount}
-              </span>
-            </div>
-          )}
-          
-          {fund.sparkline.length > 0 && (
-            <div className="h-8 w-24 opacity-85 hover:opacity-100 transition-opacity">
-              <MiniSparkline data={fund.sparkline} isPositive={isPositive} width={96} height={32} />
+    <Link
+      href={`/mutualfund/${fund.code}`}
+      className="flex items-center justify-between p-4 bg-card hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-all duration-200 cursor-pointer group"
+    >
+      <div className="flex items-center gap-3.5 min-w-0">
+        {/* AMC Logo inside rounded-xl white frame or beautiful initials gradient placeholder */}
+        <div className="h-11 w-11 rounded-xl bg-white border border-slate-200/80 dark:border-slate-800/80 flex items-center justify-center shrink-0 shadow-sm relative overflow-hidden select-none">
+          {logoUrl && !imgError ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img 
+              src={logoUrl} 
+              alt={displayName} 
+              className="h-full w-full object-contain p-1.5" 
+              onError={() => setImgError(true)}
+              loading="lazy"
+            />
+          ) : (
+            <div className={`h-full w-full bg-gradient-to-br ${gradientClass} text-white font-black text-xs flex items-center justify-center`}>
+              {initials}
             </div>
           )}
         </div>
-      </Link>
 
+        {/* Text descriptions */}
+        <div className="min-w-0">
+          <h4 className="font-extrabold text-sm text-text-primary group-hover:text-profit transition-colors duration-200 truncate">
+            {displayName}
+          </h4>
+          <span className="text-[10px] sm:text-xs text-text-secondary font-semibold block mt-0.5">
+            {subLabel}
+          </span>
+        </div>
+      </div>
 
+      <div className="flex items-center gap-4 shrink-0">
+        {/* Performance Return % */}
+        <div className="text-right">
+          <span className={`text-sm font-extrabold tabular-nums ${isPositive ? 'text-profit' : 'text-loss'}`}>
+            {isPositive ? '+' : ''}{returnVal.toFixed(2)}%
+          </span>
+        </div>
 
-    </div>
+        {/* Bookmark save toggle */}
+        <button
+          onClick={handleBookmarkClick}
+          className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          aria-label={isBookmarked ? "Remove from watchlist" : "Add to watchlist"}
+        >
+          <Bookmark 
+            className={`h-5 w-5 transition-all duration-200 ${
+              isBookmarked 
+                ? 'text-profit fill-profit scale-110' 
+                : 'text-slate-400 dark:text-slate-500 hover:text-text-primary'
+            }`} 
+          />
+        </button>
+      </div>
+    </Link>
   );
 }

@@ -9,23 +9,17 @@ import MutualFundCard from '@/components/MutualFundCard';
 import ThematicBaskets from '@/components/ThematicBaskets';
 import IpoDetailsModal from '@/components/IpoDetailsModal';
 import AISignalsWidget from '@/components/AISignalsWidget';
+import TodayNewsEvents from '@/components/TodayNewsEvents';
 import { 
-  ArrowUpRight, ArrowDownRight, Star, Sparkles, LayoutGrid, Search, Activity,
-  Landmark, Cpu, Cookie, Car, Flame, Wrench, Layers, HeartPulse, PhoneCall, Bolt, Rocket
+  ArrowUpRight, ArrowDownRight, Star, Sparkles, LayoutGrid, Search, Activity, Landmark, Cpu, Cookie, Car, Flame, Wrench, Layers, HeartPulse, PhoneCall, Bolt, Rocket,
+  TrendingUp, TrendingDown, ArrowLeftRight, Bookmark, ChevronDown, X, ArrowUpDown,
+  Building, Home as HomeIcon, Coins, PiggyBank, Target, Compass
 } from 'lucide-react';
 import Link from 'next/link';
 import { MUTUAL_FUNDS } from '@/lib/mutualfunds';
 import { mapToStandardSector, MOCK_STOCK_INFO } from '@/lib/yahooFinance';
 import { isIndianMarketOpen } from '@/lib/marketHours';
-import MiniSparkline from '@/components/MiniSparkline';
 
-interface MarketGainerLoser {
-  symbol: string;
-  name: string;
-  price: number;
-  changePercent: number;
-  chart?: number[];
-}
 
 function generateMockSparklineData(price: number, changePercent: number, symbol: string): number[] {
   const seed = symbol.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
@@ -122,7 +116,7 @@ const LARGE_CAP_SYMBOLS = [
   'SHREECEM.NS', 'SUNPHARMA.NS', 'DRREDDY.NS', 'CIPLA.NS', 'DIVISLAB.NS',
   'APOLLOHOSP.NS', 'MAXHEALTH.NS', 'TORNTPHARM.NS', 'BHARTIARTL.NS', 'TATACOMM.NS',
   'NTPC.NS', 'POWERGRID.NS', 'TATAPOWER.NS', 'ADANIPOWER.NS', 'TORNTPOWER.NS',
-  'JSWENERGY.NS', 'SWSOLAR.NS'
+  'JSWENERGY.NS', 'SWSOLAR.NS', 'CGPOWER.NS', 'GET&D.NS', 'POWERINDIA.NS'
 ];
 
 const MID_CAP_SYMBOLS = [
@@ -198,15 +192,15 @@ export default function Home() {
   const [ipoCategory, setIpoCategory] = useState<'mainboard' | 'sme'>('mainboard');
   const [selectedIpoSearchId, setSelectedIpoSearchId] = useState<string | null>(null);
 
-  // Market cap states for movers lists
-  const [gainersCap, setGainersCap] = useState<'all' | 'large' | 'mid' | 'small'>('all');
-  const [losersCap, setLosersCap] = useState<'all' | 'large' | 'mid' | 'small'>('all');
-  const [activeCap, setActiveCap] = useState<'all' | 'large' | 'mid' | 'small'>('all');
+  const [todaysStocksTab, setTodaysStocksTab] = useState<'gainers' | 'losers' | 'mostactive' | 'high52w' | 'low52w'>('gainers');
+  const [todaysStocksCap, setTodaysStocksCap] = useState<'all' | 'large' | 'mid' | 'small'>('large');
 
   // Mutual Funds States
-  const [activeMFCategory, setActiveMFCategory] = useState<string>('all');
+  const [activeMFCategory, setActiveMFCategory] = useState<string>('largecap');
   const [mutualFunds, setMutualFunds] = useState<any[]>([]);
   const [mfLoading, setMFLoading] = useState<boolean>(true);
+  const [mfReturnDuration, setMfReturnDuration] = useState<'1y' | '3y'>('1y');
+  const [isMfDrawerOpen, setIsMfDrawerOpen] = useState<boolean>(false);
 
   // Clock state for realworld live dashboard feel
   const [timeStr, setTimeStr] = useState<string>('');
@@ -419,85 +413,110 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [loading, hasQuotes]);
 
-  // Compute gainers & losers with cap filtering
-  const filteredGainersQuotes = [...marketQuotes]
-    .filter(q => !q.symbol.startsWith('^') && q.regularMarketChangePercent > 0)
-    .filter(q => {
-      if (gainersCap === 'large') return LARGE_CAP_SYMBOLS.includes(q.symbol);
-      if (gainersCap === 'mid') return MID_CAP_SYMBOLS.includes(q.symbol);
-      if (gainersCap === 'small') return SMALL_CAP_SYMBOLS.includes(q.symbol);
-      return true;
-    })
-    .sort((a, b) => b.regularMarketChangePercent - a.regularMarketChangePercent);
-
-  const gainers: MarketGainerLoser[] = filteredGainersQuotes.slice(0, 5).map(q => {
-    const price = q.regularMarketPrice || 0;
-    const pct = q.regularMarketChangePercent || 0;
-    return {
-      symbol: q.symbol,
-      name: q.shortName,
-      price: price,
-      changePercent: pct,
-      chart: generateMockSparklineData(price, pct, q.symbol)
-    };
-  });
-  
-  const filteredLosersQuotes = [...marketQuotes]
-    .filter(q => !q.symbol.startsWith('^') && q.regularMarketChangePercent < 0)
-    .filter(q => {
-      if (losersCap === 'large') return LARGE_CAP_SYMBOLS.includes(q.symbol);
-      if (losersCap === 'mid') return MID_CAP_SYMBOLS.includes(q.symbol);
-      if (losersCap === 'small') return SMALL_CAP_SYMBOLS.includes(q.symbol);
-      return true;
-    })
-    .sort((a, b) => a.regularMarketChangePercent - b.regularMarketChangePercent);
-
-  const losers: MarketGainerLoser[] = filteredLosersQuotes.slice(0, 5).map(q => {
-    const price = q.regularMarketPrice || 0;
-    const pct = q.regularMarketChangePercent || 0;
-    return {
-      symbol: q.symbol,
-      name: q.shortName,
-      price: price,
-      changePercent: pct,
-      chart: generateMockSparklineData(price, pct, q.symbol)
-    };
-  });
-
-  // Compute most active stocks by trading volume
-  const filteredActiveQuotes = [...marketQuotes]
+  // 1. Filter marketQuotes by cap for Today's stocks
+  const filteredCapQuotes = [...marketQuotes]
     .filter(q => !q.symbol.startsWith('^'))
     .filter(q => {
-      if (activeCap === 'large') return LARGE_CAP_SYMBOLS.includes(q.symbol);
-      if (activeCap === 'mid') return MID_CAP_SYMBOLS.includes(q.symbol);
-      if (activeCap === 'small') return SMALL_CAP_SYMBOLS.includes(q.symbol);
+      if (todaysStocksCap === 'large') return LARGE_CAP_SYMBOLS.includes(q.symbol);
+      if (todaysStocksCap === 'mid') return MID_CAP_SYMBOLS.includes(q.symbol);
+      if (todaysStocksCap === 'small') return SMALL_CAP_SYMBOLS.includes(q.symbol);
       return true;
-    })
-    .sort((a, b) => b.regularMarketVolume - a.regularMarketVolume);
-  const mostActive = filteredActiveQuotes.slice(0, 5).map(q => {
-    const price = q.regularMarketPrice || 0;
-    const pct = q.regularMarketChangePercent || 0;
-    return {
-      symbol: q.symbol,
-      name: q.shortName,
-      price: price,
-      changePercent: pct,
-      volume: q.regularMarketVolume,
-      chart: generateMockSparklineData(price, pct, q.symbol)
-    };
-  });
+    });
+
+  // 2. Sort and slice based on Today's stocks tab
+  let todaysStocksList: any[] = [];
+
+  if (todaysStocksTab === 'gainers') {
+    todaysStocksList = filteredCapQuotes
+      .filter(q => q.regularMarketChangePercent > 0)
+      .sort((a, b) => b.regularMarketChangePercent - a.regularMarketChangePercent)
+      .slice(0, 5)
+      .map(q => {
+        const price = q.regularMarketPrice || 0;
+        const pct = q.regularMarketChangePercent || 0;
+        return {
+          symbol: q.symbol,
+          name: MOCK_STOCK_INFO[q.symbol]?.name || q.shortName,
+          price: price,
+          changePercent: pct,
+          chart: generateMockSparklineData(price, pct, q.symbol)
+        };
+      });
+  } else if (todaysStocksTab === 'losers') {
+    todaysStocksList = filteredCapQuotes
+      .filter(q => q.regularMarketChangePercent < 0)
+      .sort((a, b) => a.regularMarketChangePercent - b.regularMarketChangePercent)
+      .slice(0, 5)
+      .map(q => {
+        const price = q.regularMarketPrice || 0;
+        const pct = q.regularMarketChangePercent || 0;
+        return {
+          symbol: q.symbol,
+          name: MOCK_STOCK_INFO[q.symbol]?.name || q.shortName,
+          price: price,
+          changePercent: pct,
+          chart: generateMockSparklineData(price, pct, q.symbol)
+        };
+      });
+  } else if (todaysStocksTab === 'mostactive') {
+    todaysStocksList = filteredCapQuotes
+      .sort((a, b) => b.regularMarketVolume - a.regularMarketVolume)
+      .slice(0, 5)
+      .map(q => {
+        const price = q.regularMarketPrice || 0;
+        const pct = q.regularMarketChangePercent || 0;
+        return {
+          symbol: q.symbol,
+          name: MOCK_STOCK_INFO[q.symbol]?.name || q.shortName,
+          price: price,
+          changePercent: pct,
+          volume: q.regularMarketVolume,
+          chart: generateMockSparklineData(price, pct, q.symbol)
+        };
+      });
+  } else if (todaysStocksTab === 'high52w') {
+    todaysStocksList = filteredCapQuotes
+      .filter(q => q.fiftyTwoWeekHigh)
+      .sort((a, b) => {
+        const ratioA = a.regularMarketPrice / a.fiftyTwoWeekHigh;
+        const ratioB = b.regularMarketPrice / b.fiftyTwoWeekHigh;
+        return ratioB - ratioA; // closest ratio to 1 first
+      })
+      .slice(0, 5)
+      .map(q => {
+        const price = q.regularMarketPrice || 0;
+        const pct = q.regularMarketChangePercent || 0;
+        return {
+          symbol: q.symbol,
+          name: MOCK_STOCK_INFO[q.symbol]?.name || q.shortName,
+          price: price,
+          changePercent: pct,
+          chart: generateMockSparklineData(price, pct, q.symbol)
+        };
+      });
+  } else if (todaysStocksTab === 'low52w') {
+    todaysStocksList = filteredCapQuotes
+      .filter(q => q.fiftyTwoWeekLow)
+      .sort((a, b) => {
+        const ratioA = a.regularMarketPrice / a.fiftyTwoWeekLow;
+        const ratioB = b.regularMarketPrice / b.fiftyTwoWeekLow;
+        return ratioA - ratioB; // closest ratio to 1 first
+      })
+      .slice(0, 5)
+      .map(q => {
+        const price = q.regularMarketPrice || 0;
+        const pct = q.regularMarketChangePercent || 0;
+        return {
+          symbol: q.symbol,
+          name: MOCK_STOCK_INFO[q.symbol]?.name || q.shortName,
+          price: price,
+          changePercent: pct,
+          chart: generateMockSparklineData(price, pct, q.symbol)
+        };
+      });
+  }
 
 
-
-  const formatVolume = (num: number) => {
-    if (!num) return '0';
-    if (num >= 10000000) { // 1 Crore
-      return `${(num / 10000000).toFixed(2)} Cr`;
-    } else if (num >= 100000) { // 1 Lakh
-      return `${(num / 100000).toFixed(2)} L`;
-    }
-    return num.toLocaleString('en-IN');
-  };
 
   // Handle explore list updates based on filter or dynamic global Search
   useEffect(() => {
@@ -597,6 +616,11 @@ export default function Home() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Today's News and Events Section */}
+      <div className="mb-8">
+        <TodayNewsEvents />
       </div>
 
       <div className="grid grid-cols-1 gap-8 md:gap-10 lg:grid-cols-3">
@@ -1155,372 +1179,311 @@ export default function Home() {
         {/* Right Column: Gainers, Losers & Most Active (Grid Column Span 1) */}
         <div className="space-y-6">
           
-          {/* Top Gainers Card */}
-          <div className="rounded-2xl border border-border bg-card p-5 md:p-6 shadow-soft dark:shadow-soft-dark">
-            <div className="flex items-center justify-between mb-3 pb-3 border-b border-border/55">
-              <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-profit/10 text-profit">
-                  <ArrowUpRight className="h-4 w-4" />
-                </div>
-                <h3 className="font-extrabold text-sm text-text-primary tracking-tight">
-                  Top Gainers
-                </h3>
-              </div>
-              <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">
-                NSE
-              </span>
+          {/* Today's Stocks Card (Redesigned Unified Widget) */}
+          <div className="rounded-3xl border border-border bg-card p-5 md:p-6 shadow-soft dark:shadow-soft-dark space-y-5">
+            <div className="flex items-center justify-between border-b border-border/40 pb-3">
+              <h3 className="font-extrabold text-base text-text-primary tracking-tight">
+                {"Today's stocks"}
+              </h3>
+
+              {/* Cap Toggle Selector Button */}
+              <button 
+                onClick={() => {
+                  setTodaysStocksCap(prev => {
+                    if (prev === 'large') return 'mid';
+                    if (prev === 'mid') return 'small';
+                    if (prev === 'small') return 'all';
+                    return 'large';
+                  });
+                }}
+                className="flex items-center gap-1.5 text-xs font-black text-profit hover:underline select-none shrink-0"
+              >
+                <span>
+                  {todaysStocksCap === 'large' ? 'Large Cap' : todaysStocksCap === 'mid' ? 'Mid Cap' : todaysStocksCap === 'small' ? 'Small Cap' : 'All Caps'}
+                </span>
+                <ArrowLeftRight className="h-3.5 w-3.5" />
+              </button>
             </div>
 
-            {/* Market Cap Filter Pills */}
-            <div className="flex gap-1 mb-4 p-0.5 bg-background border border-border/60 rounded-xl overflow-x-auto scrollbar-none">
+            {/* Category Pills/Tabs */}
+            <div className="flex overflow-x-auto scrollbar-none gap-2 py-0.5 max-w-full">
               {[
-                { id: 'all', label: 'All' },
-                { id: 'large', label: 'Large Cap' },
-                { id: 'mid', label: 'Mid Cap' },
-                { id: 'small', label: 'Small Cap' }
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setGainersCap(tab.id as any)}
-                  className={`flex-1 py-1 rounded-lg text-[9px] font-extrabold tracking-tight shrink-0 transition-all duration-200 ${
-                    gainersCap === tab.id
-                      ? 'bg-card text-text-primary shadow-sm border border-border/60'
-                      : 'text-text-secondary hover:text-text-primary border border-transparent'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-
-            {loading ? (
-              <div className="space-y-3 py-2">
-                {[1, 2, 3, 4, 5].map(i => (
-                  <div key={i} className="flex justify-between items-center p-1">
-                    <div className="space-y-1.5 flex-1 max-w-[60%]">
-                      <div className="h-3.5 w-16 animate-shimmer rounded" />
-                      <div className="h-2.5 w-28 animate-shimmer rounded" />
-                    </div>
-                    <div className="flex flex-col items-end space-y-1.5 shrink-0">
-                      <div className="h-3.5 w-16 animate-shimmer rounded" />
-                      <div className="h-2.5 w-10 animate-shimmer rounded" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : gainers.length > 0 ? (
-              <div className="divide-y divide-slate-100 dark:divide-slate-800/60 animate-fade-in">
-                {gainers.map((stock) => (
-                  <Link
-                    key={stock.symbol}
-                    href={`/stock/${stock.symbol}`}
-                    className="flex items-center justify-between py-3 px-1 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all duration-200 group"
+                { id: 'gainers', label: 'Gainers', icon: TrendingUp, iconColor: 'text-emerald-500' },
+                { id: 'losers', label: 'Losers', icon: TrendingDown, iconColor: 'text-rose-500' },
+                { id: 'mostactive', label: 'Most Active', icon: Flame, iconColor: 'text-amber-500' },
+                { id: 'high52w', label: '52W High', icon: ArrowUpRight, iconColor: 'text-emerald-500' },
+                { id: 'low52w', label: '52W Low', icon: ArrowDownRight, iconColor: 'text-rose-500' }
+              ].map((tab) => {
+                const Icon = tab.icon;
+                const isActive = todaysStocksTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setTodaysStocksTab(tab.id as any)}
+                    className={`px-3 py-1.5 rounded-full text-[10px] font-black transition-all duration-200 shrink-0 flex items-center gap-1.5 border select-none cursor-pointer ${
+                      isActive
+                        ? 'bg-slate-900 border-transparent text-white dark:bg-slate-800'
+                        : 'bg-card text-text-primary border-border hover:bg-slate-50 dark:hover:bg-slate-800/30'
+                    }`}
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <StockLogo symbol={stock.symbol} size="sm" />
-                      <div className="min-w-0">
-                        <div className="font-semibold text-sm text-text-primary group-hover:text-profit transition-colors truncate">
-                          {stock.symbol.split('.')[0]}
-                        </div>
-                        <div className="text-xs text-text-secondary truncate max-w-[150px] font-medium">
-                          {stock.name}
-                        </div>
-                      </div>
-                    </div>
-                    {stock.chart && stock.chart.length > 0 && (
-                      <div className="h-6 w-16 opacity-85 hover:opacity-100 transition-opacity hidden sm:block shrink-0">
-                        <MiniSparkline data={stock.chart} isPositive={stock.changePercent >= 0} width={64} height={20} />
-                      </div>
-                    )}
-                    <div className="flex flex-col items-end shrink-0">
-                      <span className="text-sm font-bold text-text-primary tabular-nums">
-                        ₹{stock.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </span>
-                      <span className="text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 mt-1.5 tabular-nums">
-                        +{stock.changePercent.toFixed(2)}%
-                      </span>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-6 text-xs text-text-secondary font-bold">
-                No gainers found in this category
-              </div>
-            )}
-          </div>
-
-          {/* Top Losers Card */}
-          <div className="rounded-2xl border border-border bg-card p-5 md:p-6 shadow-soft dark:shadow-soft-dark">
-            <div className="flex items-center justify-between mb-3 pb-3 border-b border-border/55">
-              <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-loss/10 text-loss">
-                  <ArrowDownRight className="h-4 w-4" />
-                </div>
-                <h3 className="font-extrabold text-sm text-text-primary tracking-tight">
-                  Top Losers
-                </h3>
-              </div>
-              <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">
-                NSE
-              </span>
+                    <Icon className={`h-3.5 w-3.5 shrink-0 ${isActive ? 'text-white' : tab.iconColor}`} />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
             </div>
 
-            {/* Market Cap Filter Pills */}
-            <div className="flex gap-1 mb-4 p-0.5 bg-background border border-border/60 rounded-xl overflow-x-auto scrollbar-none">
-              {[
-                { id: 'all', label: 'All' },
-                { id: 'large', label: 'Large Cap' },
-                { id: 'mid', label: 'Mid Cap' },
-                { id: 'small', label: 'Small Cap' }
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setLosersCap(tab.id as any)}
-                  className={`flex-1 py-1 rounded-lg text-[9px] font-extrabold tracking-tight shrink-0 transition-all duration-200 ${
-                    losersCap === tab.id
-                      ? 'bg-card text-text-primary shadow-sm border border-border/60'
-                      : 'text-text-secondary hover:text-text-primary border border-transparent'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
+            {/* List Headers */}
+            <div className="grid grid-cols-12 gap-2 text-[10px] font-black uppercase tracking-wider text-text-secondary select-none px-1 border-b border-border/40 pb-2.5">
+              <span className="col-span-6 sm:col-span-7">Stocks</span>
+              <span className="col-span-3 text-right">Price</span>
+              <span className="col-span-3 text-right pr-6 sm:pr-8">Change</span>
             </div>
 
+            {/* Stocks List */}
             {loading ? (
-              <div className="space-y-3 py-2">
+              <div className="space-y-4">
                 {[1, 2, 3, 4, 5].map(i => (
-                  <div key={i} className="flex justify-between items-center p-1">
-                    <div className="space-y-1.5 flex-1 max-w-[60%]">
-                      <div className="h-3.5 w-16 animate-shimmer rounded" />
-                      <div className="h-2.5 w-28 animate-shimmer rounded" />
+                  <div key={i} className="grid grid-cols-12 gap-2 items-center py-2 px-1">
+                    <div className="col-span-6 sm:col-span-7 space-y-1.5 min-w-0">
+                      <div className="h-4 w-16 animate-shimmer rounded" />
+                      <div className="h-3 w-28 animate-shimmer rounded" />
                     </div>
-                    <div className="flex flex-col items-end space-y-1.5 shrink-0">
-                      <div className="h-3.5 w-16 animate-shimmer rounded" />
-                      <div className="h-2.5 w-10 animate-shimmer rounded" />
-                    </div>
+                    <div className="col-span-3 h-4 w-12 animate-shimmer rounded justify-self-end" />
+                    <div className="col-span-3 h-4 w-14 animate-shimmer rounded justify-self-end pr-6 sm:pr-8" />
                   </div>
                 ))}
               </div>
-            ) : losers.length > 0 ? (
-              <div className="divide-y divide-slate-100 dark:divide-slate-800/60 animate-fade-in">
-                {losers.map((stock) => (
-                  <Link
-                    key={stock.symbol}
-                    href={`/stock/${stock.symbol}`}
-                    className="flex items-center justify-between py-3 px-1 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all duration-200 group"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <StockLogo symbol={stock.symbol} size="sm" />
-                      <div className="min-w-0">
-                        <div className="font-semibold text-sm text-text-primary group-hover:text-loss transition-colors truncate">
-                          {stock.symbol.split('.')[0]}
-                        </div>
-                        <div className="text-xs text-text-secondary truncate max-w-[150px] font-medium">
-                          {stock.name}
-                        </div>
-                      </div>
-                    </div>
-                    {stock.chart && stock.chart.length > 0 && (
-                      <div className="h-6 w-16 opacity-85 hover:opacity-100 transition-opacity hidden sm:block shrink-0">
-                        <MiniSparkline data={stock.chart} isPositive={stock.changePercent >= 0} width={64} height={20} />
-                      </div>
-                    )}
-                    <div className="flex flex-col items-end shrink-0">
-                      <span className="text-sm font-bold text-text-primary tabular-nums">
-                        ₹{stock.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </span>
-                      <span className="text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center gap-0.5 mt-1.5 tabular-nums">
-                        {stock.changePercent.toFixed(2)}%
-                      </span>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-6 text-xs text-text-secondary font-bold">
-                No losers found in this category
-              </div>
-            )}
-          </div>
-
-          {/* Most Active Stocks Card */}
-          <div className="rounded-2xl border border-border bg-card p-5 md:p-6 shadow-soft dark:shadow-soft-dark">
-            <div className="flex items-center justify-between mb-3 pb-3 border-b border-border/55">
-              <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-500">
-                  <Activity className="h-4 w-4" />
-                </div>
-                <h3 className="font-extrabold text-sm text-text-primary tracking-tight">
-                  Most Active Stocks
-                </h3>
-              </div>
-              <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">
-                Volume
-              </span>
-            </div>
-
-            {/* Market Cap Filter Pills */}
-            <div className="flex gap-1 mb-4 p-0.5 bg-background border border-border/60 rounded-xl overflow-x-auto scrollbar-none">
-              {[
-                { id: 'all', label: 'All' },
-                { id: 'large', label: 'Large Cap' },
-                { id: 'mid', label: 'Mid Cap' },
-                { id: 'small', label: 'Small Cap' }
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveCap(tab.id as any)}
-                  className={`flex-1 py-1 rounded-lg text-[9px] font-extrabold tracking-tight shrink-0 transition-all duration-200 ${
-                    activeCap === tab.id
-                      ? 'bg-card text-text-primary shadow-sm border border-border/60'
-                      : 'text-text-secondary hover:text-text-primary border border-transparent'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-
-            {loading ? (
-              <div className="space-y-3 py-2">
-                {[1, 2, 3, 4, 5].map(i => (
-                  <div key={i} className="flex justify-between items-center p-1">
-                    <div className="space-y-1.5 flex-1 max-w-[60%]">
-                      <div className="h-3.5 w-16 animate-shimmer rounded" />
-                      <div className="h-2.5 w-28 animate-shimmer rounded" />
-                    </div>
-                    <div className="flex flex-col items-end space-y-1.5 shrink-0">
-                      <div className="h-3.5 w-16 animate-shimmer rounded" />
-                      <div className="h-2.5 w-10 animate-shimmer rounded" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : mostActive.length > 0 ? (
-              <div className="divide-y divide-slate-100 dark:divide-slate-800/60 animate-fade-in">
-                {mostActive.map((stock) => {
+            ) : todaysStocksList.length > 0 ? (
+              <div className="divide-y divide-border/40">
+                {todaysStocksList.map((stock) => {
                   const isStockPositive = stock.changePercent >= 0;
+                  const isBookmarked = watchlist.includes(stock.symbol);
+                  const cleanName = stock.name
+                    .replace(/\s+(Limited|Ltd|Co|Corp|Company)\s*$/i, '')
+                    .trim();
+
                   return (
                     <Link
                       key={stock.symbol}
                       href={`/stock/${stock.symbol}`}
-                      className="flex items-center justify-between py-3 px-1 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all duration-200 group"
+                      className="grid grid-cols-12 gap-2 items-center py-3.5 px-1 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-all duration-200 group"
                     >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <StockLogo symbol={stock.symbol} size="sm" />
+                      {/* Left Column: Logo, Symbol, Name */}
+                      <div className="col-span-6 sm:col-span-7 flex items-center gap-2 sm:gap-3 min-w-0">
+                        {/* Logo Container Frame */}
+                        <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl bg-white border border-slate-200/80 dark:border-slate-800/80 p-1 flex items-center justify-center shrink-0 shadow-sm relative overflow-hidden">
+                          <StockLogo symbol={stock.symbol} size="sm" />
+                        </div>
+
+                        {/* Name & Symbol */}
                         <div className="min-w-0">
-                          <div className="font-semibold text-sm text-text-primary group-hover:text-profit transition-colors truncate">
-                            {stock.symbol.split('.')[0]}
+                          <div className="font-extrabold text-xs sm:text-sm text-text-primary group-hover:text-profit transition-colors truncate">
+                            {cleanName}
                           </div>
-                          <div className="text-xs text-text-secondary truncate max-w-[150px] font-medium">
-                            Vol: {formatVolume(stock.volume)}
+                          <div className="text-[9px] sm:text-[10px] text-text-secondary font-black tracking-wider uppercase mt-0.5 truncate">
+                            {stock.symbol.split('.')[0]}
                           </div>
                         </div>
                       </div>
-                      {stock.chart && stock.chart.length > 0 && (
-                        <div className="h-6 w-16 opacity-85 hover:opacity-100 transition-opacity hidden sm:block shrink-0">
-                          <MiniSparkline data={stock.chart} isPositive={stock.changePercent >= 0} width={64} height={20} />
-                        </div>
-                      )}
-                      <div className="flex flex-col items-end shrink-0">
-                        <span className="text-sm font-bold text-text-primary tabular-nums">
-                          ₹{stock.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+
+                      {/* Price Column */}
+                      <div className="col-span-3 text-right font-extrabold text-xs sm:text-sm text-text-primary tabular-nums">
+                        ₹{stock.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </div>
+
+                      {/* Change & Bookmark Column */}
+                      <div className="col-span-3 flex items-center justify-end gap-1.5 sm:gap-3 shrink-0">
+                        <span className={`text-[10px] sm:text-xs font-black tabular-nums text-right ${isStockPositive ? 'text-profit' : 'text-loss'}`}>
+                          {isStockPositive ? '▲ ' : '▼ '}{Math.abs(stock.changePercent).toFixed(2)}%
                         </span>
-                        <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full flex items-center gap-0.5 mt-1.5 tabular-nums ${
-                          isStockPositive 
-                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' 
-                            : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
-                        }`}>
-                          {isStockPositive ? '+' : ''}{stock.changePercent.toFixed(2)}%
-                        </span>
+
+                        {/* Watchlist Bookmark Icon Toggle */}
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            useStockStore.getState().toggleWatchlist(stock.symbol);
+                          }}
+                          className="p-1 sm:p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
+                          aria-label={isBookmarked ? "Remove from watchlist" : "Add to watchlist"}
+                        >
+                          <Bookmark 
+                            className={`h-4 w-4 sm:h-4.5 sm:w-4.5 transition-all duration-200 ${
+                              isBookmarked 
+                                ? 'text-profit fill-profit scale-110' 
+                                : 'text-slate-400 dark:text-slate-500 hover:text-text-primary'
+                            }`} 
+                          />
+                        </button>
                       </div>
                     </Link>
                   );
                 })}
               </div>
             ) : (
-              <div className="text-center py-6 text-xs text-text-secondary font-bold">
-                No active stocks found in this category
+              <div className="text-center py-8 text-xs text-text-secondary font-extrabold bg-slate-50/50 dark:bg-slate-800/10 rounded-2xl border border-border/40">
+                No stocks found in this category.
               </div>
             )}
           </div>
-
         </div>
 
       </div>
 
       {/* Mutual Funds Explorer Section */}
       <div id="mutual-funds" className="mt-12 pt-10 border-t border-border/60 space-y-6 animate-fade-in gpu-layer">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-2xl font-black text-text-primary tracking-tight">
-              Simulated Mutual Funds
+              Mutual funds and ETFs
             </h2>
             <p className="text-xs text-text-secondary font-medium mt-1">
-              Explore top direct-growth mutual funds in India categorized by asset class, with live NAV rates.
+              Explore top mutual funds and exchange traded funds with direct returns tracking.
             </p>
           </div>
 
-          {/* Category Filter Pills */}
-          <div className="flex overflow-x-auto scrollbar-none max-w-full gap-2 p-1 bg-card border border-border/70 rounded-xl self-start">
-            {[
-              { id: 'all', label: 'All Funds' },
-              { id: 'smallcap', label: 'Small Cap' },
-              { id: 'midcap', label: 'Mid Cap' },
-              { id: 'flexicap', label: 'Flexi Cap' },
-              { id: 'multicap', label: 'Multi Cap' },
-              { id: 'index', label: 'Index Funds' }
-            ].map((cat) => (
-               <button
-                 key={cat.id}
-                 onClick={() => setActiveMFCategory(cat.id)}
-                 className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-all duration-200 shrink-0 ${
-                   activeMFCategory === cat.id
-                     ? 'bg-profit/10 text-profit border border-profit/20 shadow-sm'
-                     : 'text-text-secondary hover:text-text-primary hover:bg-background border border-transparent'
-                 }`}
-               >
-                 {cat.label}
-               </button>
-            ))}
-          </div>
+          {/* Returns duration toggle selector */}
+          <button 
+            onClick={() => setMfReturnDuration(prev => prev === '1y' ? '3y' : '1y')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-card hover:bg-background text-text-primary text-xs font-extrabold select-none shrink-0 self-start sm:self-auto shadow-sm"
+          >
+            <span>{mfReturnDuration === '1y' ? '1Y Return' : '3Y Return'}</span>
+            <ArrowUpDown className="h-3.5 w-3.5 text-profit" />
+          </button>
         </div>
 
-        {/* Mutual Funds Grid */}
+        {/* Category Filter Options */}
+        {(() => {
+          const MF_CATEGORIES = [
+            { id: 'largecap', label: 'Large Cap', icon: Building, color: 'text-rose-500' },
+            { id: 'midcap', label: 'Mid Cap', icon: HomeIcon, color: 'text-blue-500' },
+            { id: 'smallcap', label: 'Small Cap', icon: Coins, color: 'text-amber-500' },
+            { id: 'flexicap', label: 'Flexi Cap', icon: Compass, color: 'text-indigo-500' },
+            { id: 'multicap', label: 'Multi Cap', icon: Layers, color: 'text-purple-500' },
+            { id: 'taxsaving', label: 'Tax Saving', icon: PiggyBank, color: 'text-slate-500' },
+            { id: 'index', label: 'Index Funds', icon: Target, color: 'text-emerald-500' },
+            { id: 'etf', label: 'ETFs', icon: ArrowUpDown, color: 'text-violet-500' }
+          ];
+
+          const activeMFObj = MF_CATEGORIES.find(cat => cat.id === activeMFCategory) || MF_CATEGORIES[0];
+          const ActiveCatIcon = activeMFObj.icon;
+
+          return (
+            <>
+              {/* Desktop Category Filter Pills */}
+              <div className="hidden sm:flex overflow-x-auto scrollbar-none max-w-full gap-2.5 py-1">
+                {MF_CATEGORIES.map((cat) => {
+                  const Icon = cat.icon;
+                  const isActive = activeMFCategory === cat.id;
+                  
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => setActiveMFCategory(cat.id)}
+                      className={`px-4 py-2 rounded-full text-xs font-extrabold transition-all duration-200 shrink-0 flex items-center gap-2 border select-none cursor-pointer ${
+                        isActive
+                          ? 'bg-slate-900 text-white dark:bg-slate-800 dark:text-white border-transparent shadow-md'
+                          : 'bg-card text-text-primary border-border hover:bg-slate-50 dark:hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <Icon className={`h-4.5 w-4.5 shrink-0 transition-colors ${isActive ? 'text-white' : cat.color}`} />
+                      <span>{cat.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Mobile Category Toggle Menu Bar (Mobile Only) */}
+              <div className="flex sm:hidden items-center justify-between bg-card border border-border px-4 py-2.5 rounded-2xl shadow-sm">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black text-text-secondary uppercase tracking-wider">Asset Class:</span>
+                  <span className="text-xs font-extrabold text-text-primary">{activeMFObj.label}</span>
+                </div>
+                <button
+                  onClick={() => setIsMfDrawerOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-background hover:bg-slate-50 text-text-primary text-xs font-black select-none shadow-xs transition-all active:scale-95 cursor-pointer"
+                >
+                  <ActiveCatIcon className={`h-4 w-4 ${activeMFObj.color}`} />
+                  <span>Select Class</span>
+                  <ChevronDown className="h-3.5 w-3.5 text-text-secondary animate-pulse" />
+                </button>
+              </div>
+
+              {/* Mobile bottom sheet drawer overlay for selecting category */}
+              {isMfDrawerOpen && (
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-xs sm:hidden animate-fade-in">
+                  <div className="absolute inset-0" onClick={() => setIsMfDrawerOpen(false)} />
+                  <div className="relative w-full bg-card rounded-t-3xl border-t border-border p-6 pb-8 space-y-4 animate-slide-up max-h-[85vh] overflow-y-auto z-50 shadow-2xl">
+                    {/* Header */}
+                    <div className="flex items-center justify-between border-b border-border/40 pb-3.5">
+                      <h3 className="text-xs font-black text-text-secondary uppercase tracking-wider">Select Asset Class</h3>
+                      <button 
+                        onClick={() => setIsMfDrawerOpen(false)}
+                        className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                    </div>
+                    
+                    {/* Grid of categories */}
+                    <div className="grid grid-cols-2 gap-3 pt-2">
+                      {MF_CATEGORIES.map((cat) => {
+                        const Icon = cat.icon;
+                        const isActive = activeMFCategory === cat.id;
+                        return (
+                          <button
+                            key={cat.id}
+                            onClick={() => {
+                              setActiveMFCategory(cat.id);
+                              setIsMfDrawerOpen(false);
+                            }}
+                            className={`flex flex-col items-center justify-center p-4 rounded-2xl border text-center transition-all active:scale-98 cursor-pointer ${
+                              isActive
+                                ? 'bg-slate-900 border-transparent text-white dark:bg-slate-800'
+                                : 'bg-background border-border text-text-primary hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                            }`}
+                          >
+                            <Icon className={`h-6 w-6 mb-2 ${isActive ? 'text-white' : cat.color}`} />
+                            <span className="text-[11px] font-black tracking-tight">{cat.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          );
+        })()}
+
+        {/* Table column headers */}
+        <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-text-secondary select-none px-4 pb-2 border-b border-border/40 mt-4">
+          <span>Funds</span>
+          <span className="mr-14">{mfReturnDuration === '1y' ? 'Returns' : 'Returns'}</span>
+        </div>
+
+        {/* Mutual Funds List (Tabular Clean/Minimal Layout) */}
         {mfLoading ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="divide-y divide-border/30 bg-card border border-border rounded-3xl overflow-hidden shadow-soft dark:shadow-soft-dark">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="flex flex-col w-full rounded-2xl border border-border bg-card p-5 gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 animate-shimmer rounded-xl shrink-0" />
-                  <div className="space-y-2 flex-1 min-w-0">
+              <div key={i} className="flex items-center justify-between p-4 bg-card">
+                <div className="flex items-center gap-3.5 flex-1">
+                  <div className="h-11 w-11 animate-shimmer rounded-xl shrink-0" />
+                  <div className="space-y-2 flex-1 max-w-[50%]">
                     <div className="h-4 w-3/4 animate-shimmer rounded" />
                     <div className="h-3 w-1/4 animate-shimmer rounded" />
                   </div>
                 </div>
-                <div className="flex justify-between items-baseline mt-4">
-                  <div className="space-y-1.5">
-                    <div className="h-2.5 w-16 animate-shimmer rounded" />
-                    <div className="h-5 w-24 animate-shimmer rounded" />
-                  </div>
-                  <div className="space-y-1.5 flex flex-col items-end">
-                    <div className="h-2.5 w-16 animate-shimmer rounded" />
-                    <div className="h-5 w-16 animate-shimmer rounded" />
-                  </div>
-                </div>
-                <div className="flex justify-between items-end mt-4 pt-3 border-t border-border/30">
-                  <div className="h-3 w-12 animate-shimmer rounded" />
-                  <div className="h-6 w-24 animate-shimmer rounded" />
-                </div>
+                <div className="h-4 w-12 animate-shimmer rounded shrink-0 mr-4" />
+                <div className="h-8 w-8 animate-shimmer rounded-lg shrink-0" />
               </div>
             ))}
           </div>
         ) : mutualFunds.length > 0 ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="divide-y divide-border/30 bg-card border border-border rounded-3xl overflow-hidden shadow-soft dark:shadow-soft-dark">
             {mutualFunds.map((fund) => (
-              <MutualFundCard key={fund.code} fund={fund} />
+              <MutualFundCard key={fund.code} fund={fund} returnDuration={mfReturnDuration} />
             ))}
           </div>
         ) : (
@@ -1549,7 +1512,7 @@ export default function Home() {
             "name": "OnlyProfit",
             "url": "https://onlyprofit.com",
             "description": "Analyze Indian Equities in real-time with interactive charts, technical indicators, and live market data. Estimate mutual fund yields with the built-in SIP/Lumpsum calculator."
-          })
+          }).replace(/</g, '\\u003c').replace(/>/g, '\\u003e')
         }}
       />
 

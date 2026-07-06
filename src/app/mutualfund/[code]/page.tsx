@@ -1066,7 +1066,7 @@ export default function MutualFundDetailPage() {
               "@type": "Organization",
               "name": fund.fundHouse
             }
-          })
+          }).replace(/</g, '\\u003c').replace(/>/g, '\\u003e')
         }}
       />
     </div>

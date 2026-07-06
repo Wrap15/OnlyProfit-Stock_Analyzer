@@ -371,15 +371,12 @@ export default function AISignalsWidget() {
     return () => clearInterval(interval);
   }, [getActiveBlockIndex]);
 
-  // Fetch Live Quotes for component stocks (only when market is open)
+  // Fetch Live Quotes for component stocks (gets closing stats immediately, polls during market hours)
   useEffect(() => {
     if (signals.length === 0) return;
     const stockSymbols = signals.filter(s => s.symbol.includes('.NS')).map(s => s.symbol);
     
     const fetchQuotes = async () => {
-      // Do not run background fetches when market is closed
-      if (!isIndianMarketOpen()) return;
-
       try {
         const res = await fetch(`/api/stock/quote?symbols=${stockSymbols.join(',')}`);
         const data = await res.json();
@@ -399,7 +396,11 @@ export default function AISignalsWidget() {
     };
 
     fetchQuotes();
-    const interval = setInterval(fetchQuotes, 12000); // refresh every 12 seconds
+    const interval = setInterval(() => {
+      if (isIndianMarketOpen()) {
+        fetchQuotes();
+      }
+    }, 12000); // refresh every 12 seconds
     return () => clearInterval(interval);
   }, [signals]);
 
@@ -522,8 +523,67 @@ export default function AISignalsWidget() {
             const quote = isMf 
               ? getMutualFundNAV(item.symbol)
               : getStockQuote(item.symbol, item.defaultPrice);
+            
+            const price = quote.price || item.defaultPrice;
+            const changePercent = quote.changePercent;
+
+            // Determine dynamic signal type and indicator based on the actual live changePercent
+            let signal: SignalItem['signal'] = item.signal;
+            let indicator = item.indicator;
+            let confidence = item.confidence;
+
+            if (!isMf) {
+              if (changePercent > 1.5) {
+                signal = 'STRONG_BUY';
+                indicator = changePercent > 3.0 ? 'Golden Cross (50/200 SMA)' : 'MACD Bullish Crossover';
+                confidence = Math.min(98, 90 + Math.floor(Math.abs(changePercent) * 2));
+              } else if (changePercent > 0) {
+                signal = 'BUY';
+                indicator = 'Trendline Breakout Support';
+                confidence = Math.min(94, 82 + Math.floor(Math.abs(changePercent) * 3));
+              } else if (changePercent < -1.5) {
+                signal = 'STRONG_SELL';
+                indicator = 'EMA Bearish Breakdown';
+                confidence = Math.min(98, 88 + Math.floor(Math.abs(changePercent) * 2));
+              } else {
+                signal = 'SELL';
+                indicator = 'RSI Overbought Fatigue';
+                confidence = Math.min(92, 78 + Math.floor(Math.abs(changePercent) * 4));
+              }
+            } else {
+              // For Mutual Funds, since changePercent is simulated daily, let's keep it steady but aligned
+              if (changePercent > 0.15) {
+                signal = 'STRONG_BUY';
+                indicator = 'NAV Breakout (50 EMA)';
+                confidence = 92;
+              } else if (changePercent > 0) {
+                signal = 'BUY';
+                indicator = 'Volume Breakout Trigger';
+                confidence = 86;
+              } else {
+                signal = 'SELL';
+                indicator = 'Asset Allocation Rebalance';
+                confidence = 81;
+              }
+            }
+
+            // Calculate dynamic targets and stop losses mathematically matching real-world rules
+            let targetPrice = item.targetPrice;
+            let stopLoss = item.stopLoss;
+            let riskReward = item.riskReward;
+
+            if (signal.includes('BUY')) {
+              targetPrice = price * 1.08; // 8% target upside
+              stopLoss = price * 0.95;   // 5% stop loss
+              riskReward = '1:1.6';
+            } else {
+              targetPrice = price * 0.92; // 8% target downside
+              stopLoss = price * 1.03;   // 3% stop loss
+              riskReward = '1:2.6';
+            }
+
             const sparkPoints = getSignalSparkline(item.symbol);
-            const isPositive = quote.changePercent >= 0 || item.signal.includes('BUY');
+            const isPositive = changePercent >= 0 || signal.includes('BUY');
             
             return (
               <div 
@@ -563,7 +623,7 @@ export default function AISignalsWidget() {
                   <div className="col-span-3 flex items-center justify-start gap-1.5">
                     <div className="flex items-center gap-1.5 text-xs font-bold text-text-primary/95 select-none">
                       <Activity className="h-3.5 w-3.5 text-profit" />
-                      {item.indicator}
+                      {indicator}
                     </div>
                   </div>
 
@@ -571,10 +631,10 @@ export default function AISignalsWidget() {
                   <div className="col-span-2 flex items-center justify-start gap-1">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-extrabold text-text-primary tabular-nums">
-                        ₹{quote.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        ₹{price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </span>
                       <span className={`text-[9px] font-black tabular-nums ${isPositive ? 'text-profit' : 'text-loss'}`}>
-                        {isPositive ? '▲' : '▼'}{quote.changePercent !== 0 ? `${isPositive ? '+' : ''}${quote.changePercent.toFixed(2)}%` : '0.00%'}
+                        {isPositive ? '▲' : '▼'}{changePercent !== 0 ? `${isPositive ? '+' : ''}${changePercent.toFixed(2)}%` : '0.00%'}
                       </span>
                     </div>
                   </div>
@@ -582,16 +642,16 @@ export default function AISignalsWidget() {
                   {/* AI Signal & Confidence */}
                   <div className="col-span-2 flex items-center justify-center">
                     <div className="flex flex-col items-center">
-                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-md border tracking-wider uppercase select-none ${getSignalBadge(item.signal)}`}>
-                        {getSignalLabel(item.signal)}
+                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-md border tracking-wider uppercase select-none ${getSignalBadge(signal)}`}>
+                        {getSignalLabel(signal)}
                       </span>
                       
                       <div className="flex items-center gap-1.5 mt-1.5">
-                        <span className="text-[9px] text-text-secondary font-bold font-mono select-none">{item.confidence}% Conf</span>
+                        <span className="text-[9px] text-text-secondary font-bold font-mono select-none">{confidence}% Conf</span>
                         <div className="w-16 bg-slate-100 dark:bg-slate-800/80 h-1 rounded-full overflow-hidden hidden md:block">
                           <div 
-                            className={`h-full rounded-full ${getSignalColorClass(item.signal)}`} 
-                            style={{ width: `${item.confidence}%` }}
+                            className={`h-full rounded-full ${getSignalColorClass(signal)}`} 
+                            style={{ width: `${confidence}%` }}
                           />
                         </div>
                       </div>
@@ -601,8 +661,8 @@ export default function AISignalsWidget() {
                   {/* Risk-Reward */}
                   <div className="col-span-1.5 flex items-center justify-end">
                     <div className="text-right">
-                      <span className="block text-xs font-bold text-text-primary select-none font-mono">{item.riskReward}</span>
-                      <span className="block text-[8px] font-bold text-text-secondary uppercase tracking-widest mt-0.5">T: ₹{item.targetPrice}</span>
+                      <span className="block text-xs font-bold text-text-primary select-none font-mono">{riskReward}</span>
+                      <span className="block text-[8px] font-bold text-text-secondary uppercase tracking-widest mt-0.5">T: ₹{targetPrice.toFixed(1)}</span>
                     </div>
                   </div>
 
@@ -640,11 +700,11 @@ export default function AISignalsWidget() {
                     
                     <div className="text-right shrink-0">
                       <span className="text-sm font-black text-text-primary block tabular-nums">
-                        ₹{quote.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        ₹{price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </span>
                       <span className={`text-[10px] font-black flex items-center justify-end gap-0.5 tabular-nums ${isPositive ? 'text-profit' : 'text-loss'}`}>
                         <span>{isPositive ? '▲' : '▼'}</span>
-                        <span>{quote.changePercent !== 0 ? `${isPositive ? '+' : ''}${quote.changePercent.toFixed(2)}%` : '0.00%'}</span>
+                        <span>{changePercent !== 0 ? `${isPositive ? '+' : ''}${changePercent.toFixed(2)}%` : '0.00%'}</span>
                       </span>
                     </div>
                   </div>
@@ -653,7 +713,7 @@ export default function AISignalsWidget() {
                   <div className="flex items-center justify-between gap-4 py-1.5 border-y border-border/40 bg-slate-50/50 dark:bg-slate-800/10 px-2.5 rounded-xl">
                     <div className="flex items-center gap-1.5 text-xs font-bold text-text-primary/95 min-w-0">
                       <Activity className="h-3.5 w-3.5 text-profit shrink-0" />
-                      <span className="truncate">{item.indicator}</span>
+                      <span className="truncate">{indicator}</span>
                     </div>
 
                     <div className="h-5 w-12 opacity-80 shrink-0 select-none">
@@ -665,35 +725,35 @@ export default function AISignalsWidget() {
                   <div className="grid grid-cols-3 gap-2">
                     <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-emerald-500/[0.04] dark:bg-emerald-500/[0.08] border border-emerald-500/15 text-center">
                       <span className="text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Target</span>
-                      <span className="text-[10px] font-black text-text-primary mt-0.5 tabular-nums">₹{item.targetPrice.toFixed(1)}</span>
+                      <span className="text-[10px] font-black text-text-primary mt-0.5 tabular-nums">₹{targetPrice.toFixed(1)}</span>
                     </div>
                     <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-rose-500/[0.04] dark:bg-rose-500/[0.08] border border-rose-500/15 text-center">
                       <span className="text-[8px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-wider">Stop Loss</span>
-                      <span className="text-[10px] font-black text-text-primary mt-0.5 tabular-nums">₹{item.stopLoss.toFixed(1)}</span>
+                      <span className="text-[10px] font-black text-text-primary mt-0.5 tabular-nums">₹{stopLoss.toFixed(1)}</span>
                     </div>
                     <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-indigo-500/[0.04] dark:bg-indigo-500/[0.08] border border-indigo-500/15 text-center">
                       <span className="text-[8px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Risk Reward</span>
-                      <span className="text-[10px] font-black text-text-primary mt-0.5 font-mono">{item.riskReward}</span>
+                      <span className="text-[10px] font-black text-text-primary mt-0.5 font-mono">{riskReward}</span>
                     </div>
                   </div>
 
                   {/* Footer Row: Signal Strength & Confidence score */}
                   <div className="flex items-center justify-between gap-2 pt-1">
                     <div className="shrink-0">
-                      <span className={`text-[9px] font-black px-2.5 py-1 rounded-lg border tracking-wider uppercase flex items-center gap-1.5 ${getSignalBadge(item.signal)}`}>
+                      <span className={`text-[9px] font-black px-2.5 py-1 rounded-lg border tracking-wider uppercase flex items-center gap-1.5 ${getSignalBadge(signal)}`}>
                         <span className={`h-1.5 w-1.5 rounded-full animate-pulse ${
-                          item.signal.includes('BUY') ? 'bg-emerald-500' : 'bg-rose-500'
+                          signal.includes('BUY') ? 'bg-emerald-500' : 'bg-rose-500'
                         }`} />
-                        {getSignalLabel(item.signal)}
+                        {getSignalLabel(signal)}
                       </span>
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0 bg-background border border-border/80 px-2 py-1 rounded-lg shadow-inner">
-                      <span className="text-[9px] text-text-secondary font-black font-mono">{item.confidence}% Conf</span>
+                      <span className="text-[9px] text-text-secondary font-black font-mono">{confidence}% Conf</span>
                       <div className="w-12 bg-slate-100 dark:bg-slate-800/80 h-1 rounded-full overflow-hidden">
                         <div 
-                          className={`h-full rounded-full ${getSignalColorClass(item.signal)}`} 
-                          style={{ width: `${item.confidence}%` }}
+                          className={`h-full rounded-full ${getSignalColorClass(signal)}`} 
+                          style={{ width: `${confidence}%` }}
                         />
                       </div>
                     </div>

@@ -624,7 +624,7 @@ export default function BasketDetailPage() {
             "name": basket.name,
             "description": basket.description,
             "volatility": basket.volatility
-          })
+          }).replace(/</g, '\\u003c').replace(/>/g, '\\u003e')
         }}
       />
     </div>

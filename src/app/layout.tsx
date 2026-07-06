@@ -6,6 +6,7 @@ import BottomNav from "@/components/BottomNav";
 import TopGreetingBanner from "@/components/TopGreetingBanner";
 import TopIndexStrip from "@/components/TopIndexStrip";
 import GlobalLoadingBar from "@/components/GlobalLoadingBar";
+import TopTickerTape from "@/components/TopTickerTape";
 import Link from "next/link";
 import { TrendingUp } from "lucide-react";
 
@@ -74,6 +75,7 @@ export default function RootLayout({
       <body className="bg-background text-foreground min-h-screen flex flex-col pb-16 sm:pb-0">
         <GlobalLoadingBar />
         <TopGreetingBanner />
+        <TopTickerTape />
         <Navbar />
         <TopIndexStrip />
         <main className="flex-grow">

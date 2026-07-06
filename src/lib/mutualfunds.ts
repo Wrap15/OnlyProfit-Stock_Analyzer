@@ -11,65 +11,106 @@ export interface SchemeInfo {
 }
 
 export const MUTUAL_FUNDS: SchemeInfo[] = [
+  // Large Cap (matching image)
+  { code: '120815', name: 'Quant Large Cap Fund - Growth', category: 'largecap', categoryLabel: 'Large Cap', baseNav: 110.50, y1Return: 6.53, y3Return: 14.8 },
+  { code: '118610', name: 'Bank of India Large Cap Fund - Growth', category: 'largecap', categoryLabel: 'Large Cap', baseNav: 45.20, y1Return: 5.60, y3Return: 12.5 },
+  { code: '118935', name: 'Invesco India Largecap Fund - Growth', category: 'largecap', categoryLabel: 'Large Cap', baseNav: 62.10, y1Return: 2.99, y3Return: 9.4 },
+  { code: '147925', name: 'Bandhan Large Cap Fund - Growth', category: 'largecap', categoryLabel: 'Large Cap', baseNav: 85.40, y1Return: 2.13, y3Return: 8.2 },
+  { code: '119010', name: 'Tata Large Cap Fund - Growth', category: 'largecap', categoryLabel: 'Large Cap', baseNav: 98.30, y1Return: 1.91, y3Return: 7.6 },
+  { code: '118834', name: 'Nippon India Large Cap Fund - Growth', category: 'largecap', categoryLabel: 'Large Cap', baseNav: 82.40, y1Return: 27.4, y3Return: 21.2 },
+  { code: '120612', name: 'ICICI Prudential Bluechip Fund - Growth', category: 'largecap', categoryLabel: 'Large Cap', baseNav: 96.10, y1Return: 26.2, y3Return: 19.8 },
+
+  // Mid Cap
+  { code: '118989', name: 'HDFC Mid-Cap Opportunities Fund - Growth', category: 'midcap', categoryLabel: 'Mid Cap', baseNav: 218.51, y1Return: 35.4, y3Return: 27.2 },
+  { code: '127042', name: 'Motilal Oswal Midcap Fund - Growth', category: 'midcap', categoryLabel: 'Mid Cap', baseNav: 102.77, y1Return: 41.2, y3Return: 32.5 },
+  { code: '120505', name: 'Axis Midcap Fund - Growth', category: 'midcap', categoryLabel: 'Mid Cap', baseNav: 134.32, y1Return: 21.8, y3Return: 18.5 },
+  { code: '118825', name: 'Nippon India Growth Fund - Growth', category: 'midcap', categoryLabel: 'Mid Cap', baseNav: 320.10, y1Return: 33.2, y3Return: 25.4 },
+  { code: '141285', name: 'PGIM India Midcap Opportunities Fund - Growth', category: 'midcap', categoryLabel: 'Mid Cap', baseNav: 48.50, y1Return: 20.4, y3Return: 18.2 },
+  { code: '120841', name: 'Quant Mid Cap Fund - Growth', category: 'midcap', categoryLabel: 'Mid Cap', baseNav: 158.40, y1Return: 38.2, y3Return: 31.4 },
+  { code: '125494', name: 'SBI Magnum Midcap Fund - Growth', category: 'midcap', categoryLabel: 'Mid Cap', baseNav: 184.20, y1Return: 29.4, y3Return: 24.5 },
+
   // Small Cap
   { code: '118778', name: 'Nippon India Small Cap Fund - Growth', category: 'smallcap', categoryLabel: 'Small Cap', baseNav: 192.24, y1Return: 38.6, y3Return: 29.4 },
   { code: '125497', name: 'SBI Small Cap Fund - Growth', category: 'smallcap', categoryLabel: 'Small Cap', baseNav: 193.44, y1Return: 28.2, y3Return: 23.5 },
   { code: '130503', name: 'HDFC Small Cap Fund - Growth', category: 'smallcap', categoryLabel: 'Small Cap', baseNav: 151.48, y1Return: 34.2, y3Return: 26.8 },
   { code: '147946', name: 'Bandhan Small Cap Fund - Direct Plan - Growth', category: 'smallcap', categoryLabel: 'Small Cap', baseNav: 52.04, y1Return: 39.2, y3Return: 28.5 },
-  
+  { code: '120827', name: 'Quant Small Cap Fund - Growth', category: 'smallcap', categoryLabel: 'Small Cap', baseNav: 268.40, y1Return: 45.6, y3Return: 34.8 },
+  { code: '148016', name: 'Tata Small Cap Fund - Growth', category: 'smallcap', categoryLabel: 'Small Cap', baseNav: 36.20, y1Return: 33.4, y3Return: 27.5 },
+  { code: '120503', name: 'Axis Small Cap Fund - Growth', category: 'smallcap', categoryLabel: 'Small Cap', baseNav: 92.40, y1Return: 22.5, y3Return: 20.4 },
+
   // Flexi Cap
   { code: '122639', name: 'Parag Parikh Flexi Cap Fund - Growth', category: 'flexicap', categoryLabel: 'Flexi Cap', baseNav: 88.54, y1Return: 24.5, y3Return: 21.2 },
   { code: '118955', name: 'HDFC Flexi Cap Fund - Growth', category: 'flexicap', categoryLabel: 'Flexi Cap', baseNav: 2118.33, y1Return: 26.8, y3Return: 22.5 },
   { code: '120843', name: 'Quant Flexi Cap Fund - Growth', category: 'flexicap', categoryLabel: 'Flexi Cap', baseNav: 117.88, y1Return: 39.4, y3Return: 30.2 },
-  
+  { code: '125495', name: 'SBI Flexi Cap Fund - Growth', category: 'flexicap', categoryLabel: 'Flexi Cap', baseNav: 92.40, y1Return: 22.8, y3Return: 18.5 },
+  { code: '149265', name: 'Kotak Flexi Cap Fund - Growth', category: 'flexicap', categoryLabel: 'Flexi Cap', baseNav: 76.20, y1Return: 24.2, y3Return: 19.2 },
+  { code: '118705', name: 'Franklin India Flexi Cap Fund - Growth', category: 'flexicap', categoryLabel: 'Flexi Cap', baseNav: 1245.50, y1Return: 28.4, y3Return: 22.5 },
+
   // Multi Cap
   { code: '118650', name: 'Nippon India Multi Cap Fund - Growth', category: 'multicap', categoryLabel: 'Multi Cap', baseNav: 320.12, y1Return: 29.6, y3Return: 23.8 },
   { code: '120334', name: 'ICICI Prudential Multi Asset Fund - Growth', category: 'multicap', categoryLabel: 'Multi Cap', baseNav: 869.37, y1Return: 23.2, y3Return: 19.8 },
   { code: '120823', name: 'Quant Active Fund - Growth', category: 'multicap', categoryLabel: 'Multi Cap', baseNav: 693.82, y1Return: 32.8, y3Return: 26.2 },
   { code: '149185', name: 'Kotak Multicap Fund - Growth', category: 'multicap', categoryLabel: 'Multi Cap', baseNav: 20.45, y1Return: 36.2, y3Return: 22.5 },
-  
-  // Mid Cap
-  { code: '118989', name: 'HDFC Mid-Cap Opportunities Fund - Growth', category: 'midcap', categoryLabel: 'Mid Cap', baseNav: 218.51, y1Return: 35.4, y3Return: 27.2 },
-  { code: '127042', name: 'Motilal Oswal Midcap Fund - Growth', category: 'midcap', categoryLabel: 'Mid Cap', baseNav: 102.77, y1Return: 41.2, y3Return: 32.5 },
-  { code: '120505', name: 'Axis Midcap Fund - Growth', category: 'midcap', categoryLabel: 'Mid Cap', baseNav: 134.32, y1Return: 21.8, y3Return: 18.5 },
-  
+  { code: '148465', name: 'HDFC Multi-Cap Fund - Growth', category: 'multicap', categoryLabel: 'Multi Cap', baseNav: 24.20, y1Return: 31.2, y3Return: 22.8 },
+  { code: '149505', name: 'Mahindra Manulife Multi Cap Fund - Growth', category: 'multicap', categoryLabel: 'Multi Cap', baseNav: 26.80, y1Return: 32.4, y3Return: 24.2 },
+  { code: '148565', name: 'Axis Multi Cap Fund - Growth', category: 'multicap', categoryLabel: 'Multi Cap', baseNav: 21.40, y1Return: 24.5, y3Return: 18.8 },
+
+  // Tax Saving
+  { code: '120828', name: 'Quant Tax Plan - Growth', category: 'taxsaving', categoryLabel: 'Tax Saving', baseNav: 325.40, y1Return: 35.2, y3Return: 28.4 },
+  { code: '119020', name: 'Tata India Tax Shield - Growth', category: 'taxsaving', categoryLabel: 'Tax Saving', baseNav: 145.80, y1Return: 21.4, y3Return: 16.8 },
+  { code: '118670', name: 'DSP Tax Saver Fund - Growth', category: 'taxsaving', categoryLabel: 'Tax Saving', baseNav: 112.40, y1Return: 25.4, y3Return: 20.8 },
+  { code: '120485', name: 'Axis Long Term Equity Fund - Growth', category: 'taxsaving', categoryLabel: 'Tax Saving', baseNav: 92.80, y1Return: 18.2, y3Return: 14.5 },
+  { code: '118973', name: 'HDFC TaxSaver Fund - Growth', category: 'taxsaving', categoryLabel: 'Tax Saving', baseNav: 1250.40, y1Return: 26.4, y3Return: 20.2 },
+  { code: '125492', name: 'SBI Long Term Equity Fund - Growth', category: 'taxsaving', categoryLabel: 'Tax Saving', baseNav: 385.20, y1Return: 32.2, y3Return: 24.8 },
+
   // Index Funds
   { code: '120716', name: 'UTI Nifty 50 Index Fund - Growth', category: 'index', categoryLabel: 'Index Fund', baseNav: 162.61, y1Return: 23.4, y3Return: 17.5 },
   { code: '119063', name: 'HDFC Index Fund - Nifty 50 Plan - Growth', category: 'index', categoryLabel: 'Index Fund', baseNav: 226.10, y1Return: 23.2, y3Return: 17.2 },
-  { code: '120620', name: 'ICICI Prudential Nifty 50 Index Fund - Growth', category: 'index', categoryLabel: 'Index Fund', baseNav: 244.47, y1Return: 23.5, y3Return: 17.6 }
+  { code: '120620', name: 'ICICI Prudential Nifty 50 Index Fund - Growth', category: 'index', categoryLabel: 'Index Fund', baseNav: 244.47, y1Return: 23.5, y3Return: 17.6 },
+  { code: '120720', name: 'UTI Nifty Next 50 Index Fund - Growth', category: 'index', categoryLabel: 'Index Fund', baseNav: 210.40, y1Return: 29.2, y3Return: 21.4 },
+  { code: '125499', name: 'SBI Nifty 50 Index Fund - Growth', category: 'index', categoryLabel: 'Index Fund', baseNav: 212.50, y1Return: 23.4, y3Return: 17.4 },
+  { code: '118815', name: 'Nippon India Index Fund Nifty 50 Plan - Growth', category: 'index', categoryLabel: 'Index Fund', baseNav: 38.40, y1Return: 23.3, y3Return: 17.3 },
+  { code: '149365', name: 'Navi Nifty 50 Index Fund - Growth', category: 'index', categoryLabel: 'Index Fund', baseNav: 18.50, y1Return: 23.8, y3Return: 17.6 },
+
+  // ETFs
+  { code: '118800', name: 'Nippon India ETF Nifty 50 BeES', category: 'etf', categoryLabel: 'ETF', baseNav: 246.50, y1Return: 23.4, y3Return: 17.5 },
+  { code: '118801', name: 'Nippon India ETF Gold BeES', category: 'etf', categoryLabel: 'ETF', baseNav: 58.20, y1Return: 15.8, y3Return: 12.2 },
+  { code: '120630', name: 'ICICI Prudential Nifty 50 ETF', category: 'etf', categoryLabel: 'ETF', baseNav: 248.20, y1Return: 23.5, y3Return: 17.6 },
+  { code: '119075', name: 'HDFC NIFTY 50 ETF', category: 'etf', categoryLabel: 'ETF', baseNav: 252.10, y1Return: 23.4, y3Return: 17.5 },
+  { code: '125505', name: 'SBI Nifty 50 ETF', category: 'etf', categoryLabel: 'ETF', baseNav: 248.50, y1Return: 23.5, y3Return: 17.6 },
+  { code: '149280', name: 'Kotak Nifty 50 ETF', category: 'etf', categoryLabel: 'ETF', baseNav: 246.80, y1Return: 23.4, y3Return: 17.5 }
 ];
 
 export function getAmcLogoUrl(fundHouse: string, fundName?: string): string | null {
   const name = (fundHouse || fundName || '').toLowerCase();
-  if (name.includes('nippon')) return 'https://groww.in/images/partners/nippon.png';
-  if (name.includes('sbi')) return 'https://groww.in/images/partners/sbi.png';
-  if (name.includes('hdfc')) return 'https://groww.in/images/partners/hdfc.png';
-  if (name.includes('parag') || name.includes('ppfas')) return 'https://groww.in/images/partners/parag_parikh.png';
-  if (name.includes('quant')) return 'https://groww.in/images/partners/quant.png';
-  if (name.includes('icici')) return 'https://groww.in/images/partners/icici.png';
-  if (name.includes('axis')) return 'https://groww.in/images/partners/axis.png';
-  if (name.includes('uti')) return 'https://groww.in/images/partners/uti.png';
-  if (name.includes('motilal')) return 'https://groww.in/images/partners/motilal.png';
-  if (name.includes('bandhan')) return 'https://groww.in/images/partners/bandhan.png';
-  if (name.includes('kotak')) return 'https://groww.in/images/partners/kotak.png';
-  if (name.includes('aditya') || name.includes('birla') || name.includes('absl')) return 'https://groww.in/images/partners/aditya_birla.png';
-  if (name.includes('tata')) return 'https://groww.in/images/partners/tata.png';
-  if (name.includes('dsp')) return 'https://groww.in/images/partners/dsp.png';
-  if (name.includes('mirae')) return 'https://groww.in/images/partners/mirae.png';
-  if (name.includes('canara') || name.includes('robeco')) return 'https://groww.in/images/partners/canara.png';
-  if (name.includes('invesco')) return 'https://groww.in/images/partners/invesco.png';
-  if (name.includes('edelweiss')) return 'https://groww.in/images/partners/edelweiss.png';
-  if (name.includes('franklin')) return 'https://groww.in/images/partners/franklin.png';
-  if (name.includes('lic')) return 'https://groww.in/images/partners/lic.png';
-  if (name.includes('sundaram')) return 'https://groww.in/images/partners/sundaram.png';
-  if (name.includes('union')) return 'https://groww.in/images/partners/union.png';
-  if (name.includes('idfc')) return 'https://groww.in/images/partners/idfc.png';
-  if (name.includes('baroda') || name.includes('bnp')) return 'https://groww.in/images/partners/baroda.png';
-  if (name.includes('pgim')) return 'https://groww.in/images/partners/pgim.png';
-  if (name.includes('hsbc')) return 'https://groww.in/images/partners/hsbc.png';
-  if (name.includes('mahindra')) return 'https://groww.in/images/partners/mahindra.png';
-  if (name.includes('taurus')) return 'https://groww.in/images/partners/taurus.png';
-  if (name.includes('groww')) return 'https://groww.in/images/partners/groww.png';
+  let key = '';
+  if (name.includes('nippon')) key = 'nippon';
+  else if (name.includes('sbi')) key = 'sbi';
+  else if (name.includes('hdfc')) key = 'hdfc';
+  else if (name.includes('parag') || name.includes('ppfas')) key = 'ppfas';
+  else if (name.includes('quant')) key = 'quant';
+  else if (name.includes('icici')) key = 'icici';
+  else if (name.includes('axis')) key = 'axis';
+  else if (name.includes('uti')) key = 'uti';
+  else if (name.includes('motilal')) key = 'motilal';
+  else if (name.includes('bandhan') || name.includes('idfc')) key = 'bandhan';
+  else if (name.includes('kotak')) key = 'kotak';
+  else if (name.includes('tata')) key = 'tata';
+  else if (name.includes('invesco')) key = 'invesco';
+  else if (name.includes('bank of india') || name.includes('boi')) key = 'boi';
+  else if (name.includes('mirae')) key = 'mirae';
+  else if (name.includes('dsp')) key = 'dsp';
+  else if (name.includes('canara')) key = 'canara';
+  else if (name.includes('edelweiss')) key = 'edelweiss';
+  else if (name.includes('franklin')) key = 'franklin';
+  else if (name.includes('lic')) key = 'lic';
+  else if (name.includes('sundaram')) key = 'sundaram';
+  else if (name.includes('union')) key = 'union';
+  else if (name.includes('groww')) key = 'groww';
+  
+  if (key) {
+    return `https://assets-networth.groww.in/amc-logos/${key}.png`;
+  }
   return null;
 }
 

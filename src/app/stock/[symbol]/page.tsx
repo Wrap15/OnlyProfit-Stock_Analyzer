@@ -1683,7 +1683,7 @@ export default function StockDetailPage() {
               "name": "National Stock Exchange of India",
               "url": "https://www.nseindia.com"
             }
-          })
+          }).replace(/</g, '\\u003c').replace(/>/g, '\\u003e')
         }}
       />
 

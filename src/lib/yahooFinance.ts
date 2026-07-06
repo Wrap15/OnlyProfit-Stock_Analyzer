@@ -701,9 +701,24 @@ export const MOCK_STOCK_INFO: Record<string, { name: string; sector: string; des
     desc: 'ABB India is a leader in electrical grids, electrification products, robotics, motion control, and industrial automation.'
   },
   'SIEMENS.NS': {
-    name: 'Siemens Limited',
+    name: 'Siemens Energy India Ltd',
     sector: 'Industrials',
-    desc: 'Siemens Limited provides technology solutions for power generation, transmission, industrial digitization, and smart mobility.'
+    desc: 'Siemens Energy India Ltd provides technology solutions for power generation, transmission, industrial digitization, and smart mobility.'
+  },
+  'GET&D.NS': {
+    name: 'GE Vernova T&D India Ltd',
+    sector: 'Industrials',
+    desc: 'GE Vernova T&D India Ltd is a leading player in the power transmission and distribution distribution business in India.'
+  },
+  'POWERINDIA.NS': {
+    name: 'Hitachi Energy India Ltd',
+    sector: 'Industrials',
+    desc: 'Hitachi Energy India Ltd is a global technology leader that is advancing a sustainable energy future for all.'
+  },
+  'CGPOWER.NS': {
+    name: 'CG Power and Industrial Solutions Ltd',
+    sector: 'Industrials',
+    desc: 'CG Power and Industrial Solutions Ltd is an Indian multinational company engaged in design, manufacture, and marketing of products relating to power generation and distribution.'
   },
   'THERMAX.NS': {
     name: 'Thermax Limited',

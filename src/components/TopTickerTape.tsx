@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, ChevronRight, Info } from 'lucide-react';
+import { Info } from 'lucide-react';
 import { apiClient as axios } from '@/lib/apiClient';
 import { isIndianMarketOpen } from '@/lib/marketHours';
 
@@ -135,10 +135,13 @@ export default function TopTickerTape() {
     const speed = 0.55; // Pixels scrolled per animation frame
 
     const animate = () => {
-      el.scrollLeft += speed;
-      // Reset scroll position once we've scrolled past the first set of items
-      if (el.scrollLeft >= el.scrollWidth / 2) {
-        el.scrollLeft = 0;
+      // Scrolling is active only during Indian stock market hours
+      if (isIndianMarketOpen()) {
+        el.scrollLeft += speed;
+        // Reset scroll position once we've scrolled past the first set of items
+        if (el.scrollLeft >= el.scrollWidth / 2) {
+          el.scrollLeft = 0;
+        }
       }
       frameId = requestAnimationFrame(animate);
     };
@@ -146,16 +149,6 @@ export default function TopTickerTape() {
     frameId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frameId);
   }, [loading, items]);
-
-  const handleScroll = (direction: 'left' | 'right') => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const scrollAmount = 240;
-    el.scrollBy({
-      left: direction === 'left' ? -scrollAmount : scrollAmount,
-      behavior: 'smooth'
-    });
-  };
 
   if (loading && items.length === 0) {
     return (
@@ -171,19 +164,10 @@ export default function TopTickerTape() {
   return (
     <div className="relative w-full bg-[#0c1319] dark:bg-[#080d11] border-b border-slate-800/50 h-9 flex items-center select-none z-40 overflow-hidden shadow-sm">
       
-      {/* Left Navigation Arrow */}
-      <button 
-        onClick={() => handleScroll('left')}
-        className="absolute left-0 top-0 bottom-0 px-1 bg-[#0c1319]/90 border-r border-slate-800/40 text-slate-400 hover:text-white transition-colors z-50 flex items-center justify-center cursor-pointer"
-        aria-label="Scroll Ticker Left"
-      >
-        <ChevronLeft className="h-3 w-3" />
-      </button>
-
-      {/* Ticker Items Container */}
+      {/* Ticker Items Container (Full-width edge-to-edge) */}
       <div 
         ref={scrollRef}
-        className="flex items-center overflow-x-auto scrollbar-none py-1.5 px-8 w-full gap-7 scroll-smooth"
+        className="flex items-center overflow-x-auto scrollbar-none py-1.5 px-4 w-full gap-7 scroll-smooth"
         style={{ willChange: 'scroll-position' }}
       >
         {displayItems.map((item, index) => {
@@ -219,15 +203,6 @@ export default function TopTickerTape() {
           );
         })}
       </div>
-
-      {/* Right Navigation Arrow */}
-      <button 
-        onClick={() => handleScroll('right')}
-        className="absolute right-0 top-0 bottom-0 px-1 bg-[#0c1319]/90 border-l border-slate-800/40 text-slate-400 hover:text-white transition-colors z-50 flex items-center justify-center cursor-pointer"
-        aria-label="Scroll Ticker Right"
-      >
-        <ChevronRight className="h-3 w-3" />
-      </button>
     </div>
   );
 }

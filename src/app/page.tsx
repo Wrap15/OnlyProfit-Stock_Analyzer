@@ -618,11 +618,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Today's News and Events Section */}
-      <div className="mb-8">
-        <TodayNewsEvents />
-      </div>
-
       <div className="grid grid-cols-1 gap-8 md:gap-10 lg:grid-cols-3">
         
         {/* Left Column: Explorer Board (Grid Column Span 2) */}
@@ -1496,6 +1491,11 @@ export default function Home() {
       {/* AI Market Alerts / SaaS Pro signals */}
       <div id="ai-signals" className="mt-12 pt-10 border-t border-border/60">
         <AISignalsWidget />
+      </div>
+
+      {/* Today's News and Events Section */}
+      <div id="today-news-events" className="mt-12 pt-10 border-t border-border/60">
+        <TodayNewsEvents />
       </div>
 
       {/* Thematic Stock Baskets Section (Smallcases mock) */}

@@ -175,7 +175,10 @@ export default function TopTickerTape() {
           return (
             <div 
               key={`${item.symbol}-${index}`}
-              onClick={() => router.push(`/stock/${encodeURIComponent(item.symbol)}`)}
+              onClick={() => {
+                const cleanSym = item.symbol.replace('.NS', '').replace('.BO', '');
+                router.push(`/stock/${encodeURIComponent(cleanSym)}`);
+              }}
               className="flex items-center gap-1.5 shrink-0 cursor-pointer hover:bg-slate-800/30 px-2 py-1 rounded transition-colors group"
             >
               {/* Optional Info Icon for the first item */}

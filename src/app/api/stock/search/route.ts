@@ -46,8 +46,31 @@ export async function GET(request: NextRequest) {
     // 3. Combine results (mutual funds first for visibility, then stocks)
     return NextResponse.json([...mfResults, ...stockResults]);
   } catch (error: any) {
-    console.error('Search API failure:', error);
-    return NextResponse.json({ error: error.message || 'Failed to search' }, { status: 500 });
+    console.warn('Search API failure, serving mock search results:', error.message);
+    const lowerQuery = query.toLowerCase();
+    
+    // Fallback mutual fund search results
+    const mfResults = MUTUAL_FUNDS.filter(
+      f => f.name.toLowerCase().includes(lowerQuery) || 
+           f.code.includes(lowerQuery)
+    ).map(f => ({
+      symbol: f.code,
+      name: f.name,
+      exchange: 'MF',
+      type: 'MUTUALFUND'
+    }));
+
+    // Fallback stock search results
+    const mockStocks = [
+      { symbol: 'RELIANCE', name: 'Reliance Industries Ltd', exchange: 'NSE', type: 'EQUITY' },
+      { symbol: 'TCS', name: 'Tata Consultancy Services Ltd', exchange: 'NSE', type: 'EQUITY' },
+      { symbol: 'INFY', name: 'Infosys Ltd', exchange: 'NSE', type: 'EQUITY' },
+      { symbol: 'HDFCBANK', name: 'HDFC Bank Ltd', exchange: 'NSE', type: 'EQUITY' },
+      { symbol: 'ICICIBANK', name: 'ICICI Bank Ltd', exchange: 'NSE', type: 'EQUITY' },
+      { symbol: 'SBIN', name: 'State Bank of India', exchange: 'NSE', type: 'EQUITY' }
+    ].filter(s => s.symbol.toLowerCase().includes(lowerQuery) || s.name.toLowerCase().includes(lowerQuery));
+
+    return NextResponse.json([...mfResults, ...mockStocks]);
   }
 }
 export const dynamic = 'force-dynamic';

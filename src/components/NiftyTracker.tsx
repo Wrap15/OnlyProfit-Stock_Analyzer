@@ -504,7 +504,10 @@ export default function NiftyTracker({ symbol: _symbol, indexQuote, onBack }: Ni
                         <tr 
                           key={item.symbol}
                           className="hover:bg-background/25 cursor-pointer transition-colors group"
-                          onClick={() => window.open(`/stock/${item.symbol}`, '_self')}
+                          onClick={() => {
+                            const clean = item.symbol.replace('.NS', '').replace('.BO', '');
+                            window.open(`/stock/${clean}`, '_self');
+                          }}
                         >
                           <td className="py-3 pr-2 text-left">
                             <div className="flex items-center gap-2.5">
@@ -561,7 +564,10 @@ export default function NiftyTracker({ symbol: _symbol, indexQuote, onBack }: Ni
                       className={`${
                         isLarge ? 'col-span-2 row-span-2' : isMedium ? 'col-span-2 row-span-1' : 'col-span-1 row-span-1'
                       } rounded-xl p-2 sm:p-3 flex flex-col justify-between border cursor-pointer select-none transition-all duration-200 hover:scale-[1.02] hover:shadow-lg relative group overflow-hidden ${colorClasses}`}
-                      onClick={() => window.open(`/stock/${item.symbol}`, '_self')}
+                      onClick={() => {
+                        const clean = item.symbol.replace('.NS', '').replace('.BO', '');
+                        window.open(`/stock/${clean}`, '_self');
+                      }}
                       title={`${item.name} (${item.sector}) | Price: ₹${item.price.toLocaleString('en-IN')} | Change: ${change >= 0 ? '+' : ''}${change.toFixed(2)}% | Weight: ${item.weight}%`}
                     >
                       {(change >= 2.0 || change <= -2.0) && (

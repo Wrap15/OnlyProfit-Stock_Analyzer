@@ -249,9 +249,11 @@ export default function StockCard({ symbol, initialQuote }: StockCardProps) {
 
   const volatility = getVolatility(symbol);
 
+  const cleanSymbol = symbol.replace('.NS', '').replace('.BO', '');
+
   return (
     <div ref={containerRef} className="w-full">
-      <Link href={`/stock/${symbol}`} className="block w-full animate-fade-in">
+      <Link href={`/stock/${cleanSymbol}`} className="block w-full animate-fade-in">
       
       {/* MOBILE LAYOUT: Compact List Row */}
       <div className={`flex sm:hidden items-center justify-between w-full p-4 rounded-xl border bg-glass transition-all duration-200 ${

@@ -18,7 +18,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Symbol parameter is required' }, { status: 400 });
   }
 
-  const cleanSymbol = symbol.toUpperCase().trim();
+  let cleanSymbol = symbol.toUpperCase().trim();
+  if (!cleanSymbol.startsWith('^') && !cleanSymbol.endsWith('.NS') && !cleanSymbol.endsWith('.BO') && !/^\d+$/.test(cleanSymbol)) {
+    cleanSymbol = `${cleanSymbol}.NS`;
+  }
   const cacheKey = `${cleanSymbol}_${range}`;
   const now = Date.now();
 

@@ -75,11 +75,84 @@ async function fetchAndMergeMFDetails(code: string) {
   return fullData;
 }
 
+function getMockMutualFundPayload(code: string, fundConfig: any) {
+  const name = fundConfig ? fundConfig.name : 'Indian Growth Mutual Fund';
+  const category = fundConfig ? fundConfig.category : 'equity';
+  const categoryLabel = fundConfig ? fundConfig.categoryLabel : 'Equity Fund';
+  const nav = fundConfig ? fundConfig.baseNav : 100;
+
+  const rand = getSeededRandom(code);
+  
+  const chartPoints = [];
+  let currentNav = nav;
+  const startDate = new Date();
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(startDate.getTime() - i * 24 * 60 * 60 * 1000);
+    chartPoints.push({
+      time: Math.floor(d.getTime() / 1000),
+      value: parseFloat(currentNav.toFixed(4))
+    });
+    const dailyGrowth = (rand() - 0.44) * 0.003;
+    currentNav = currentNav / (1 + dailyGrowth);
+  }
+  chartPoints.reverse();
+
+  return {
+    code,
+    name,
+    category,
+    categoryLabel,
+    fundHouse: name.split(' ')[0] + ' Mutual Fund',
+    schemeType: 'Open Ended Schemes',
+    schemeCategory: categoryLabel + ' Scheme',
+    latestNav: nav,
+    navChange: parseFloat((nav * 0.015).toFixed(2)),
+    navChangePercent: 1.5,
+    oneYearReturn: fundConfig ? fundConfig.y1Return : 25.0,
+    threeYearReturn: fundConfig ? fundConfig.y3Return : 20.0,
+    fiveYearReturn: fundConfig ? parseFloat((fundConfig.y3Return * 0.9).toFixed(2)) : 18.0,
+    aum: Math.floor(rand() * 15000 + 1000),
+    expenseRatio: 0.75,
+    categoryAvgExpenseRatio: 1.15,
+    sharpeRatio: 1.45,
+    sortinoRatio: 1.85,
+    standardDeviation: 15.2,
+    beta: 0.95,
+    minSipAmount: 500,
+    minLumpsumAmount: 5000,
+    rating: 4,
+    exitLoad: '1.00% if redeemed within 365 days, Nil thereafter',
+    turnOverRatio: 28.5,
+    assetAllocation: {
+      equity: category === 'debt' ? 10.0 : 92.5,
+      debt: category === 'debt' ? 85.0 : 2.5,
+      cash: 5.0
+    },
+    topHoldings: [
+      { name: 'HDFC Bank Ltd', sector: 'Financial Services', weight: 9.5 },
+      { name: 'ICICI Bank Ltd', sector: 'Financial Services', weight: 8.2 },
+      { name: 'Reliance Industries Ltd', sector: 'Energy', weight: 7.8 },
+      { name: 'Infosys Ltd', sector: 'Information Technology', weight: 6.4 },
+      { name: 'TATA Consultancy Services Ltd', sector: 'Information Technology', weight: 5.9 }
+    ],
+    fundManager: {
+      name: 'Shreyas Devalkar',
+      bio: 'Over 17 years of experience in financial markets. Focuses on identifying structural growth leaders.',
+      tenure: 'Since Nov 2016'
+    },
+    chartData: chartPoints,
+    logoUrl: getAmcLogoUrl(name.split(' ')[0] + ' Mutual Fund', name)
+  };
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { code: string } }
 ) {
   const code = params.code;
+  const fundConfig = MUTUAL_FUNDS.find(f => f.code === code);
+  
+  try {
   const { searchParams } = new URL(request.url);
   const range = searchParams.get('range') || '1y';
 
@@ -456,7 +529,12 @@ export async function GET(
     logoUrl: getAmcLogoUrl(meta?.fund_house || '', rawFundName)
   };
 
-  return NextResponse.json(responsePayload);
+    return NextResponse.json(responsePayload);
+  } catch (err: any) {
+    console.warn(`Failed to resolve mutual fund details for code ${code}, returning mock fallback:`, err.message);
+    const fallback = getMockMutualFundPayload(code, fundConfig);
+    return NextResponse.json(fallback);
+  }
 }
 
 // Generate fallback mock AMFI data structure

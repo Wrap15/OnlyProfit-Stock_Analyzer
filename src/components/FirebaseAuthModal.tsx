@@ -70,12 +70,12 @@ export default function FirebaseAuthModal({ isOpen, onClose, onSuccess }: Fireba
   if (!isOpen) return null;
 
   const handleSyncUserProStatus = async (user: any, customName?: string) => {
+    let isPro = false;
+    let displayName = customName || user.displayName || '';
+
     try {
       const userRef = doc(db, 'users', user.uid);
       const userSnap = await getDoc(userRef);
-      
-      let isPro = false;
-      let displayName = customName || user.displayName || '';
       
       if (userSnap.exists()) {
         const data = userSnap.data();
@@ -92,14 +92,14 @@ export default function FirebaseAuthModal({ isOpen, onClose, onSuccess }: Fireba
           createdAt: new Date().toISOString()
         });
       }
-      
-      // Sync Zustand store
-      setUser(user.uid, user.email, displayName);
-      if (isPro) {
-        activatePro();
-      }
     } catch (err) {
-      console.error('Error syncing user pro status with Firestore', err);
+      console.warn('Firestore database profile sync bypassed/unauthorized (using local profile instead):', err);
+    }
+    
+    // ALWAYS synchronize local Zustand store state to guarantee login succeeds
+    setUser(user.uid, user.email, displayName);
+    if (isPro) {
+      activatePro();
     }
   };
 

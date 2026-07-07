@@ -1,5 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchStockQuoteFromAPI, fetchCompanyProfileFromAPI, quoteCache, pendingFetches } from '@/lib/yahooFinance';
+import { fetchStockQuoteFromAPI, fetchCompanyProfileFromAPI, quoteCache, pendingFetches, MOCK_STOCK_INFO } from '@/lib/yahooFinance';
+
+function getMockQuote(symbol: string) {
+  const cleanSym = symbol.replace('.NS', '');
+  const info = MOCK_STOCK_INFO[cleanSym] || MOCK_STOCK_INFO[symbol] || {
+    name: cleanSym,
+    sector: 'Financials',
+    desc: 'Company information not available.'
+  };
+
+  const seed = symbol.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const randomPrice = 100 + (seed % 900) + (seed % 10) * 0.1;
+  const randomChangePercent = ((seed % 15) - 7) / 2; // e.g. -3.5% to +3.5%
+  const change = (randomPrice * randomChangePercent) / 100;
+
+  return {
+    symbol: symbol,
+    regularMarketPrice: randomPrice,
+    regularMarketChange: parseFloat(change.toFixed(2)),
+    regularMarketChangePercent: parseFloat(randomChangePercent.toFixed(2)),
+    regularMarketVolume: 1000000 + (seed * 1000) % 5000000,
+    fiftyTwoWeekHigh: randomPrice * 1.25,
+    fiftyTwoWeekLow: randomPrice * 0.75,
+    longName: info.name,
+    shortName: info.name,
+    sector: info.sector,
+    industry: 'Sector Leader',
+    longBusinessSummary: info.desc
+  };
+}
 
 const FRESH_DURATION = 12000;   // 12 seconds fresh limit (matches user target of 10-15s and prevents API thrashing)
 const STALE_DURATION = 600000;  // 10 minutes stale allowed
@@ -176,10 +205,20 @@ export async function GET(request: NextRequest) {
         });
     }
 
-    // Map back to the original order of requested symbols
-    const orderedData = symbols
-      .map(s => cachedData.find(item => item.symbol === s))
-      .filter(Boolean);
+    // Map back to the original order of requested symbols, filling in mock quotes for missing ones
+    const orderedData = symbols.map(s => {
+      let quote = cachedData.find(item => item.symbol === s);
+      if (!quote) {
+        // Fallback to mock quote in case of API failure / offline mode
+        quote = getMockQuote(s);
+        // Save to cache so subsequent requests are fast
+        quoteCache[s] = {
+          data: quote,
+          timestamp: Date.now()
+        };
+      }
+      return quote;
+    });
 
     return NextResponse.json(orderedData);
   } catch (error: any) {

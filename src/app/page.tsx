@@ -9,7 +9,7 @@ import MutualFundCard from '@/components/MutualFundCard';
 import ThematicBaskets from '@/components/ThematicBaskets';
 import IpoDetailsModal from '@/components/IpoDetailsModal';
 import AISignalsWidget from '@/components/AISignalsWidget';
-import TodayNewsEvents from '@/components/TodayNewsEvents';
+import GrowwBlogSection from '@/components/GrowwBlogSection';
 import { 
   ArrowUpRight, ArrowDownRight, Star, Sparkles, LayoutGrid, Search, Activity, Landmark, Cpu, Cookie, Car, Flame, Wrench, Layers, HeartPulse, PhoneCall, Bolt, Rocket,
   TrendingUp, TrendingDown, ArrowLeftRight, Bookmark, ChevronDown, X, ArrowUpDown,
@@ -1493,9 +1493,10 @@ export default function Home() {
         <AISignalsWidget />
       </div>
 
-      {/* Today's News and Events Section */}
-      <div id="today-news-events" className="mt-12 pt-10 border-t border-border/60">
-        <TodayNewsEvents />
+
+      {/* Groww Blog Section */}
+      <div id="groww-blogs" className="mt-12 pt-10 border-t border-border/60">
+        <GrowwBlogSection />
       </div>
 
       {/* Thematic Stock Baskets Section (Smallcases mock) */}

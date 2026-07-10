@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useStockStore } from '@/store/useStockStore';
 import { 
@@ -97,9 +97,6 @@ export default function StockDetailPage() {
   const [quote, setQuote] = useState<QuoteData | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeRange, setActiveRange] = useState('1d');
-  
-  const [priceFlash, setPriceFlash] = useState<'up' | 'down' | null>(null);
-  const prevPriceRef = useRef<number>(0);
   
   const [activeTab, setActiveTab] = useState<'overview' | 'financials' | 'fundamentals' | 'technicals' | 'shareholding' | 'peers' | 'news' | 'profile'>('overview');
   
@@ -248,20 +245,7 @@ export default function StockDetailPage() {
     return () => clearInterval(interval);
   }, [loading]);
 
-  // Price movement flash listener
-  useEffect(() => {
-    if (!quote?.regularMarketPrice) return;
-    if (prevPriceRef.current && prevPriceRef.current !== quote.regularMarketPrice) {
-      if (quote.isRealUpdate) {
-        const dir = quote.regularMarketPrice > prevPriceRef.current ? 'up' : 'down';
-        setPriceFlash(dir);
-        const timer = setTimeout(() => setPriceFlash(null), 1500); // 1.5s lazy transition
-        prevPriceRef.current = quote.regularMarketPrice;
-        return () => clearTimeout(timer);
-      }
-    }
-    prevPriceRef.current = quote.regularMarketPrice;
-  }, [quote?.regularMarketPrice, quote?.isRealUpdate]);
+
 
   // Fetch trending stocks
   useEffect(() => {
@@ -319,7 +303,8 @@ export default function StockDetailPage() {
     }
 
     fetchPeers();
-  }, [quote]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quote?.symbol, quote?.sector]);
 
   // Dynamically set document title and meta description for SEO
   useEffect(() => {
@@ -331,7 +316,8 @@ export default function StockDetailPage() {
         metaDescription.setAttribute('content', `Get live price, charts, P/E ratio, EPS, and detailed analysis of ${quote.longName} (${quote.symbol.split('.')[0]}) on OnlyProfit.`);
       }
     }
-  }, [quote]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quote?.symbol, quote?.longName]);
 
   // Fetch Live RSS News dynamically and filter/tag by stock/symbol
   useEffect(() => {
@@ -371,7 +357,8 @@ export default function StockDetailPage() {
     }
     
     fetchStockNews();
-  }, [symbol, quote]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [symbol]);
 
   if (!symbol) return null;
 
@@ -658,13 +645,7 @@ export default function StockDetailPage() {
         {/* Price display and CTA actions */}
         <div className="flex flex-col md:items-end justify-between gap-4 relative z-10 shrink-0">
           <div className="flex flex-col md:items-end">
-            <div className={`text-3xl font-black tracking-tight transition-colors ease-out rounded-xl px-2 py-0.5 inline-block ${
-              priceFlash === 'up' 
-                ? 'text-profit duration-0' 
-                : priceFlash === 'down' 
-                ? 'text-loss duration-0' 
-                : 'text-text-primary duration-[1500ms]'
-            }`}>
+            <div className="text-3xl font-black tracking-tight text-text-primary rounded-xl px-2 py-0.5 inline-block font-mono">
               ₹{quote.regularMarketPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </div>
             <div className={`flex items-center gap-1.5 text-xs font-black mt-1 ${isPositive ? 'text-profit' : 'text-loss'}`}>

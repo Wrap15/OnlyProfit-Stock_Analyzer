@@ -156,8 +156,7 @@ export async function GET(
   const { searchParams } = new URL(request.url);
   const range = searchParams.get('range') || '1y';
 
-  // Find standard fund configuration if exists
-  const fundConfig = MUTUAL_FUNDS.find(f => f.code === code);
+  // Standard fund configuration already resolved above
 
   const now = Date.now();
   let fullData: any = null;

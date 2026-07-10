@@ -157,7 +157,7 @@ export async function getSimulatorState(userId: string | null): Promise<Simulato
 }
 
 // Save wallet balance
-async function saveCashBalance(userId: string | null, cash: number) {
+export async function saveCashBalance(userId: string | null, cash: number) {
   // Always update local cache copy immediately
   const state = getLocalState();
   state.cash = cash;
@@ -681,4 +681,54 @@ export async function checkAutoSquareOff(userId: string | null, livePrices: Reco
   }
 
   return true;
+}
+
+// Sync local guest simulator data to user Firestore database on sign in
+export async function syncLocalDataToFirestore(userId: string): Promise<void> {
+  const localState = getLocalState();
+  
+  // If the local state is just the default empty state, do nothing
+  if (localState.cash === DEFAULT_BALANCE && 
+      localState.holdings.length === 0 && 
+      localState.positions.length === 0 && 
+      localState.orders.length === 0 && 
+      localState.history.length === 0) {
+    return;
+  }
+
+  try {
+    await withTimeout((async () => {
+      // 1. Sync wallet/cash if it differs from default
+      if (localState.cash !== DEFAULT_BALANCE) {
+        const walletRef = doc(db, 'users', userId, 'simulator', 'wallet');
+        await setDoc(walletRef, { cash: localState.cash }, { merge: true });
+      }
+
+      // 2. Sync holdings
+      for (const holding of localState.holdings) {
+        const holdingRef = doc(db, 'users', userId, 'simulator_holdings', holding.symbol);
+        await setDoc(holdingRef, holding, { merge: true });
+      }
+
+      // 3. Sync positions
+      for (const position of localState.positions) {
+        const positionRef = doc(db, 'users', userId, 'simulator_positions', position.symbol);
+        await setDoc(positionRef, position, { merge: true });
+      }
+
+      // 4. Sync orders & history
+      for (const order of [...localState.orders, ...localState.history]) {
+        const orderRef = doc(db, 'users', userId, 'simulator_orders', order.id);
+        await setDoc(orderRef, order, { merge: true });
+      }
+
+      // After syncing, reset/clear guest local state to default so it doesn't trigger sync again
+      const clearedState = { cash: DEFAULT_BALANCE, holdings: [], positions: [], orders: [], history: [] };
+      saveLocalState(clearedState);
+      
+      console.log('Successfully synced guest simulator data to user Firestore database.');
+    })(), 3000);
+  } catch (err) {
+    console.error('Failed to sync guest simulator data to Firestore:', err);
+  }
 }

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Search, Sun, Moon, TrendingUp, GitCompare, Zap, LogOut, Edit2, User, Save, X, Menu, ArrowRight } from 'lucide-react';
 import { useStockStore } from '@/store/useStockStore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import SearchCommandCenter from './SearchCommandCenter';
 import SaaSProModal from './SaaSProModal';
@@ -53,13 +53,29 @@ export default function Navbar() {
 
   // Listen for Firebase Auth session status
   useEffect(() => {
+    let unsubSession: (() => void) | null = null;
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      // Clean up previous real-time session checks
+      if (unsubSession) {
+        unsubSession();
+        unsubSession = null;
+      }
+
       if (user) {
         try {
+          // Resolve or create a unique local Session ID for concurrent login prevention
+          let localSessionId = localStorage.getItem('onlyprofit_session_id');
+          if (!localSessionId) {
+            localSessionId = Math.random().toString(36).substring(2) + Date.now();
+            localStorage.setItem('onlyprofit_session_id', localSessionId);
+          }
+
           const userRef = doc(db, 'users', user.uid);
           const userSnap = await getDoc(userRef);
           let isPro = false;
           let displayName = user.displayName || '';
+          
           if (userSnap.exists()) {
             const data = userSnap.data();
             isPro = !!data.isProUser;
@@ -67,12 +83,34 @@ export default function Navbar() {
               displayName = data.displayName;
             }
           }
+
+          // Register current session in DB profile
+          await setDoc(userRef, { 
+            currentSessionId: localSessionId,
+            email: user.email || '',
+            displayName: displayName
+          }, { merge: true });
+
           setUser(user.uid, user.email, displayName);
           if (isPro) {
             activatePro();
           } else {
             deactivatePro();
           }
+
+          // Subscribe to database changes. Log out instantly if a different session ID overwrites ours.
+          unsubSession = onSnapshot(userRef, (snap) => {
+            if (snap.exists()) {
+              const currentIdInDB = snap.data().currentSessionId;
+              const currentLocalId = localStorage.getItem('onlyprofit_session_id');
+              if (currentIdInDB && currentLocalId && currentIdInDB !== currentLocalId) {
+                signOut(auth);
+                setUser(null, null, null);
+                alert("Session Expired: You have been logged out because your account is active on another device.");
+              }
+            }
+          });
+
         } catch (err) {
           console.error('Session restoration fail', err);
           setUser(user.uid, user.email, user.displayName || '');
@@ -82,7 +120,11 @@ export default function Navbar() {
         deactivatePro();
       }
     });
-    return () => unsubscribe();
+
+    return () => {
+      unsubscribe();
+      if (unsubSession) unsubSession();
+    };
   }, [setUser, activatePro, deactivatePro]);
 
   // Ctrl + K key binding

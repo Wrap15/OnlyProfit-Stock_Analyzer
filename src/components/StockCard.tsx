@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Star } from 'lucide-react';
 import { useStockStore } from '@/store/useStockStore';
@@ -76,20 +76,7 @@ export default function StockCard({ symbol, initialQuote }: StockCardProps) {
 
   const isFavorited = watchlist.includes(symbol);
 
-  const [flash, setFlash] = useState<'up' | 'down' | null>(null);
-  const prevPriceRef = useRef<number>(data?.price || 0);
 
-  useEffect(() => {
-    if (!data?.price) return;
-    if (prevPriceRef.current && prevPriceRef.current !== data.price) {
-      const direction = data.price > prevPriceRef.current ? 'up' : 'down';
-      setFlash(direction);
-      const timer = setTimeout(() => setFlash(null), 300); // 300ms quick flash
-      prevPriceRef.current = data.price;
-      return () => clearTimeout(timer);
-    }
-    prevPriceRef.current = data.price;
-  }, [data?.price]);
 
   // Set up intersection observer to only load chart for visible cards
   useEffect(() => {
@@ -299,13 +286,7 @@ export default function StockCard({ symbol, initialQuote }: StockCardProps) {
 
         {/* Right Price & Percent */}
         <div className="flex flex-col items-end shrink-0">
-          <span className={`text-xs font-extrabold transition-all duration-300 rounded px-1.5 py-0.5 tabular-nums ${
-            flash === 'up' 
-              ? 'bg-emerald-500/20 text-profit' 
-              : flash === 'down' 
-              ? 'bg-rose-500/20 text-loss' 
-              : 'text-text-primary'
-          }`}>
+          <span className="text-xs font-extrabold rounded px-1.5 py-0.5 tabular-nums text-text-primary font-mono">
             ₹{data.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
           </span>
           <span className={`text-[10px] font-extrabold flex items-center gap-0.5 mt-0.5 ${isPositive ? 'text-profit' : 'text-loss'}`}>
@@ -366,13 +347,7 @@ export default function StockCard({ symbol, initialQuote }: StockCardProps) {
 
         {/* Price section */}
         <div className="mt-4">
-          <div className={`text-xl font-extrabold tracking-tight transition-all duration-300 rounded-lg px-2 py-0.5 inline-block tabular-nums ${
-            flash === 'up' 
-              ? 'bg-emerald-500/20 text-profit' 
-              : flash === 'down' 
-              ? 'bg-rose-500/20 text-loss' 
-              : 'text-text-primary'
-          }`}>
+          <div className="text-xl font-extrabold tracking-tight rounded-lg px-2 py-0.5 inline-block tabular-nums text-text-primary font-mono">
             ₹{data.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
           </div>
           <div className={`flex items-center gap-1.5 text-xs font-bold mt-1 ${isPositive ? 'text-profit' : 'text-loss'}`}>

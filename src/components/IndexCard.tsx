@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import MiniSparkline from './MiniSparkline';
 
@@ -22,26 +22,10 @@ export default function IndexCard({
   change,
   changePercent,
   chart,
-  loading,
-  isRealUpdate
+  loading
 }: IndexCardProps) {
   const isPositive = changePercent >= 0;
-  const [flash, setFlash] = useState<'up' | 'down' | null>(null);
-  const prevPriceRef = useRef<number>(price);
 
-  useEffect(() => {
-    if (loading || !price) return;
-    if (prevPriceRef.current && prevPriceRef.current !== price) {
-      if (isRealUpdate) {
-        const direction = price > prevPriceRef.current ? 'up' : 'down';
-        setFlash(direction);
-        const timer = setTimeout(() => setFlash(null), 1500); // 1.5s lazy transition
-        prevPriceRef.current = price;
-        return () => clearTimeout(timer);
-      }
-    }
-    prevPriceRef.current = price;
-  }, [price, loading, isRealUpdate]);
 
   if (loading) {
     return (
@@ -67,13 +51,7 @@ export default function IndexCard({
         <span className="text-[10px] sm:text-[11px] font-extrabold text-text-secondary tracking-wide uppercase">
           {name}
         </span>
-        <span className={`text-xs sm:text-sm font-extrabold mt-0.5 transition-colors ease-out rounded px-1.5 py-0.5 inline-block tabular-nums ${
-          flash === 'up'
-            ? 'text-profit duration-0'
-            : flash === 'down'
-            ? 'text-loss duration-0'
-            : 'text-text-primary duration-[1500ms]'
-        }`}>
+        <span className="text-xs sm:text-sm font-extrabold mt-0.5 text-text-primary rounded px-1.5 py-0.5 inline-block tabular-nums font-mono">
           ₹{price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
         </span>
       </div>

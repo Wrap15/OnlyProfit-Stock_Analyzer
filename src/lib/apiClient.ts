@@ -12,11 +12,11 @@ const pendingRequests: Record<string, Promise<any> | undefined> = {};
 // Helper to determine cache duration (in milliseconds) based on route and query params
 function getCacheDuration(url: string, params: any = {}): number {
   if (url.includes('/api/stock/quote')) {
-    return 15000; // 15 seconds for live prices
+    return 10000; // 10 seconds for live prices
   }
   if (url.includes('/api/stock/chart')) {
     const range = params.range || '1d';
-    return range === '1d' ? 30000 : 300000; // 30 seconds for intraday, 5 minutes for historical
+    return range === '1d' ? 15000 : 300000; // 15 seconds for intraday, 5 minutes for historical
   }
   if (url.includes('/api/stock/mutualfund')) {
     return 300000; // 5 minutes for mutual fund Navs
@@ -39,27 +39,50 @@ export const apiClient = {
     const key = generateCacheKey(url, params);
     const now = Date.now();
 
-    // 1. Check if the response is already in the cache and fresh
     const cached = cacheStore[key];
     const duration = getCacheDuration(url, params);
-    if (cached && (now - cached.timestamp < duration)) {
-      return { data: cached.data };
+
+    // Stale-While-Revalidate (SWR) logic
+    if (cached) {
+      const age = now - cached.timestamp;
+      
+      // 1. If cache is fresh, return immediately
+      if (age < duration) {
+        return { data: cached.data };
+      }
+
+      // 2. If cache is stale but under 10 minutes, return stale immediately & revalidate in background
+      if (age < 600000) {
+        if (!pendingRequests[key]) {
+          const fetchPromise = axios.get<T>(url, config).then(res => {
+            cacheStore[key] = {
+              data: res.data,
+              timestamp: Date.now()
+            };
+            delete pendingRequests[key];
+            return res.data;
+          }).catch(err => {
+            delete pendingRequests[key];
+            console.warn(`Background revalidation failed for ${url}:`, err.message);
+          });
+          pendingRequests[key] = fetchPromise;
+        }
+        return { data: cached.data };
+      }
     }
 
-    // 2. Check if there is already an identical request in-flight
+    // 3. Check if there is already an identical request in-flight (for cache misses)
     if (pendingRequests[key]) {
       const data = await pendingRequests[key];
       return { data };
     }
 
-    // 3. Make a fresh network request and deduplicate it
+    // 4. Cache miss: Make a fresh network request and wait for it
     const fetchPromise = axios.get<T>(url, config).then(res => {
-      // Store in cache
       cacheStore[key] = {
         data: res.data,
         timestamp: Date.now()
       };
-      // Cleanup from pending request queue
       delete pendingRequests[key];
       return res.data;
     }).catch(err => {

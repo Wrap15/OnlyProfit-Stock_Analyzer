@@ -182,6 +182,26 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('trending');
   const [searchFilter, setSearchFilter] = useState('');
+
+  // Synchronize activeTab with URL search params reactively
+  useEffect(() => {
+    const checkTab = () => {
+      if (typeof window === 'undefined') return;
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      if (tabParam && ['watchlist', 'trending', 'mostsearched', 'explore', 'ipo'].includes(tabParam)) {
+        setActiveTab(prev => prev !== tabParam ? (tabParam as TabType) : prev);
+      }
+    };
+    checkTab();
+    const interval = setInterval(checkTab, 150);
+    window.addEventListener('popstate', checkTab);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('popstate', checkTab);
+    };
+  }, []);
+
   const [activeCollection, setActiveCollection] = useState<'all' | 'bluechip' | 'growth' | 'dividend' | 'debtfree'>('all');
   const [exploreSymbols, setExploreSymbols] = useState<string[]>(MONITOR_SYMBOLS);
   const [exploreLoading, setExploreLoading] = useState(false);
@@ -770,6 +790,12 @@ export default function Home() {
                   <p className="mt-1 text-xs text-text-secondary max-w-xs font-medium">
                     Search for equities and click the star icon to populate your watchlist tracker.
                   </p>
+                  <button 
+                    onClick={() => setActiveTab('explore')}
+                    className="mt-5 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-black rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-200 shadow-md shadow-emerald-500/10 active:scale-[0.98] cursor-pointer"
+                  >
+                    Explore All Stocks
+                  </button>
                 </div>
               )}
             </div>
@@ -1229,23 +1255,27 @@ export default function Home() {
             </div>
 
             {/* List Headers */}
-            <div className="grid grid-cols-12 gap-2 text-[10px] font-black uppercase tracking-wider text-text-secondary select-none px-1 border-b border-border/40 pb-2.5">
-              <span className="col-span-6 sm:col-span-7">Stocks</span>
-              <span className="col-span-3 text-right">Price</span>
-              <span className="col-span-3 text-right pr-6 sm:pr-8">Change</span>
+            <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-text-secondary select-none px-2 border-b border-border/40 pb-2.5">
+              <span>Stock Name</span>
+              <span className="pr-12">Price & Change</span>
             </div>
 
             {/* Stocks List */}
             {loading ? (
               <div className="space-y-4">
                 {[1, 2, 3, 4, 5].map(i => (
-                  <div key={i} className="grid grid-cols-12 gap-2 items-center py-2 px-1">
-                    <div className="col-span-6 sm:col-span-7 space-y-1.5 min-w-0">
-                      <div className="h-4 w-16 animate-shimmer rounded" />
-                      <div className="h-3 w-28 animate-shimmer rounded" />
+                  <div key={i} className="flex items-center justify-between py-3.5 px-2 border-b border-border/10">
+                    <div className="flex items-center gap-3 flex-grow">
+                      <div className="h-9 w-9 rounded-xl animate-pulse bg-slate-200 dark:bg-slate-800" />
+                      <div className="space-y-1.5 flex-grow">
+                        <div className="h-4 w-24 animate-pulse bg-slate-200 dark:bg-slate-800 rounded" />
+                        <div className="h-3 w-16 animate-pulse bg-slate-200 dark:bg-slate-800 rounded" />
+                      </div>
                     </div>
-                    <div className="col-span-3 h-4 w-12 animate-shimmer rounded justify-self-end" />
-                    <div className="col-span-3 h-4 w-14 animate-shimmer rounded justify-self-end pr-6 sm:pr-8" />
+                    <div className="flex flex-col items-end gap-1.5 mr-12">
+                      <div className="h-4 w-14 animate-pulse bg-slate-200 dark:bg-slate-800 rounded animate-shimmer" />
+                      <div className="h-3.5 w-12 animate-pulse bg-slate-200 dark:bg-slate-800 rounded animate-shimmer" />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1262,16 +1292,13 @@ export default function Home() {
                     <Link
                       key={stock.symbol}
                       href={`/stock/${stock.symbol}`}
-                      className="grid grid-cols-12 gap-2 items-center py-3.5 px-1 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-all duration-200 group"
+                      className="flex items-center justify-between py-3.5 px-1 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-all duration-200 group"
                     >
-                      {/* Left Column: Logo, Symbol, Name */}
-                      <div className="col-span-6 sm:col-span-7 flex items-center gap-2 sm:gap-3 min-w-0">
-                        {/* Logo Container Frame */}
-                        <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl bg-white border border-slate-200/80 dark:border-slate-800/80 p-1 flex items-center justify-center shrink-0 shadow-sm relative overflow-hidden">
+                      {/* Left Info: Logo, Name & Ticker */}
+                      <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0 flex-1">
+                        <div className="h-9 w-9 sm:h-11 sm:w-11 rounded-xl bg-white border border-slate-200/80 dark:border-slate-800/80 p-1 flex items-center justify-center shrink-0 shadow-sm relative overflow-hidden">
                           <StockLogo symbol={stock.symbol} size="sm" />
                         </div>
-
-                        {/* Name & Symbol */}
                         <div className="min-w-0">
                           <div className="font-extrabold text-xs sm:text-sm text-text-primary group-hover:text-profit transition-colors truncate">
                             {cleanName}
@@ -1282,16 +1309,17 @@ export default function Home() {
                         </div>
                       </div>
 
-                      {/* Price Column */}
-                      <div className="col-span-3 text-right font-extrabold text-xs sm:text-sm text-text-primary tabular-nums">
-                        ₹{stock.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </div>
-
-                      {/* Change & Bookmark Column */}
-                      <div className="col-span-3 flex items-center justify-end gap-1.5 sm:gap-3 shrink-0">
-                        <span className={`text-[10px] sm:text-xs font-black tabular-nums text-right ${isStockPositive ? 'text-profit' : 'text-loss'}`}>
-                          {isStockPositive ? '▲ ' : '▼ '}{Math.abs(stock.changePercent).toFixed(2)}%
-                        </span>
+                      {/* Right Info: Price, Change & Bookmark */}
+                      <div className="flex items-center gap-3 sm:gap-4 shrink-0 ml-2">
+                        <div className="flex flex-col text-right">
+                          <div className="font-extrabold text-xs sm:text-sm text-text-primary tabular-nums">
+                            ₹{stock.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </div>
+                          <div className={`text-[10px] sm:text-xs font-black tabular-nums flex items-center justify-end gap-0.5 mt-0.5 ${isStockPositive ? 'text-profit' : 'text-loss'}`}>
+                            <span>{isStockPositive ? '▲' : '▼'}</span>
+                            <span>{isStockPositive ? '+' : ''}{stock.changePercent.toFixed(2)}%</span>
+                          </div>
+                        </div>
 
                         {/* Watchlist Bookmark Icon Toggle */}
                         <button
@@ -1300,7 +1328,7 @@ export default function Home() {
                             e.stopPropagation();
                             useStockStore.getState().toggleWatchlist(stock.symbol);
                           }}
-                          className="p-1 sm:p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
+                          className="p-1.5 sm:p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
                           aria-label={isBookmarked ? "Remove from watchlist" : "Add to watchlist"}
                         >
                           <Bookmark 

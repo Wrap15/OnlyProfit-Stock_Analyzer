@@ -25,8 +25,8 @@ export async function GET(request: NextRequest) {
   const cacheKey = `${cleanSymbol}_${range}`;
   const now = Date.now();
 
-  // Intraday charts expire in 60s, historical charts in 2 hours
-  const cacheDuration = range === '1d' ? 60000 : 7200000;
+  // Intraday charts expire in 20s, historical charts in 2 hours
+  const cacheDuration = range === '1d' ? 20000 : 7200000;
   let data: any = null;
   let triggerUpdate = false;
 
@@ -69,7 +69,10 @@ export async function GET(request: NextRequest) {
     fetchAndCacheChart().catch(() => {});
   }
 
-  return NextResponse.json(data);
+  return NextResponse.json(data, {
+    headers: {
+      'Cache-Control': 'no-store, max-age=0, must-revalidate'
+    }
+  });
 }
 export const dynamic = 'force-dynamic';
-

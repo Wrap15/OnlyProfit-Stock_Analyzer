@@ -35,6 +35,8 @@ interface StockState {
   setUserName: (userName: string | null) => void;
   isMobileMenuOpen: boolean;
   toggleMobileMenu: (open?: boolean) => void;
+  isAuthModalOpen: boolean;
+  toggleAuthModal: (open?: boolean) => void;
 }
 
 export const useStockStore = create<StockState>()(
@@ -124,6 +126,10 @@ export const useStockStore = create<StockState>()(
       isMobileMenuOpen: false,
       toggleMobileMenu: (open) => set((state) => ({
         isMobileMenuOpen: open !== undefined ? open : !state.isMobileMenuOpen
+      })),
+      isAuthModalOpen: false,
+      toggleAuthModal: (open) => set((state) => ({
+        isAuthModalOpen: open !== undefined ? open : !state.isAuthModalOpen
       })),
     }),
     {

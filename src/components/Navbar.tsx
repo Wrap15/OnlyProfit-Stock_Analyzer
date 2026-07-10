@@ -23,13 +23,14 @@ export default function Navbar() {
     activatePro, 
     deactivatePro,
     isMobileMenuOpen,
-    toggleMobileMenu
+    toggleMobileMenu,
+    isAuthModalOpen,
+    toggleAuthModal
   } = useStockStore();
 
   const [mounted, setMounted] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isProModalOpen, setIsProModalOpen] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   
   const [isEditNameOpen, setIsEditNameOpen] = useState(false);
   const [customNameInput, setCustomNameInput] = useState('');
@@ -147,17 +148,18 @@ export default function Navbar() {
               </Link>
             </div>
 
-            {/* Desktop Command search shortcut button */}
-            <div className="hidden sm:block flex-1 max-w-md">
+            {/* Command search shortcut button (Persistent Search Bar) */}
+            <div className="flex-grow sm:flex-initial sm:w-80 md:w-96 max-w-md mx-2 sm:mx-0">
               <button 
                 onClick={() => setIsSearchModalOpen(true)}
-                className="w-full h-10 rounded-2xl border border-border bg-card/60 hover:bg-background text-text-secondary hover:text-text-primary px-4 flex items-center justify-between text-xs font-bold transition-all duration-250 cursor-pointer shadow-inner"
+                className="w-full h-8 sm:h-10 rounded-xl sm:rounded-2xl border border-border bg-card/60 hover:bg-background text-text-secondary hover:text-text-primary px-3 sm:px-4 flex items-center justify-between text-[10px] sm:text-xs font-bold transition-all duration-200 cursor-pointer shadow-inner"
               >
-                <div className="flex items-center gap-2">
-                  <Search className="h-4 w-4" />
-                  <span>Search stocks, mutual funds, baskets...</span>
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <Search className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span className="hidden xs:inline sm:inline">Search stocks, mutual funds...</span>
+                  <span className="inline xs:hidden sm:hidden">Search...</span>
                 </div>
-                <kbd className="h-6 px-1.5 rounded-lg border border-border bg-background text-[10px] font-mono flex items-center justify-center select-none uppercase tracking-wider text-text-secondary/70">
+                <kbd className="hidden sm:flex h-6 px-1.5 rounded-lg border border-border bg-background text-[10px] font-mono items-center justify-center select-none uppercase tracking-wider text-text-secondary/70">
                   Ctrl K
                 </kbd>
               </button>
@@ -165,14 +167,6 @@ export default function Navbar() {
 
             {/* Header action menus */}
             <div className="flex items-center gap-2 sm:gap-3">
-              {/* Mobile Search trigger */}
-              <button
-                onClick={() => setIsSearchModalOpen(true)}
-                className="flex sm:hidden h-8 w-8 items-center justify-center rounded-lg border border-border bg-card hover:bg-background text-text-primary transition-all duration-200"
-                aria-label="Search"
-              >
-                <Search className="h-4 w-4" />
-              </button>
 
               {/* SaaS Pro Tier Badge */}
               {mounted && !userId && (
@@ -193,6 +187,15 @@ export default function Navbar() {
               >
                 <GitCompare className="h-4.5 w-4.5 text-profit" />
                 <span>Compare</span>
+              </Link>
+
+              {/* Paper Trading Simulator Link */}
+              <Link
+                href="/simulator"
+                className="hidden sm:flex items-center gap-1.5 h-10 px-3.5 rounded-xl border border-border bg-card hover:bg-background text-text-secondary hover:text-text-primary text-xs font-bold transition-all duration-200"
+              >
+                <TrendingUp className="h-4.5 w-4.5 text-emerald-400" />
+                <span>Simulator</span>
               </Link>
 
               {/* User Account State details */}
@@ -230,7 +233,7 @@ export default function Navbar() {
                   </div>
                 ) : (
                   <button
-                    onClick={() => setIsAuthModalOpen(true)}
+                    onClick={() => toggleAuthModal(true)}
                     className="hidden sm:block h-10 px-3.5 rounded-xl border border-border bg-card hover:bg-background text-text-primary text-xs font-bold transition-all duration-200 cursor-pointer"
                   >
                     Sign In
@@ -274,6 +277,16 @@ export default function Navbar() {
           >
             <GitCompare className="h-4.5 w-4.5 text-profit" />
             <span>Compare Stocks & Mutual Funds</span>
+          </Link>
+
+          {/* Paper Trading Link */}
+          <Link
+            href="/simulator"
+            onClick={() => toggleMobileMenu(false)}
+            className="flex items-center gap-3 px-4 py-3 rounded-2xl border border-border bg-background hover:bg-slate-50 dark:hover:bg-slate-800/40 text-xs font-black text-text-primary transition-all"
+          >
+            <TrendingUp className="h-4.5 w-4.5 text-emerald-400" />
+            <span>Paper Trading Simulator</span>
           </Link>
 
           {/* Go Pro / Pro Active */}
@@ -335,7 +348,7 @@ export default function Navbar() {
               </div>
             ) : (
               <button
-                onClick={() => { setIsAuthModalOpen(true); toggleMobileMenu(false); }}
+                onClick={() => { toggleAuthModal(true); toggleMobileMenu(false); }}
                 className="w-full h-11 rounded-2xl bg-profit hover:brightness-105 text-white font-black text-xs transition-all shadow-md shadow-profit/15 flex items-center justify-center gap-2"
               >
                 <User className="h-4.5 w-4.5" />
@@ -357,13 +370,13 @@ export default function Navbar() {
       <SaaSProModal 
         isOpen={isProModalOpen} 
         onClose={() => setIsProModalOpen(false)} 
-        onAuthPrompt={() => setIsAuthModalOpen(true)}
+        onAuthPrompt={() => toggleAuthModal(true)}
       />
 
       {/* Firebase Account Auth Modal */}
       <FirebaseAuthModal
         isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
+        onClose={() => toggleAuthModal(false)}
       />
 
       {/* Edit Username Modal Popover */}

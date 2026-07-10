@@ -56,13 +56,21 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
     fetchChartData();
   }, [symbol, range]);
 
+  // Handle chart instantiation and updates in a single robust hook
   useEffect(() => {
     if (!chartContainerRef.current || data.length === 0 || loading) return;
 
     const container = chartContainerRef.current;
     const isDark = theme === 'dark';
 
-    // Chart Options
+    // Sort and deduplicate data by timestamp (essential safeguard for lightweight-charts)
+    const sortedData = [...data]
+      .sort((a, b) => a.time - b.time)
+      .filter((item, index, self) => index === 0 || item.time > self[index - 1].time);
+
+    if (sortedData.length === 0) return;
+
+    // Always create a fresh chart instance to prevent timescale and layout scale locks on range changes
     const chart = createChart(container, {
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
@@ -79,7 +87,7 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
       },
       timeScale: {
         borderVisible: false,
-        timeVisible: range === '1d', // show time for intraday
+        timeVisible: range === '1d' || range === '1w',
         secondsVisible: false,
       },
       crosshair: {
@@ -98,11 +106,24 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
       height: typeof window !== 'undefined' && window.innerWidth < 640 ? 280 : 420,
     });
 
-    let mainSeries: any;
+    // Resize Observer for Responsiveness
+    const resizeObserver = new ResizeObserver((entries) => {
+      if (entries.length === 0 || !entries[0].contentRect) return;
+      const { width } = entries[0].contentRect;
+      const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+      chart.applyOptions({ 
+        width,
+        height: isMobile ? 280 : 420
+      });
+      chart.timeScale().fitContent();
+    });
+    resizeObserver.observe(container);
 
     const upColor = '#10b981';
     const downColor = '#ef4444';
 
+    // Create and populate Main Series
+    let mainSeries;
     if (chartType === 'candlestick') {
       mainSeries = chart.addSeries(CandlestickSeries, {
         upColor,
@@ -113,7 +134,7 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
         wickDownColor: downColor,
       });
 
-      const formattedCandles = data.map((pt) => ({
+      const formattedCandles = sortedData.map((pt) => ({
         time: pt.time as UTCTimestamp,
         open: pt.open !== undefined ? pt.open : pt.value,
         high: pt.high !== undefined ? pt.high : pt.value,
@@ -136,7 +157,7 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
         },
       });
 
-      const formattedData = data.map((pt) => ({
+      const formattedData = sortedData.map((pt) => ({
         time: pt.time as UTCTimestamp,
         value: pt.value,
       }));
@@ -144,7 +165,7 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
       mainSeries.setData(formattedData);
     }
 
-    // Create Volume Series (Histogram)
+    // Create and populate Volume Series Overlay
     const volumeSeries = chart.addSeries(HistogramSeries, {
       priceFormat: {
         type: 'volume',
@@ -154,14 +175,13 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
 
     chart.priceScale('').applyOptions({
       scaleMargins: {
-        top: 0.82, // Volume occupies bottom 18%
+        top: 0.82,
         bottom: 0,
       },
     });
 
-    // Format volume data points
-    const volumeData = data.map((pt, idx) => {
-      const openVal = pt.open !== undefined ? pt.open : (idx > 0 ? data[idx - 1].value : pt.value);
+    const volumeData = sortedData.map((pt, idx) => {
+      const openVal = pt.open !== undefined ? pt.open : (idx > 0 ? sortedData[idx - 1].value : pt.value);
       const closeVal = pt.close !== undefined ? pt.close : pt.value;
       const isUp = closeVal >= openVal;
       return {
@@ -173,34 +193,34 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
 
     volumeSeries.setData(volumeData);
 
-    // Calculate and Overlay SMA (20-day)
-    let smaSeries: any;
-    if (showSMA && data.length >= 5) {
+    // Create and populate SMA Overlay
+    let smaSeries;
+    if (showSMA && sortedData.length >= 5) {
       const smaData = [];
-      for (let i = 0; i < data.length; i++) {
+      for (let i = 0; i < sortedData.length; i++) {
         if (i < 19) {
           let sum = 0;
           for (let j = 0; j <= i; j++) {
-            sum += data[j].close !== undefined ? data[j].close! : data[j].value;
+            sum += sortedData[j].close !== undefined ? sortedData[j].close! : sortedData[j].value;
           }
           smaData.push({
-            time: data[i].time as UTCTimestamp,
+            time: sortedData[i].time as UTCTimestamp,
             value: parseFloat((sum / (i + 1)).toFixed(2))
           });
         } else {
           let sum = 0;
           for (let j = i - 19; j <= i; j++) {
-            sum += data[j].close !== undefined ? data[j].close! : data[j].value;
+            sum += sortedData[j].close !== undefined ? sortedData[j].close! : sortedData[j].value;
           }
           smaData.push({
-            time: data[i].time as UTCTimestamp,
+            time: sortedData[i].time as UTCTimestamp,
             value: parseFloat((sum / 20).toFixed(2))
           });
         }
       }
 
       smaSeries = chart.addSeries(LineSeries, {
-        color: '#6366f1', // Indigo-500
+        color: '#6366f1',
         lineWidth: 2,
         priceLineVisible: false,
         lastValueVisible: false,
@@ -208,12 +228,12 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
       smaSeries.setData(smaData);
     }
 
-    // Subscribe to crosshair moves for custom floating HTML Tooltip
+    // Floating HTML Tooltip Setup
     const tooltip = tooltipRef.current;
     if (tooltip) {
-      chart.subscribeCrosshairMove((param) => {
+      chart.subscribeCrosshairMove((param: any) => {
         if (
-          param.point === undefined ||
+          !param.point ||
           !param.time ||
           param.point.x < 0 ||
           param.point.x > container.clientWidth ||
@@ -314,23 +334,17 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
       });
     }
 
+    // Initial fit timescale
     chart.timeScale().fitContent();
 
-    // Resize Observer for Responsiveness
-    const resizeObserver = new ResizeObserver((entries) => {
-      if (entries.length === 0 || !entries[0].contentRect) return;
-      const { width } = entries[0].contentRect;
-      const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
-      chart.applyOptions({ 
-        width,
-        height: isMobile ? 280 : 420
-      });
+    // Re-verify timescale layout fit after a brief frame delay
+    const animationFrameId = requestAnimationFrame(() => {
       chart.timeScale().fitContent();
     });
 
-    resizeObserver.observe(container);
-
+    // Cleanup: destroy chart instance to prevent memory leaks and timescale locks
     return () => {
+      cancelAnimationFrame(animationFrameId);
       resizeObserver.disconnect();
       chart.remove();
     };

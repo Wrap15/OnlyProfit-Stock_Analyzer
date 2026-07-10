@@ -82,16 +82,14 @@ export default function StockCard({ symbol, initialQuote }: StockCardProps) {
   useEffect(() => {
     if (!data?.price) return;
     if (prevPriceRef.current && prevPriceRef.current !== data.price) {
-      if (initialQuote && initialQuote.isRealUpdate) {
-        const direction = data.price > prevPriceRef.current ? 'up' : 'down';
-        setFlash(direction);
-        const timer = setTimeout(() => setFlash(null), 1500); // 1.5s lazy transition
-        prevPriceRef.current = data.price;
-        return () => clearTimeout(timer);
-      }
+      const direction = data.price > prevPriceRef.current ? 'up' : 'down';
+      setFlash(direction);
+      const timer = setTimeout(() => setFlash(null), 300); // 300ms quick flash
+      prevPriceRef.current = data.price;
+      return () => clearTimeout(timer);
     }
     prevPriceRef.current = data.price;
-  }, [data?.price, initialQuote]);
+  }, [data?.price]);
 
   // Set up intersection observer to only load chart for visible cards
   useEffect(() => {
@@ -301,12 +299,12 @@ export default function StockCard({ symbol, initialQuote }: StockCardProps) {
 
         {/* Right Price & Percent */}
         <div className="flex flex-col items-end shrink-0">
-          <span className={`text-xs font-extrabold transition-colors ease-out rounded px-1.5 py-0.5 ${
+          <span className={`text-xs font-extrabold transition-all duration-300 rounded px-1.5 py-0.5 tabular-nums ${
             flash === 'up' 
-              ? 'text-profit duration-0' 
+              ? 'bg-emerald-500/20 text-profit' 
               : flash === 'down' 
-              ? 'text-loss duration-0' 
-              : 'text-text-primary duration-[1500ms]'
+              ? 'bg-rose-500/20 text-loss' 
+              : 'text-text-primary'
           }`}>
             ₹{data.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
           </span>
@@ -368,12 +366,12 @@ export default function StockCard({ symbol, initialQuote }: StockCardProps) {
 
         {/* Price section */}
         <div className="mt-4">
-          <div className={`text-xl font-extrabold tracking-tight transition-colors ease-out rounded-lg px-2 py-0.5 inline-block ${
+          <div className={`text-xl font-extrabold tracking-tight transition-all duration-300 rounded-lg px-2 py-0.5 inline-block tabular-nums ${
             flash === 'up' 
-              ? 'text-profit duration-0' 
+              ? 'bg-emerald-500/20 text-profit' 
               : flash === 'down' 
-              ? 'text-loss duration-0' 
-              : 'text-text-primary duration-[1500ms]'
+              ? 'bg-rose-500/20 text-loss' 
+              : 'text-text-primary'
           }`}>
             ₹{data.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
           </div>

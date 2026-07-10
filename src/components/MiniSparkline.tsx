@@ -45,3 +45,22 @@ export default function MiniSparkline({ data, isPositive, width = 100, height = 
     </svg>
   );
 }
+
+export function generateMockSparkline(symbol: string, isPositive: boolean): number[] {
+  const seed = symbol.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const points: number[] = [];
+  let currentVal = 100;
+  points.push(currentVal);
+  for (let i = 0; i < 9; i++) {
+    const change = ((seed + i * 3) % 15) - 7;
+    currentVal += change;
+    points.push(currentVal);
+  }
+  if (isPositive && points[points.length - 1] < points[0]) {
+    points[points.length - 1] = points[0] + 12;
+  } else if (!isPositive && points[points.length - 1] > points[0]) {
+    points[points.length - 1] = points[0] - 12;
+  }
+  return points;
+}
+

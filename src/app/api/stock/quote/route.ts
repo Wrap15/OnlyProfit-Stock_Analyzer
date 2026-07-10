@@ -30,7 +30,7 @@ function getMockQuote(symbol: string) {
   };
 }
 
-const FRESH_DURATION = 12000;   // 12 seconds fresh limit (matches user target of 10-15s and prevents API thrashing)
+const FRESH_DURATION = 20000;   // 20 seconds fresh limit
 const STALE_DURATION = 600000;  // 10 minutes stale allowed
 
 function mergeProfileIntoQuote(item: any, profile: any) {
@@ -100,10 +100,18 @@ export async function GET(request: NextRequest) {
           // Fresh: use cached data directly
           cachedData.push(cached.data);
         } else if (age < STALE_DURATION) {
-          // Stale but usable: use cached data and update in background if not already pending
-          cachedData.push(cached.data);
-          if (!pendingFetches.has(symbol)) {
-            symbolsToFetchAsync.push(symbol);
+          // Stale but usable: for detail pages (<= 5 symbols) fetch synchronously to guarantee fresh prices
+          if (symbols.length <= 5) {
+            if (!pendingFetches.has(symbol)) {
+              symbolsToFetchSync.push(symbol);
+            } else {
+              cachedData.push(cached.data);
+            }
+          } else {
+            cachedData.push(cached.data);
+            if (!pendingFetches.has(symbol)) {
+              symbolsToFetchAsync.push(symbol);
+            }
           }
         } else {
           // Too stale: fetch synchronously for detail pages, otherwise serve stale + fetch in background
@@ -220,7 +228,11 @@ export async function GET(request: NextRequest) {
       return quote;
     });
 
-    return NextResponse.json(orderedData);
+    return NextResponse.json(orderedData, {
+      headers: {
+        'Cache-Control': 'no-store, max-age=0, must-revalidate'
+      }
+    });
   } catch (error: any) {
     console.error('Failed to fetch stock quotes:', error);
     return NextResponse.json({ error: error.message || 'Failed to fetch stock quote' }, { status: 500 });

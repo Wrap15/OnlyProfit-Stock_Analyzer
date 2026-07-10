@@ -7,7 +7,7 @@ import {
   Star, ChevronLeft, Calendar, 
   GitCompare, Building2, Share2, Bell, Clock, 
   Sparkles, Globe, MapPin, Users, 
-  Info, CheckCircle, Copy, Send
+  Info, CheckCircle, Copy, Send, TrendingUp
 } from 'lucide-react';
 import { apiClient as axios } from '@/lib/apiClient';
 import { isIndianMarketOpen } from '@/lib/marketHours';
@@ -15,6 +15,7 @@ import dynamic from 'next/dynamic';
 import StockLogo from '@/components/StockLogo';
 import NiftyTracker from '@/components/NiftyTracker';
 import SensexTracker from '@/components/SensexTracker';
+import OrderPlacementModal from '@/components/OrderPlacementModal';
 
 // Dynamically import StockChart to disable SSR
 const StockChart = dynamic(() => import('@/components/StockChart'), {
@@ -123,6 +124,9 @@ export default function StockDetailPage() {
   // Share and Alert states
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [showAlertModal, setShowAlertModal] = useState(false);
+  const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+  const [liveNews, setLiveNews] = useState<any[]>([]);
+  const [newsLoading, setNewsLoading] = useState(false);
   const [alertTriggerPrice, setAlertTriggerPrice] = useState('');
   const [alertCondition, setAlertCondition] = useState<'above' | 'below'>('above');
 
@@ -328,6 +332,46 @@ export default function StockDetailPage() {
       }
     }
   }, [quote]);
+
+  // Fetch Live RSS News dynamically and filter/tag by stock/symbol
+  useEffect(() => {
+    async function fetchStockNews() {
+      if (!quote) return;
+      setNewsLoading(true);
+      try {
+        const res = await axios.get('/api/blog/news');
+        if (res.data && Array.isArray(res.data)) {
+          const cleanName = (quote.longName || quote.shortName || symbol).split(' ')[0].toLowerCase();
+          const cleanSym = symbol.split('.')[0].toLowerCase();
+          
+          const filtered = res.data.filter((item: any) => {
+            const title = item.title.toLowerCase();
+            const desc = item.description.toLowerCase();
+            return (
+              title.includes(cleanSym) || 
+              desc.includes(cleanSym) || 
+              title.includes(cleanName) || 
+              desc.includes(cleanName) ||
+              item.symbol === symbol
+            );
+          });
+          
+          // Fall back to top general news if no direct keyword matches found (guarantees news list is never empty)
+          if (filtered.length > 0) {
+            setLiveNews(filtered.slice(0, 8));
+          } else {
+            setLiveNews(res.data.slice(0, 8));
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load live RSS news for stock details:', err);
+      } finally {
+        setNewsLoading(false);
+      }
+    }
+    
+    fetchStockNews();
+  }, [symbol, quote]);
 
   if (!symbol) return null;
 
@@ -553,8 +597,8 @@ export default function StockDetailPage() {
   const otherDii = dii - mf;
   const retail = 100 - (promoter + fii + dii);
 
-  // Mock News list
-  const newsList = getMockNews(quote.symbol, quote.longName);
+  // Live News list
+  const newsList = liveNews;
   const eventsList = getMockEvents();
 
   // Recommendation Card suggestions
@@ -650,6 +694,16 @@ export default function StockDetailPage() {
               <GitCompare className="h-4 w-4" />
               <span>Compare</span>
             </button>
+
+            {!symbol.startsWith('^') && (
+              <button
+                onClick={() => setIsOrderModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-black font-black text-xs transition-all shadow-sm shadow-emerald-500/5 cursor-pointer"
+              >
+                <TrendingUp className="h-4 w-4" />
+                <span>Paper Trade</span>
+              </button>
+            )}
 
             {/* Share Button with Native / Custom Fallback */}
             <div className="relative">
@@ -1406,20 +1460,42 @@ export default function StockDetailPage() {
                     <Clock className="h-4.5 w-4.5 text-profit" /> Latest News & Market Buzz
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {newsList.map((item, idx) => (
-                      <div key={idx} className="p-4 rounded-xl bg-background/40 border border-border/50 space-y-2 flex flex-col justify-between hover:border-profit/15 transition-all">
-                        <div className="space-y-1.5">
-                          <div className="flex justify-between items-center text-[9px] font-black text-text-secondary uppercase">
-                            <span>{item.source} • {item.time}</span>
-                            <span className={`px-1.5 py-0.2 rounded-full ${item.sentiment === 'bullish' ? 'text-profit bg-profit/10' : 'text-text-secondary bg-slate-500/10'}`}>
-                              {item.sentiment}
-                            </span>
-                          </div>
-                          <h4 className="text-xs font-black text-text-primary leading-snug hover:text-profit transition-colors">{item.title}</h4>
-                          <p className="text-[10px] text-text-secondary leading-normal font-medium">{item.summary}</p>
+                    {newsLoading ? (
+                      [...Array(4)].map((_, i) => (
+                        <div key={i} className="p-4 rounded-xl bg-background/40 border border-border/50 animate-pulse space-y-3">
+                          <div className="w-24 h-3.5 bg-border rounded" />
+                          <div className="w-full h-8 bg-border rounded-lg" />
+                          <div className="w-16 h-3 bg-border rounded" />
                         </div>
+                      ))
+                    ) : newsList.length > 0 ? (
+                      newsList.map((item, idx) => (
+                        <a 
+                          key={idx} 
+                          href={item.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-4 rounded-xl bg-background/40 border border-border/50 space-y-2 flex flex-col justify-between hover:border-profit/30 transition-all hover:bg-card-hover/20 group"
+                        >
+                          <div className="space-y-1.5">
+                            <div className="flex justify-between items-center text-[9px] font-black text-text-secondary uppercase">
+                              <span>{item.source} • {item.timeAgo}</span>
+                              {item.sector && (
+                                <span className="px-1.5 py-0.2 rounded bg-slate-500/10 text-text-secondary">
+                                  {item.sector}
+                                </span>
+                              )}
+                            </div>
+                            <h4 className="text-xs font-black text-text-primary leading-snug group-hover:text-profit transition-colors">{item.title}</h4>
+                            <p className="text-[10px] text-text-secondary leading-normal font-medium">{item.description}</p>
+                          </div>
+                        </a>
+                      ))
+                    ) : (
+                      <div className="col-span-2 text-center py-6 text-xs text-text-secondary font-bold">
+                        No recent news updates found.
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
 
@@ -1755,6 +1831,20 @@ export default function StockDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Order Placement Modal */}
+      {isOrderModalOpen && (
+        <OrderPlacementModal
+          isOpen={isOrderModalOpen}
+          onClose={() => setIsOrderModalOpen(false)}
+          symbol={symbol}
+          stockName={quote.longName || quote.shortName || symbol}
+          livePrice={quote.regularMarketPrice}
+          onOrderExecuted={() => {
+            triggerToast(`Order placed successfully for ${symbol}!`);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -2036,40 +2126,6 @@ function getTechnicalAnalysis(symbol: string, price: number) {
       ema20: price * (0.995 - rand * 0.008),
     }
   };
-}
-
-function getMockNews(symbol: string, name: string) {
-  const clean = symbol.split('.')[0];
-  return [
-    {
-      title: `${name} shares rally as quarterly profit beats street projections`,
-      source: 'Moneycontrol',
-      time: '2 hours ago',
-      sentiment: 'bullish',
-      summary: `Shares of ${name} rose over 3% after the company reported a stronger-than-expected increase in consolidated net profit, driven by robust operational gains and margin expansion.`
-    },
-    {
-      title: `Analysts raise price target on ${name} following new expansion announcements`,
-      source: 'Economic Times',
-      time: '1 day ago',
-      sentiment: 'bullish',
-      summary: `Leading brokerage firms have raised their price targets on ${name} (${clean}) citing strong revenue visibility from the newly announced capital expenditure plans.`
-    },
-    {
-      title: `How ${name} is leveraging technology to drive productivity growth`,
-      source: 'Livemint',
-      time: '3 days ago',
-      sentiment: 'neutral',
-      summary: `An in-depth analysis of ${name}'s digital transformation strategy highlights key investments in automated supply chain systems and cloud infrastructure.`
-    },
-    {
-      title: `Global brokerage houses maintain 'Buy' rating on ${name}`,
-      source: 'Bloomberg Quint',
-      time: '5 days ago',
-      sentiment: 'bullish',
-      summary: `Jefferies, Morgan Stanley, and Goldman Sachs have reiterated their bullish views on ${name}, noting steady cash flow generation and solid balance sheet strength.`
-    }
-  ];
 }
 
 function getMockEvents() {

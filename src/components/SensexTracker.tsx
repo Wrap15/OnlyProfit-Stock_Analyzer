@@ -502,14 +502,14 @@ export default function SensexTracker({ symbol, indexQuote, onBack }: SensexTrac
                               </div>
                             </div>
                           </td>
-                          <td className="py-3 text-center font-bold text-text-primary">
+                          <td className="py-3 text-center font-bold text-text-primary tabular-nums font-mono">
                             {item.weight.toFixed(2)}%
                           </td>
-                          <td className="py-3 text-right font-bold text-text-primary">
+                          <td className="py-3 text-right font-bold text-text-primary tabular-nums font-mono">
                             ₹{item.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                           </td>
-                          <td className={`py-3 text-right font-extrabold ${isPosVal ? 'text-profit' : 'text-loss'}`}>
-                            {isPosVal ? '+' : ''}{item.changePercent.toFixed(2)}%
+                          <td className={`py-3 text-right font-extrabold tabular-nums font-mono ${isPosVal ? 'text-profit' : 'text-loss'}`}>
+                            {isPosVal ? '▲ +' : '▼ '}{item.changePercent.toFixed(2)}%
                           </td>
                         </tr>
                       );

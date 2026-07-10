@@ -11,14 +11,14 @@ import {
 } from 'lucide-react';
 import { apiClient as axios } from '@/lib/apiClient';
 import { isIndianMarketOpen } from '@/lib/marketHours';
-import dynamic from 'next/dynamic';
+import nextDynamic from 'next/dynamic';
 import StockLogo from '@/components/StockLogo';
 import NiftyTracker from '@/components/NiftyTracker';
 import SensexTracker from '@/components/SensexTracker';
 import OrderPlacementModal from '@/components/OrderPlacementModal';
 
 // Dynamically import StockChart to disable SSR
-const StockChart = dynamic(() => import('@/components/StockChart'), {
+const StockChart = nextDynamic(() => import('@/components/StockChart'), {
   ssr: false,
   loading: () => (
     <div className="w-full h-[280px] sm:h-[420px] bg-card rounded-2xl border border-border flex items-center justify-center animate-pulse">
@@ -476,7 +476,7 @@ export default function StockDetailPage() {
     else if (energy.includes(clean)) group = energy;
     else if (infra.includes(clean)) group = infra;
     else {
-      const lowerSector = sector.toLowerCase();
+      const lowerSector = (sector || 'Financials').toLowerCase();
       if (lowerSector.includes('it') || lowerSector.includes('software')) group = it;
       else if (lowerSector.includes('bank') || lowerSector.includes('financial') || lowerSector.includes('finance')) group = banking;
       else if (lowerSector.includes('auto') || lowerSector.includes('motor') || lowerSector.includes('car')) group = auto;
@@ -573,15 +573,15 @@ export default function StockDetailPage() {
       : (quote.symbol.charCodeAt(0) % 8) + 12.4); 
   const roce = roe * 1.25;
 
-  const sectorLower = quote.sector.toLowerCase();
+  const sectorLower = (quote.sector || 'Financials').toLowerCase();
   const debtToEquity = sectorLower.includes('it') || sectorLower.includes('software') || sectorLower.includes('fmcg')
     ? (quote.symbol.charCodeAt(0) % 5) * 0.04 
     : sectorLower.includes('bank') || sectorLower.includes('financial')
     ? (quote.symbol.charCodeAt(0) % 5) * 0.2 + 0.45 
     : (quote.symbol.charCodeAt(0) % 5) * 0.22 + 0.35; 
 
-  const bookValue = quote.regularMarketPrice / (quote.priceToBook || 2.45);
-  const eps = quote.epsTrailingTwelveMonths || (quote.regularMarketPrice / (quote.trailingPE || 20));
+  const bookValue = (quote.regularMarketPrice || 0) / (quote.priceToBook || 2.45);
+  const eps = quote.epsTrailingTwelveMonths || ((quote.regularMarketPrice || 100) / (quote.trailingPE || 20));
 
   // Detail Financial data generator (fallbacks to mock data if API call fails or is loading)
   const financialsData = financials || getDetailedFinancials(quote.symbol, quote.marketCap);
@@ -2163,3 +2163,5 @@ const tabs = [
   { id: 'news', label: 'News & Events' },
   { id: 'profile', label: 'Company Profile' }
 ];
+
+export const dynamic = 'force-dynamic';

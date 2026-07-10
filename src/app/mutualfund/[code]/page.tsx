@@ -22,12 +22,12 @@ import {
   Users
 } from 'lucide-react';
 import { apiClient as axios } from '@/lib/apiClient';
-import dynamic from 'next/dynamic';
+import nextDynamic from 'next/dynamic';
 import SipCalculator from '@/components/SipCalculator';
 import Link from 'next/link';
 
 // Dynamically import MutualFundChart to disable SSR
-const MutualFundChart = dynamic(() => import('@/components/MutualFundChart'), {
+const MutualFundChart = nextDynamic(() => import('@/components/MutualFundChart'), {
   ssr: false,
   loading: () => (
     <div className="w-full h-[260px] sm:h-[380px] bg-card rounded-2xl border border-border flex items-center justify-center">
@@ -1072,3 +1072,5 @@ export default function MutualFundDetailPage() {
     </div>
   );
 }
+
+export const dynamic = 'force-dynamic';

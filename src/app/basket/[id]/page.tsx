@@ -17,11 +17,11 @@ import {
   Info
 } from 'lucide-react';
 import axios from 'axios';
-import dynamic from 'next/dynamic';
+import nextDynamic from 'next/dynamic';
 import StockLogo from '@/components/StockLogo';
 
 // Dynamically import MutualFundChart to disable SSR
-const MutualFundChart = dynamic(() => import('@/components/MutualFundChart'), {
+const MutualFundChart = nextDynamic(() => import('@/components/MutualFundChart'), {
   ssr: false,
   loading: () => (
     <div className="w-full h-[260px] sm:h-[380px] bg-card rounded-2xl border border-border flex items-center justify-center">
@@ -630,3 +630,5 @@ export default function BasketDetailPage() {
     </div>
   );
 }
+
+export const dynamic = 'force-dynamic';

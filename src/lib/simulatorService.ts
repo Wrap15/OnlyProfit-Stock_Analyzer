@@ -54,12 +54,13 @@ export interface SimulatorState {
 
 const DEFAULT_BALANCE = 1000000; // ₹10,00,000
 
-// Helper to load state from LocalStorage for guest users
-function getLocalState(): SimulatorState {
+// Helper to load state from LocalStorage
+function getLocalState(userId: string | null): SimulatorState {
   if (typeof window === 'undefined') {
     return { cash: DEFAULT_BALANCE, holdings: [], positions: [], orders: [], history: [] };
   }
-  const data = localStorage.getItem('onlyprofit_simulator');
+  const key = userId ? `onlyprofit_simulator_user_${userId}` : 'onlyprofit_simulator_guest';
+  const data = localStorage.getItem(key);
   if (data) {
     try {
       return JSON.parse(data);
@@ -68,13 +69,14 @@ function getLocalState(): SimulatorState {
     }
   }
   const newState = { cash: DEFAULT_BALANCE, holdings: [], positions: [], orders: [], history: [] };
-  localStorage.setItem('onlyprofit_simulator', JSON.stringify(newState));
+  localStorage.setItem(key, JSON.stringify(newState));
   return newState;
 }
 
-function saveLocalState(state: SimulatorState) {
+function saveLocalState(userId: string | null, state: SimulatorState) {
   if (typeof window !== 'undefined') {
-    localStorage.setItem('onlyprofit_simulator', JSON.stringify(state));
+    const key = userId ? `onlyprofit_simulator_user_${userId}` : 'onlyprofit_simulator_guest';
+    localStorage.setItem(key, JSON.stringify(state));
   }
 }
 
@@ -99,7 +101,7 @@ export function calculateFees(price: number, quantity: number) {
 
 export async function getSimulatorState(userId: string | null): Promise<SimulatorState> {
   if (!userId) {
-    return getLocalState();
+    return getLocalState(null);
   }
 
   try {
@@ -146,22 +148,22 @@ export async function getSimulatorState(userId: string | null): Promise<Simulato
 
       // Keep local state in sync as a hot fallback copy
       const localState = { cash, holdings, positions, orders, history };
-      saveLocalState(localState);
+      saveLocalState(userId, localState);
 
       return localState;
     })(), 1500);
   } catch (err) {
     console.error('Failed to load Firestore simulator state, falling back to LocalStorage:', err);
-    return getLocalState();
+    return getLocalState(userId);
   }
 }
 
 // Save wallet balance
 export async function saveCashBalance(userId: string | null, cash: number) {
   // Always update local cache copy immediately
-  const state = getLocalState();
+  const state = getLocalState(userId);
   state.cash = cash;
-  saveLocalState(state);
+  saveLocalState(userId, state);
 
   if (!userId) {
     return;
@@ -312,7 +314,7 @@ export async function placeOrder(
 // Record order into database
 async function recordOrderInDB(userId: string | null, order: SimulatorOrder): Promise<SimulatorOrder> {
   // Always update local cache copy immediately
-  const state = getLocalState();
+  const state = getLocalState(userId);
   if (!order.id) {
     order.id = `local-order-${order.timestamp}`;
   }
@@ -339,7 +341,7 @@ async function recordOrderInDB(userId: string | null, order: SimulatorOrder): Pr
 
   // Sort history by newest first
   state.history.sort((a, b) => b.timestamp - a.timestamp);
-  saveLocalState(state);
+  saveLocalState(userId, state);
 
   if (!userId) {
     return order;
@@ -365,11 +367,11 @@ async function recordOrderInDB(userId: string | null, order: SimulatorOrder): Pr
 
     order.id = docRef.id;
     // Update local cache with firestore document ID
-    const freshState = getLocalState();
+    const freshState = getLocalState(userId);
     const localOrder = freshState.orders.find(o => o.timestamp === order.timestamp && o.symbol === order.symbol);
     if (localOrder) {
       localOrder.id = docRef.id;
-      saveLocalState(freshState);
+      saveLocalState(userId, freshState);
     }
     return order;
   } catch (err) {
@@ -381,7 +383,7 @@ async function recordOrderInDB(userId: string | null, order: SimulatorOrder): Pr
 // Cancel Order
 export async function cancelOrder(userId: string | null, orderId: string): Promise<boolean> {
   // Always cancel locally first as a fallback copy
-  const state = getLocalState();
+  const state = getLocalState(userId);
   const orderIdx = state.orders.findIndex(o => o.id === orderId);
   if (orderIdx >= 0) {
     const order = state.orders[orderIdx];
@@ -389,7 +391,7 @@ export async function cancelOrder(userId: string | null, orderId: string): Promi
     state.history.push(order);
     state.orders.splice(orderIdx, 1);
     state.history.sort((a, b) => b.timestamp - a.timestamp);
-    saveLocalState(state);
+    saveLocalState(userId, state);
   }
 
   if (!userId) {
@@ -502,7 +504,7 @@ async function updateHoldings(userId: string | null, state: SimulatorState, orde
   }
 
   // Always update local cache copy as write-through fallback
-  saveLocalState(state);
+  saveLocalState(userId, state);
 }
 
 async function saveHoldingInDB(userId: string | null, holding: SimulatorHolding) {
@@ -587,7 +589,7 @@ async function updatePositions(userId: string | null, state: SimulatorState, ord
   }
 
   // Always update local cache copy as write-through fallback
-  saveLocalState(state);
+  saveLocalState(userId, state);
 }
 
 async function savePositionInDB(userId: string | null, position: SimulatorPosition) {
@@ -705,7 +707,7 @@ export async function checkAutoSquareOff(userId: string | null, livePrices: Reco
 
 // Sync local guest simulator data to user Firestore database on sign in
 export async function syncLocalDataToFirestore(userId: string): Promise<void> {
-  const localState = getLocalState();
+  const localState = getLocalState(null);
   
   // If the local state is just the default empty state, do nothing
   if (localState.cash === DEFAULT_BALANCE && 
@@ -744,7 +746,7 @@ export async function syncLocalDataToFirestore(userId: string): Promise<void> {
 
       // After syncing, reset/clear guest local state to default so it doesn't trigger sync again
       const clearedState = { cash: DEFAULT_BALANCE, holdings: [], positions: [], orders: [], history: [] };
-      saveLocalState(clearedState);
+      saveLocalState(null, clearedState);
       
       console.log('Successfully synced guest simulator data to user Firestore database.');
     })(), 3000);

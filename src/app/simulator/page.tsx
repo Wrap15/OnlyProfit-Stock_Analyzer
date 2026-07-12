@@ -42,21 +42,28 @@ export default function SimulatorPage() {
 
   // 1. Fetch simulator database state
   useEffect(() => {
+    let active = true;
     async function loadSimulatorData() {
       try {
+        if (active) setLoading(true);
         if (userId) {
           // Sync guest offline session holdings to account before retrieving simulator state
           await syncLocalDataToFirestore(userId);
         }
         const simState = await getSimulatorState(userId);
-        setState(simState);
+        if (active) {
+          setState(simState);
+        }
       } catch (err) {
         console.error('Failed to load simulator data', err);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     }
     loadSimulatorData();
+    return () => {
+      active = false;
+    };
   }, [userId, triggerRefresh]);
 
   // 2. Compute stable dependency keys for quote polling to avoid shallow array reference triggers

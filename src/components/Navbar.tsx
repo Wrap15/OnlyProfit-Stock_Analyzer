@@ -118,6 +118,12 @@ export default function Navbar() {
       } else {
         setUser(null, null, null);
         deactivatePro();
+        // Reset Zustand store states for guest session safety
+        useStockStore.setState({
+          watchlist: ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'HDFCBANK.NS'],
+          recentSearches: [],
+          alerts: []
+        });
       }
     });
 

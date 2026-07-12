@@ -185,6 +185,11 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<TabType>('trending');
   const [searchFilter, setSearchFilter] = useState('');
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // Synchronize activeTab with URL search params reactively (popstate listener & lightweight interval checks)
   useEffect(() => {
     const checkTab = () => {
@@ -693,20 +698,32 @@ export default function Home() {
             )}
             
             {/* Live Market Hours Status Widget */}
-            {(() => {
-              const status = getDetailedMarketStatus();
-              return (
-                <div className="px-4 py-2 rounded-2xl bg-background border border-border/80 flex flex-col items-start shadow-inner select-none">
-                  <span className="text-[8px] font-extrabold text-text-secondary uppercase tracking-widest">MARKET STATUS</span>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className={`h-2 w-2 rounded-full ${status.dotColor} shrink-0`} />
-                    <span className={`text-[10px] font-black uppercase ${status.className}`}>
-                      {status.label}
-                    </span>
+            {mounted ? (
+              (() => {
+                const status = getDetailedMarketStatus();
+                return (
+                  <div className="px-4 py-2 rounded-2xl bg-background border border-border/80 flex flex-col items-start shadow-inner select-none animate-fade-in">
+                    <span className="text-[8px] font-extrabold text-text-secondary uppercase tracking-widest">MARKET STATUS</span>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className={`h-2 w-2 rounded-full ${status.dotColor} shrink-0`} />
+                      <span className={`text-[10px] font-black uppercase ${status.className}`}>
+                        {status.label}
+                      </span>
+                    </div>
                   </div>
+                );
+              })()
+            ) : (
+              <div className="px-4 py-2 rounded-2xl bg-background border border-border/80 flex flex-col items-start shadow-inner select-none">
+                <span className="text-[8px] font-extrabold text-text-secondary uppercase tracking-widest">MARKET STATUS</span>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="h-2 w-2 rounded-full bg-border shrink-0" />
+                  <span className="text-[10px] font-black uppercase text-text-secondary">
+                    LOADING...
+                  </span>
                 </div>
-              );
-            })()}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1356,8 +1373,17 @@ export default function Home() {
                     );
                   }
 
-                  const spot = underlyingQuote.regularMarketPrice;
+                  const spot = underlyingQuote.regularMarketPrice ?? 0;
                   const spotChange = underlyingQuote.regularMarketChangePercent || 0;
+                  
+                  if (spot === 0) {
+                    return (
+                      <div className="flex flex-col items-center justify-center py-16 gap-3 text-text-secondary">
+                        <div className="h-6 w-6 animate-spin rounded-full border-2 border-profit border-t-transparent" />
+                        <span className="text-xs font-bold">Querying underlying market index quote...</span>
+                      </div>
+                    );
+                  }
                   
                   let interval = 100;
                   if (spot < 100) interval = 5;

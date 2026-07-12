@@ -81,6 +81,7 @@ const INDEX_NAME_MAP: Record<string, string> = {
 export default function TopTickerTape() {
   const [items, setItems] = useState<TickerItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [marketOpen, setMarketOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -105,6 +106,7 @@ export default function TopTickerTape() {
           };
         });
         setItems(mapped);
+        setMarketOpen(isIndianMarketOpen());
       }
       setLoading(false);
     } catch (err) {
@@ -117,7 +119,9 @@ export default function TopTickerTape() {
     
     // Poll every 12 seconds if market is open
     const interval = setInterval(() => {
-      if (isIndianMarketOpen()) {
+      const isOpen = isIndianMarketOpen();
+      setMarketOpen(isOpen);
+      if (isOpen) {
         fetchTickerData();
       }
     }, 12000);
@@ -136,7 +140,7 @@ export default function TopTickerTape() {
 
     const animate = () => {
       // Scrolling is active only during Indian stock market hours
-      if (isIndianMarketOpen()) {
+      if (marketOpen) {
         el.scrollLeft += speed;
         // Reset scroll position once we've scrolled past the first set of items
         if (el.scrollLeft >= el.scrollWidth / 2) {
@@ -148,7 +152,7 @@ export default function TopTickerTape() {
 
     frameId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frameId);
-  }, [loading, items]);
+  }, [loading, items, marketOpen]);
 
   if (loading && items.length === 0) {
     return (

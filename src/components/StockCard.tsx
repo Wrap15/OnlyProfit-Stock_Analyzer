@@ -32,6 +32,24 @@ function getVolatility(symbol: string): { label: string; className: string } {
   }
 }
 
+function generateMockSparklineData(price: number, changePercent: number, symbol: string): number[] {
+  const seed = symbol.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const points: number[] = [];
+  const steps = 6;
+  const startPrice = price / (1 + changePercent / 100);
+  
+  for (let i = 0; i <= steps; i++) {
+    const fraction = i / steps;
+    let val = startPrice + (price - startPrice) * fraction;
+    if (i > 0 && i < steps) {
+      const noise = (Math.sin(seed + i) * 0.15 * Math.abs(price - startPrice)) / steps;
+      val += noise;
+    }
+    points.push(parseFloat(val.toFixed(2)));
+  }
+  return points;
+}
+
 interface StockCardProps {
   symbol: string;
   initialQuote?: {
@@ -110,27 +128,18 @@ export default function StockCard({ symbol, initialQuote }: StockCardProps) {
     }
   }, [initialQuote, symbol]);
 
-  // Fetch chart data when card becomes visible
+  const priceVal = data?.price;
+  const changePercentVal = data?.changePercent;
+  const chartLength = data?.chart?.length || 0;
+
+  // Generate local mock sparkline chart points without blocking network requests
   useEffect(() => {
     if (!isVisible) return;
-
-    let active = true;
-    async function fetchChartData() {
-      try {
-        const chartRes = await axios.get(`/api/stock/chart?symbol=${encodeURIComponent(symbol)}&range=1d`);
-        const chartPoints = (chartRes.data || []).map((pt: any) => pt.value);
-        if (active) {
-          setData(prev => prev ? { ...prev, chart: chartPoints } : null);
-        }
-      } catch (err) {
-        console.error(`Failed to fetch chart for ${symbol}`, err);
-      }
-    }
-    fetchChartData();
-    return () => {
-      active = false;
-    };
-  }, [symbol, isVisible]);
+    if (chartLength > 0 || priceVal === undefined || changePercentVal === undefined) return;
+    
+    const points = generateMockSparklineData(priceVal, changePercentVal, symbol);
+    setData(prev => prev ? { ...prev, chart: points } : null);
+  }, [symbol, priceVal, changePercentVal, chartLength, isVisible]);
 
   // Fallback data fetch if initialQuote was not provided by parent
   useEffect(() => {
@@ -146,15 +155,16 @@ export default function StockCard({ symbol, initialQuote }: StockCardProps) {
 
         if (!quote) throw new Error('No quote returned');
 
-        const chartRes = await axios.get(`/api/stock/chart?symbol=${encodeURIComponent(symbol)}&range=1d`);
-        const chartPoints = (chartRes.data || []).map((pt: any) => pt.value);
+        const price = quote.regularMarketPrice || 0;
+        const pct = quote.regularMarketChangePercent || 0;
+        const chartPoints = generateMockSparklineData(price, pct, symbol);
 
         if (active) {
           setData({
             name: quote.shortName || quote.longName || symbol,
-            price: quote.regularMarketPrice || 0,
+            price,
             change: quote.regularMarketChange || 0,
-            changePercent: quote.regularMarketChangePercent || 0,
+            changePercent: pct,
             chart: chartPoints,
             pe: quote.trailingPE,
             eps: quote.epsTrailingTwelveMonths,

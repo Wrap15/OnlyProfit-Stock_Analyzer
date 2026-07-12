@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Star } from 'lucide-react';
 import { useStockStore } from '@/store/useStockStore';
 import MiniSparkline from './MiniSparkline';
@@ -66,6 +66,7 @@ interface StockCardProps {
 }
 
 export default function StockCard({ symbol, initialQuote }: StockCardProps) {
+  const router = useRouter();
   const { watchlist, toggleWatchlist } = useStockStore();
   
   const [data, setData] = useState<{
@@ -246,9 +247,16 @@ export default function StockCard({ symbol, initialQuote }: StockCardProps) {
 
   const cleanSymbol = symbol.replace('.NS', '').replace('.BO', '');
 
+  const handleCardClick = () => {
+    router.push(`/stock/${cleanSymbol}`);
+  };
+
   return (
-    <div ref={containerRef} className="w-full">
-      <Link href={`/stock/${cleanSymbol}`} className="block w-full animate-fade-in">
+    <div 
+      ref={containerRef} 
+      onClick={handleCardClick}
+      className="w-full cursor-pointer select-none block w-full animate-fade-in"
+    >
       
       {/* MOBILE LAYOUT: Compact List Row */}
       <div className={`flex sm:hidden items-center justify-between w-full p-4 rounded-xl border bg-glass transition-all duration-200 ${
@@ -389,8 +397,6 @@ export default function StockCard({ symbol, initialQuote }: StockCardProps) {
           </div>
         </div>
       </div>
-
-      </Link>
     </div>
   );
 }

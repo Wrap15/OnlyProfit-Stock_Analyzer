@@ -190,26 +190,39 @@ export default function Home() {
     setMounted(true);
   }, []);
 
-  // Synchronize activeTab with URL search params reactively (popstate listener & lightweight interval checks)
+  // 1. Initial URL tab sync on mount (runs once)
   useEffect(() => {
-    const checkTab = () => {
-      if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab');
+    if (tabParam && ['watchlist', 'trending', 'mostsearched', 'explore', 'ipo', 'fo'].includes(tabParam)) {
+      setActiveTab(tabParam as TabType);
+    }
+  }, []);
+
+  // 2. React to browser back/forward history navigation
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handlePopState = () => {
       const params = new URLSearchParams(window.location.search);
-      const tabParam = params.get('tab');
-      if (tabParam && ['watchlist', 'trending', 'mostsearched', 'explore', 'ipo', 'fo'].includes(tabParam)) {
-        setActiveTab(prev => prev !== tabParam ? (tabParam as TabType) : prev);
-      } else if (!tabParam) {
-        setActiveTab(prev => prev !== 'trending' ? 'trending' : prev);
+      const tabParam = params.get('tab') || 'trending';
+      if (['watchlist', 'trending', 'mostsearched', 'explore', 'ipo', 'fo'].includes(tabParam)) {
+        setActiveTab(tabParam as TabType);
       }
     };
-    checkTab();
-    const interval = setInterval(checkTab, 150);
-    window.addEventListener('popstate', checkTab);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('popstate', checkTab);
-    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  // 3. Tab switching action that updates URL query params natively
+  const handleTabSwitch = (tab: TabType) => {
+    setActiveTab(tab);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', tab);
+      window.history.pushState(null, '', url.pathname + url.search);
+    }
+  };
 
   const [activeCollection, setActiveCollection] = useState<'all' | 'bluechip' | 'growth' | 'dividend' | 'debtfree'>('all');
   const [exploreSymbols, setExploreSymbols] = useState<string[]>(MONITOR_SYMBOLS);
@@ -771,7 +784,7 @@ export default function Home() {
           {/* Custom Premium Capsule Tabs */}
           <div className="flex overflow-x-auto scrollbar-none max-w-full gap-2 p-1 bg-card border border-border/70 rounded-xl self-start">
             <button
-              onClick={() => setActiveTab('trending')}
+              onClick={() => handleTabSwitch('trending')}
               className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all duration-200 flex items-center gap-1.5 shrink-0 ${
                 activeTab === 'trending'
                   ? 'bg-profit/10 text-profit border border-profit/20 shadow-sm'
@@ -782,7 +795,7 @@ export default function Home() {
             </button>
 
             <button
-              onClick={() => setActiveTab('mostsearched')}
+              onClick={() => handleTabSwitch('mostsearched')}
               className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all duration-200 flex items-center gap-1.5 shrink-0 ${
                 activeTab === 'mostsearched'
                   ? 'bg-profit/10 text-profit border border-profit/20 shadow-sm'
@@ -793,7 +806,7 @@ export default function Home() {
             </button>
             
             <button
-              onClick={() => setActiveTab('watchlist')}
+              onClick={() => handleTabSwitch('watchlist')}
               className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all duration-200 flex items-center gap-1.5 shrink-0 ${
                 activeTab === 'watchlist'
                   ? 'bg-profit/10 text-profit border border-profit/20 shadow-sm'
@@ -807,7 +820,7 @@ export default function Home() {
             </button>
 
             <button
-              onClick={() => setActiveTab('explore')}
+              onClick={() => handleTabSwitch('explore')}
               className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all duration-200 flex items-center gap-1.5 shrink-0 ${
                 activeTab === 'explore'
                   ? 'bg-profit/10 text-profit border border-profit/20 shadow-sm'
@@ -821,7 +834,7 @@ export default function Home() {
             </button>
 
             <button
-              onClick={() => setActiveTab('ipo')}
+              onClick={() => handleTabSwitch('ipo')}
               className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all duration-200 flex items-center gap-1.5 shrink-0 ${
                 activeTab === 'ipo'
                   ? 'bg-profit/10 text-profit border border-profit/20 shadow-sm'
@@ -832,7 +845,7 @@ export default function Home() {
             </button>
 
             <button
-              onClick={() => setActiveTab('fo')}
+              onClick={() => handleTabSwitch('fo')}
               className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all duration-200 flex items-center gap-1.5 shrink-0 ${
                 activeTab === 'fo'
                   ? 'bg-profit/10 text-profit border border-profit/20 shadow-sm'
@@ -892,7 +905,7 @@ export default function Home() {
                     Search for equities and click the star icon to populate your watchlist tracker.
                   </p>
                   <button 
-                    onClick={() => setActiveTab('explore')}
+                    onClick={() => handleTabSwitch('explore')}
                     className="mt-5 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-black rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-200 shadow-md shadow-emerald-500/10 active:scale-[0.98] cursor-pointer"
                   >
                     Explore All Stocks
@@ -1023,7 +1036,11 @@ export default function Home() {
                             const minInvestment = details.lotSize && details.minPrice ? `₹${(details.lotSize * details.minPrice).toLocaleString('en-IN')}` : 'TBA';
                             const isHot = ipo.overallSubscription && ipo.overallSubscription > 5;
                             return (
-                              <div key={ipo.symbol} className="rounded-2xl border border-border bg-card p-5 md:p-6 shadow-soft dark:shadow-soft-dark flex flex-col justify-between hover-lift transition-all">
+                              <div 
+                                key={ipo.symbol} 
+                                onClick={() => setSelectedIpoSearchId(ipo.searchId)}
+                                className="rounded-2xl border border-border bg-card p-5 md:p-6 shadow-soft dark:shadow-soft-dark flex flex-col justify-between hover-lift transition-all cursor-pointer hover:border-profit/30 select-none"
+                              >
                                 <div className="space-y-4">
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
@@ -1127,7 +1144,11 @@ export default function Home() {
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                           {list.map((ipo) => {
                             return (
-                              <div key={ipo.symbol} className="rounded-2xl border border-border bg-card p-5 md:p-6 shadow-soft dark:shadow-soft-dark flex flex-col justify-between hover-lift transition-all">
+                              <div 
+                                key={ipo.symbol} 
+                                onClick={() => setSelectedIpoSearchId(ipo.searchId)}
+                                className="rounded-2xl border border-border bg-card p-5 md:p-6 shadow-soft dark:shadow-soft-dark flex flex-col justify-between hover-lift transition-all cursor-pointer hover:border-profit/30 select-none"
+                              >
                                 <div className="flex items-center justify-between mb-4">
                                   <div className="flex items-center gap-3">
                                     {ipo.logoUrl ? (
@@ -1153,6 +1174,7 @@ export default function Home() {
                                       href={ipo.documentUrl}
                                       target="_blank"
                                       rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
                                       className="flex-1 text-center py-2 border border-border text-text-primary rounded-xl text-xs font-bold hover:bg-background transition-colors"
                                     >
                                       Draft Prospectus (SEBI)
@@ -1197,7 +1219,11 @@ export default function Home() {
                           {list.map((ipo) => {
                             const listingDate = ipo.listingTimestamp ? formatDate(ipo.listingTimestamp) : 'TBA';
                             return (
-                              <div key={ipo.symbol} className="rounded-2xl border border-border bg-card p-5 md:p-6 shadow-soft dark:shadow-soft-dark flex flex-col justify-between hover-lift transition-all">
+                              <div 
+                                key={ipo.symbol} 
+                                onClick={() => setSelectedIpoSearchId(ipo.searchId)}
+                                className="rounded-2xl border border-border bg-card p-5 md:p-6 shadow-soft dark:shadow-soft-dark flex flex-col justify-between hover-lift transition-all cursor-pointer hover:border-profit/30 select-none"
+                              >
                                 <div className="space-y-4">
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
@@ -1268,6 +1294,7 @@ export default function Home() {
                                       href={ipo.rtaLink}
                                       target="_blank"
                                       rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
                                       className="flex-1 text-center py-2 border border-border text-text-primary rounded-xl text-xs font-bold hover:bg-background transition-colors"
                                     >
                                       Check Allotment (RTA)
@@ -1454,20 +1481,38 @@ export default function Home() {
                                   }`}
                                 >
                                   {/* CALL CE DATA */}
-                                  <td className={`p-3 bg-emerald-500/5 tabular-nums ${callChangePositive ? 'text-profit' : 'text-loss'}`}>
+                                  <td 
+                                    onClick={() => {
+                                      setTradeSymbol(callSymbol);
+                                      setTradeName(callName);
+                                      setTradePrice(callOpt.price);
+                                      setIsOrderModalOpen(true);
+                                    }}
+                                    className={`p-3 bg-emerald-500/5 tabular-nums cursor-pointer hover:bg-emerald-500/10 transition-colors ${callChangePositive ? 'text-profit' : 'text-loss'}`}
+                                  >
                                     {callChangePositive ? '+' : ''}{callOpt.pct.toFixed(2)}%
                                   </td>
-                                  <td className="p-3 bg-emerald-500/5 font-mono font-black text-text-primary tabular-nums">
+                                  <td 
+                                    onClick={() => {
+                                      setTradeSymbol(callSymbol);
+                                      setTradeName(callName);
+                                      setTradePrice(callOpt.price);
+                                      setIsOrderModalOpen(true);
+                                    }}
+                                    className="p-3 bg-emerald-500/5 font-mono font-black text-text-primary tabular-nums cursor-pointer hover:bg-emerald-500/10 transition-colors"
+                                  >
                                     ₹{callOpt.price.toFixed(2)}
                                   </td>
-                                  <td className="p-3 bg-emerald-500/5 border-r border-border/60">
+                                  <td 
+                                    onClick={() => {
+                                      setTradeSymbol(callSymbol);
+                                      setTradeName(callName);
+                                      setTradePrice(callOpt.price);
+                                      setIsOrderModalOpen(true);
+                                    }}
+                                    className="p-3 bg-emerald-500/5 border-r border-border/60 cursor-pointer hover:bg-emerald-500/10 transition-colors"
+                                  >
                                     <button
-                                      onClick={() => {
-                                        setTradeSymbol(callSymbol);
-                                        setTradeName(callName);
-                                        setTradePrice(callOpt.price);
-                                        setIsOrderModalOpen(true);
-                                      }}
                                       className="px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-black rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
                                     >
                                       Trade
@@ -1489,23 +1534,41 @@ export default function Home() {
                                   </td>
 
                                   {/* PUT PE DATA */}
-                                  <td className="p-3 bg-rose-500/5 border-l border-border/60">
+                                  <td 
+                                    onClick={() => {
+                                      setTradeSymbol(putSymbol);
+                                      setTradeName(putName);
+                                      setTradePrice(putOpt.price);
+                                      setIsOrderModalOpen(true);
+                                    }}
+                                    className="p-3 bg-rose-500/5 border-l border-border/60 cursor-pointer hover:bg-rose-500/10 transition-colors"
+                                  >
                                     <button
-                                      onClick={() => {
-                                        setTradeSymbol(putSymbol);
-                                        setTradeName(putName);
-                                        setTradePrice(putOpt.price);
-                                        setIsOrderModalOpen(true);
-                                      }}
                                       className="px-2.5 py-1 bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500 hover:text-black rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
                                     >
                                       Trade
                                     </button>
                                   </td>
-                                  <td className="p-3 bg-rose-500/5 font-mono font-black text-text-primary tabular-nums">
+                                  <td 
+                                    onClick={() => {
+                                      setTradeSymbol(putSymbol);
+                                      setTradeName(putName);
+                                      setTradePrice(putOpt.price);
+                                      setIsOrderModalOpen(true);
+                                    }}
+                                    className="p-3 bg-rose-500/5 font-mono font-black text-text-primary tabular-nums cursor-pointer hover:bg-rose-500/10 transition-colors"
+                                  >
                                     ₹{putOpt.price.toFixed(2)}
                                   </td>
-                                  <td className={`p-3 bg-rose-500/5 tabular-nums ${putChangePositive ? 'text-profit' : 'text-loss'}`}>
+                                  <td 
+                                    onClick={() => {
+                                      setTradeSymbol(putSymbol);
+                                      setTradeName(putName);
+                                      setTradePrice(putOpt.price);
+                                      setIsOrderModalOpen(true);
+                                    }}
+                                    className={`p-3 bg-rose-500/5 tabular-nums cursor-pointer hover:bg-rose-500/10 transition-colors ${putChangePositive ? 'text-profit' : 'text-loss'}`}
+                                  >
                                     {putChangePositive ? '+' : ''}{putOpt.pct.toFixed(2)}%
                                   </td>
                                 </tr>

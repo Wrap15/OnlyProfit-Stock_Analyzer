@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { apiClient as axios } from '@/lib/apiClient';
 import { isIndianMarketOpen } from '@/lib/marketHours';
+import { getNextThursdays, calculateOptionPrice } from '@/lib/foUtils';
 import nextDynamic from 'next/dynamic';
 import StockLogo from '@/components/StockLogo';
 import NiftyTracker from '@/components/NiftyTracker';
@@ -98,7 +99,7 @@ export default function StockDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeRange, setActiveRange] = useState('1d');
   
-  const [activeTab, setActiveTab] = useState<'overview' | 'financials' | 'fundamentals' | 'technicals' | 'shareholding' | 'peers' | 'news' | 'profile'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'options' | 'financials' | 'fundamentals' | 'technicals' | 'shareholding' | 'peers' | 'news' | 'profile'>('overview');
   
   // Financial Widget states
   const [finPeriod, setFinPeriod] = useState<'annual' | 'quarterly'>('annual');
@@ -122,6 +123,12 @@ export default function StockDetailPage() {
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [showAlertModal, setShowAlertModal] = useState(false);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+  const [tradeSymbol, setTradeSymbol] = useState<string>(symbol);
+  const [tradeName, setTradeName] = useState<string>('');
+  const [tradePrice, setTradePrice] = useState<number>(0);
+  
+  const expiryDates = getNextThursdays();
+  const [selectedExpiry, setSelectedExpiry] = useState(expiryDates[0].value);
   const [liveNews, setLiveNews] = useState<any[]>([]);
   const [newsLoading, setNewsLoading] = useState(false);
   const [alertTriggerPrice, setAlertTriggerPrice] = useState('');
@@ -591,7 +598,7 @@ export default function StockDetailPage() {
   // Recommendation Card suggestions
 
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 transition-colors duration-300 animate-fade-in space-y-6">
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-28 pt-6 sm:py-6 transition-colors duration-300 animate-fade-in space-y-6">
       
       {/* Toast popup */}
       {showToast && (
@@ -678,7 +685,12 @@ export default function StockDetailPage() {
 
             {!symbol.startsWith('^') && (
               <button
-                onClick={() => setIsOrderModalOpen(true)}
+                onClick={() => {
+                  setTradeSymbol(symbol);
+                  setTradeName(quote.longName || quote.shortName || symbol);
+                  setTradePrice(quote.regularMarketPrice);
+                  setIsOrderModalOpen(true);
+                }}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-black font-black text-xs transition-all shadow-sm shadow-emerald-500/5 cursor-pointer"
               >
                 <TrendingUp className="h-4 w-4" />
@@ -1071,6 +1083,167 @@ export default function StockDetailPage() {
 
 
 
+              </div>
+            )}
+
+            {/* Option Chain Tab */}
+            {activeTab === 'options' && (
+              <div className="space-y-6 animate-fade-in">
+                {/* Option Chain Header & Expiry selector */}
+                <div className="bg-card border border-border p-5 rounded-2xl shadow-soft dark:shadow-soft-dark space-y-4">
+                  <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                    <div>
+                      <h3 className="text-base font-extrabold text-text-primary tracking-tight">Option Chain</h3>
+                      <p className="text-xs text-text-secondary mt-1">Select an expiry date to view Call (CE) and Put (PE) premiums centered around spot price ₹{quote.regularMarketPrice.toFixed(2)}</p>
+                    </div>
+                    
+                    {/* Expiry Selector */}
+                    <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+                      <span className="text-[10px] font-black text-text-secondary uppercase tracking-wider shrink-0 mr-1">Expiry:</span>
+                      {expiryDates.map((d) => (
+                        <button
+                          key={d.value}
+                          onClick={() => setSelectedExpiry(d.value)}
+                          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all border whitespace-nowrap cursor-pointer ${
+                            selectedExpiry === d.value
+                              ? 'bg-emerald-500 text-black border-emerald-500 shadow-sm shadow-emerald-500/10'
+                              : 'bg-background hover:bg-card-hover/20 text-text-secondary border-border'
+                          }`}
+                        >
+                          {d.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Option Chain Grid Table */}
+                  <div className="overflow-x-auto border border-border/80 rounded-2xl">
+                    <table className="w-full text-left border-collapse min-w-[700px]">
+                      <thead>
+                        {/* Upper headers */}
+                        <tr className="border-b border-border/80 text-[10px] font-black text-text-secondary bg-card-hover/25 text-center uppercase tracking-widest">
+                          <th colSpan={3} className="p-3 border-r border-border/60 text-emerald-400 bg-emerald-500/5">Call Options (CE)</th>
+                          <th className="p-3">Strike</th>
+                          <th colSpan={3} className="p-3 border-l border-border/60 text-rose-400 bg-rose-500/5">Put Options (PE)</th>
+                        </tr>
+                        {/* Column headers */}
+                        <tr className="border-b border-border/80 text-[9px] font-black text-text-secondary uppercase tracking-widest text-center">
+                          <th className="p-3 bg-emerald-500/5">Change%</th>
+                          <th className="p-3 bg-emerald-500/5">LTP (CE)</th>
+                          <th className="p-3 border-r border-border/60 bg-emerald-500/5">Trade CE</th>
+                          <th className="p-3 bg-background font-black text-text-primary text-xs">Strike Price</th>
+                          <th className="p-3 border-l border-border/60 bg-rose-500/5">Trade PE</th>
+                          <th className="p-3 bg-rose-500/5">LTP (PE)</th>
+                          <th className="p-3 bg-rose-500/5">Change%</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(() => {
+                          const spot = quote.regularMarketPrice;
+                          let interval = 100;
+                          if (spot < 100) interval = 5;
+                          else if (spot < 500) interval = 10;
+                          else if (spot < 1000) interval = 20;
+                          else if (spot < 5000) interval = 50;
+
+                          const atmStrike = Math.round(spot / interval) * interval;
+                          const strikes: number[] = [];
+                          for (let i = -3; i <= 3; i++) {
+                            strikes.push(atmStrike + i * interval);
+                          }
+
+                          return strikes.map((strike) => {
+                            const callOpt = calculateOptionPrice(spot, strike, selectedExpiry, 'CE');
+                            const putOpt = calculateOptionPrice(spot, strike, selectedExpiry, 'PE');
+                            
+                            const callChangePositive = callOpt.change >= 0;
+                            const putChangePositive = putOpt.change >= 0;
+                            
+                            const isATM = strike === atmStrike;
+                            const callSymbol = `${symbol.split('.')[0]}-${selectedExpiry}-${strike}-CE`;
+                            const putSymbol = `${symbol.split('.')[0]}-${selectedExpiry}-${strike}-PE`;
+                            
+                            const callName = `${symbol.split('.')[0]} ${selectedExpiry} ${strike} CE`;
+                            const putName = `${symbol.split('.')[0]} ${selectedExpiry} ${strike} PE`;
+
+                            return (
+                              <tr 
+                                key={strike} 
+                                className={`border-b border-border/40 text-xs font-bold text-center transition-colors hover:bg-card-hover/5 ${
+                                  isATM ? 'bg-emerald-500/5 dark:bg-emerald-500/2 border-y border-emerald-500/10' : ''
+                                }`}
+                              >
+                                {/* CALL OPTION DATA */}
+                                <td className={`p-3 bg-emerald-500/5 tabular-nums ${callChangePositive ? 'text-profit' : 'text-loss'}`}>
+                                  {callChangePositive ? '+' : ''}{callOpt.pct.toFixed(2)}%
+                                </td>
+                                <td className="p-3 bg-emerald-500/5 font-mono font-black text-text-primary tabular-nums">
+                                  ₹{callOpt.price.toFixed(2)}
+                                </td>
+                                <td className="p-3 bg-emerald-500/5 border-r border-border/60">
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    <button
+                                      onClick={() => {
+                                        setTradeSymbol(callSymbol);
+                                        setTradeName(callName);
+                                        setTradePrice(callOpt.price);
+                                        setIsOrderModalOpen(true);
+                                      }}
+                                      className="px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-black rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                                    >
+                                      Trade
+                                    </button>
+                                  </div>
+                                </td>
+
+                                {/* STRIKE PRICE */}
+                                <td className={`p-3 font-mono font-black text-xs text-center select-none ${
+                                  isATM 
+                                    ? 'text-emerald-400 font-extrabold bg-emerald-500/10 border-x border-emerald-500/20 shadow-inner' 
+                                    : 'text-text-primary bg-background'
+                                }`}>
+                                  <div className="relative">
+                                    {strike}
+                                    {isATM && (
+                                      <span className="absolute right-1 top-0 text-[7px] font-black px-1 rounded bg-emerald-500 text-black uppercase tracking-widest scale-90">ATM</span>
+                                    )}
+                                  </div>
+                                </td>
+
+                                {/* PUT OPTION DATA */}
+                                <td className="p-3 bg-rose-500/5 border-l border-border/60">
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    <button
+                                      onClick={() => {
+                                        setTradeSymbol(putSymbol);
+                                        setTradeName(putName);
+                                        setTradePrice(putOpt.price);
+                                        setIsOrderModalOpen(true);
+                                      }}
+                                      className="px-2.5 py-1 bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500 hover:text-black rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                                    >
+                                      Trade
+                                    </button>
+                                  </div>
+                                </td>
+                                <td className="p-3 bg-rose-500/5 font-mono font-black text-text-primary tabular-nums">
+                                  ₹{putOpt.price.toFixed(2)}
+                                </td>
+                                <td className={`p-3 bg-rose-500/5 tabular-nums ${putChangePositive ? 'text-profit' : 'text-loss'}`}>
+                                  {putChangePositive ? '+' : ''}{putOpt.pct.toFixed(2)}%
+                                </td>
+                              </tr>
+                            );
+                          });
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="flex items-center gap-1.5 p-3 rounded-2xl bg-background border border-border/80 text-[10px] text-text-secondary font-medium">
+                    <Info className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>Options trading leverages small underlying asset price movements. CE represents call options (buyers profit when price rises), and PE represents put options (buyers profit when price falls). Contracts are cash-settled simulated positions.</span>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -1818,11 +1991,11 @@ export default function StockDetailPage() {
         <OrderPlacementModal
           isOpen={isOrderModalOpen}
           onClose={() => setIsOrderModalOpen(false)}
-          symbol={symbol}
-          stockName={quote.longName || quote.shortName || symbol}
-          livePrice={quote.regularMarketPrice}
+          symbol={tradeSymbol}
+          stockName={tradeName || quote.longName || quote.shortName || symbol}
+          livePrice={tradePrice || quote.regularMarketPrice}
           onOrderExecuted={() => {
-            triggerToast(`Order placed successfully for ${symbol}!`);
+            triggerToast(`Order placed successfully for ${tradeSymbol}!`);
           }}
         />
       )}
@@ -2136,6 +2309,7 @@ function getMockEvents() {
 
 const tabs = [
   { id: 'overview', label: 'Overview' },
+  { id: 'options', label: 'Option Chain' },
   { id: 'financials', label: 'Financials' },
   { id: 'fundamentals', label: 'Fundamentals' },
   { id: 'technicals', label: 'Technicals' },
@@ -2145,4 +2319,4 @@ const tabs = [
   { id: 'profile', label: 'Company Profile' }
 ];
 
-export const dynamic = 'force-dynamic';
+

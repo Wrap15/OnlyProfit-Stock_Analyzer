@@ -1073,4 +1073,4 @@ export default function MutualFundDetailPage() {
   );
 }
 
-export const dynamic = 'force-dynamic';
+

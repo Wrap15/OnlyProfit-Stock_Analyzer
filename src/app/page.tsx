@@ -13,12 +13,14 @@ import GrowwBlogSection from '@/components/GrowwBlogSection';
 import { 
   ArrowUpRight, ArrowDownRight, Star, Sparkles, LayoutGrid, Search, Activity, Landmark, Cpu, Cookie, Car, Flame, Wrench, Layers, HeartPulse, PhoneCall, Bolt, Rocket,
   TrendingUp, TrendingDown, ArrowLeftRight, Bookmark, ChevronDown, X, ArrowUpDown,
-  Building, Home as HomeIcon, Coins, PiggyBank, Target, Compass
+  Building, Home as HomeIcon, Coins, PiggyBank, Target, Compass, Info
 } from 'lucide-react';
 import Link from 'next/link';
 import { MUTUAL_FUNDS } from '@/lib/mutualfunds';
 import { mapToStandardSector, MOCK_STOCK_INFO } from '@/lib/yahooFinance';
 import { isIndianMarketOpen } from '@/lib/marketHours';
+import { getNextThursdays, calculateOptionPrice } from '@/lib/foUtils';
+import OrderPlacementModal from '@/components/OrderPlacementModal';
 
 
 function generateMockSparklineData(price: number, changePercent: number, symbol: string): number[] {
@@ -174,7 +176,7 @@ const HIGH_GROWTH_SYMBOLS = ['TRENT.NS', 'HAL.NS', 'RVNL.NS', 'MARUTI.NS', 'M&M.
 const DIVIDEND_SYMBOLS = ['IOC.NS', 'BPCL.NS', 'ONGC.NS', 'POWERGRID.NS', 'ITC.NS', 'TATASTEEL.NS'];
 const DEBT_FREE_SYMBOLS = ['TCS.NS', 'INFY.NS', 'WIPRO.NS', 'HCLTECH.NS', 'ITC.NS', 'NESTLEIND.NS', 'DIVISLAB.NS'];
 
-type TabType = 'watchlist' | 'trending' | 'mostsearched' | 'explore' | 'ipo';
+type TabType = 'watchlist' | 'trending' | 'mostsearched' | 'explore' | 'ipo' | 'fo';
 
 export default function Home() {
   const { watchlist, recentSearches, clearRecentSearches } = useStockStore();
@@ -183,14 +185,16 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<TabType>('trending');
   const [searchFilter, setSearchFilter] = useState('');
 
-  // Synchronize activeTab with URL search params reactively
+  // Synchronize activeTab with URL search params reactively (popstate listener & lightweight interval checks)
   useEffect(() => {
     const checkTab = () => {
       if (typeof window === 'undefined') return;
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get('tab');
-      if (tabParam && ['watchlist', 'trending', 'mostsearched', 'explore', 'ipo'].includes(tabParam)) {
+      if (tabParam && ['watchlist', 'trending', 'mostsearched', 'explore', 'ipo', 'fo'].includes(tabParam)) {
         setActiveTab(prev => prev !== tabParam ? (tabParam as TabType) : prev);
+      } else if (!tabParam) {
+        setActiveTab(prev => prev !== 'trending' ? 'trending' : prev);
       }
     };
     checkTab();
@@ -222,17 +226,78 @@ export default function Home() {
   const [mfReturnDuration, setMfReturnDuration] = useState<'1y' | '3y'>('1y');
   const [isMfDrawerOpen, setIsMfDrawerOpen] = useState<boolean>(false);
 
+  // F&O Options tab states
+  const expiryDates = useMemo(() => getNextThursdays(), []);
+  const [selectedExpiry, setSelectedExpiry] = useState(expiryDates[0].value);
+  const [foUnderlying, setFoUnderlying] = useState('^NSEI');
+
+  // Order Placement Modal states
+  const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+  const [tradeSymbol, setTradeSymbol] = useState('');
+  const [tradeName, setTradeName] = useState('');
+  const [tradePrice, setTradePrice] = useState(0);
+
   // Clock state for realworld live dashboard feel
   const [timeStr, setTimeStr] = useState<string>('');
   useEffect(() => {
     const updateClock = () => {
       const now = new Date();
-      setTimeStr(now.toLocaleTimeString('en-IN', { hour12: false }));
+      setTimeStr(now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true }));
     };
     updateClock();
     const interval = setInterval(updateClock, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  const getDetailedMarketStatus = () => {
+    if (isIndianMarketOpen()) {
+      return {
+        label: 'NSE MARKET OPEN',
+        className: 'text-profit',
+        dotColor: 'bg-profit animate-pulse'
+      };
+    }
+    const now = new Date();
+    const day = now.getDay();
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+    const currentMin = hours * 60 + minutes;
+    
+    const isFridayNight = day === 5 && currentMin >= 15 * 60 + 30;
+    const isWeekend = day === 6 || day === 0 || isFridayNight;
+    
+    if (isWeekend) {
+      return {
+        label: 'CLOSED • OPENS MONDAY 9:15 AM',
+        className: 'text-rose-500/90 dark:text-rose-400',
+        dotColor: 'bg-rose-500'
+      };
+    }
+    
+    const isMorningClosed = currentMin < 9 * 60 + 15;
+    if (isMorningClosed) {
+      return {
+        label: 'CLOSED • OPENS TODAY 9:15 AM',
+        className: 'text-amber-500/90 dark:text-amber-400',
+        dotColor: 'bg-amber-500'
+      };
+    }
+    
+    const isEveningClosed = currentMin >= 15 * 60 + 30;
+    if (isEveningClosed) {
+      return {
+        label: 'CLOSED • OPENS TOMORROW 9:15 AM',
+        className: 'text-text-secondary',
+        dotColor: 'bg-text-secondary'
+      };
+    }
+
+    return {
+      label: 'NSE MARKET CLOSED',
+      className: 'text-text-secondary',
+      dotColor: 'bg-text-secondary'
+    };
+  };
 
   useEffect(() => {
     async function fetchMutualFunds() {
@@ -286,7 +351,10 @@ export default function Home() {
 
   // Get active symbols to fetch based on current UI state (optimizes speed & bandwidth)
   const activeSymbolsToFetch = useMemo(() => {
-    const base = ['^NSEI', '^BSESN'];
+    const base = ['^NSEI', '^BSESN', '^NSEBANK'];
+    if (activeTab === 'fo') {
+      return Array.from(new Set([...base, foUnderlying]));
+    }
     if (activeTab === 'trending') {
       return Array.from(new Set([...base, ...TRENDING_SYMBOLS]));
     }
@@ -301,7 +369,7 @@ export default function Home() {
       return Array.from(new Set([...base, ...exploreSymbols.slice(0, 20)]));
     }
     return base;
-  }, [activeTab, watchlist, exploreSymbols]);
+  }, [activeTab, watchlist, exploreSymbols, foUnderlying]);
 
   useEffect(() => {
     if (activeSymbolsToFetch.length === 0) return;
@@ -587,7 +655,7 @@ export default function Home() {
   }, [searchFilter, activeCollection, activeTab, marketQuotes]);
 
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 md:py-12 transition-colors duration-300">
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-28 pt-8 sm:py-8 md:py-12 transition-colors duration-300">
       
       {/* Hero Header Command Center Section */}
       <div className="mb-8 p-6 rounded-3xl border border-border bg-glass shadow-premium relative overflow-hidden animate-fade-in">
@@ -625,15 +693,20 @@ export default function Home() {
             )}
             
             {/* Live Market Hours Status Widget */}
-            <div className="px-4 py-2 rounded-2xl bg-background border border-border/80 flex flex-col items-start shadow-inner select-none">
-              <span className="text-[8px] font-extrabold text-text-secondary uppercase tracking-widest">MARKET STATUS</span>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className={`h-2 w-2 rounded-full ${isIndianMarketOpen() ? 'bg-profit animate-pulse' : 'bg-text-secondary'} shrink-0`} />
-                <span className={`text-[10px] font-black uppercase ${isIndianMarketOpen() ? 'text-profit' : 'text-text-secondary'}`}>
-                  {isIndianMarketOpen() ? 'NSE MARKET OPEN' : 'NSE MARKET CLOSED'}
-                </span>
-              </div>
-            </div>
+            {(() => {
+              const status = getDetailedMarketStatus();
+              return (
+                <div className="px-4 py-2 rounded-2xl bg-background border border-border/80 flex flex-col items-start shadow-inner select-none">
+                  <span className="text-[8px] font-extrabold text-text-secondary uppercase tracking-widest">MARKET STATUS</span>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className={`h-2 w-2 rounded-full ${status.dotColor} shrink-0`} />
+                    <span className={`text-[10px] font-black uppercase ${status.className}`}>
+                      {status.label}
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       </div>
@@ -739,6 +812,17 @@ export default function Home() {
               }`}
             >
               <Rocket className="h-3.5 w-3.5" /> IPOs
+            </button>
+
+            <button
+              onClick={() => setActiveTab('fo')}
+              className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all duration-200 flex items-center gap-1.5 shrink-0 ${
+                activeTab === 'fo'
+                  ? 'bg-profit/10 text-profit border border-profit/20 shadow-sm'
+                  : 'text-text-secondary hover:text-text-primary hover:bg-background border border-transparent'
+              }`}
+            >
+              <TrendingUp className="h-3.5 w-3.5" /> F&O Options
             </button>
           </div>
 
@@ -1195,6 +1279,229 @@ export default function Home() {
             </div>
           )}
 
+          {/* TAB 6: F&O OPTIONS CHAIN DASHBOARD */}
+          {activeTab === 'fo' && (
+            <div className="space-y-6 animate-fade-in">
+              {/* Underlying Selector & Expiry Selectors */}
+              <div className="bg-card border border-border p-5 rounded-2xl shadow-soft dark:shadow-soft-dark space-y-4">
+                <div className="flex flex-col gap-4">
+                  {/* Select Underlying Index/Equity */}
+                  <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                    <div>
+                      <h3 className="text-base font-extrabold text-text-primary tracking-tight">F&O Options Chain Terminal</h3>
+                      <p className="text-xs text-text-secondary mt-1">
+                        Analyze dynamic option chains and place paper trades on indices and stock underlyings.
+                      </p>
+                    </div>
+
+                    {/* Selector Pills */}
+                    <div className="flex items-center gap-1.5 p-0.5 bg-background border border-border rounded-xl self-start overflow-x-auto max-w-full scrollbar-none">
+                      {[
+                        { id: '^NSEI', label: 'Nifty 50' },
+                        { id: '^NSEBANK', label: 'Nifty Bank' },
+                        { id: 'RELIANCE.NS', label: 'Reliance' },
+                        { id: 'TCS.NS', label: 'TCS' },
+                        { id: 'INFY.NS', label: 'Infosys' },
+                        { id: 'HDFCBANK.NS', label: 'HDFC Bank' },
+                        { id: 'SBIN.NS', label: 'SBI' },
+                        { id: 'ICICIBANK.NS', label: 'ICICI Bank' },
+                        { id: 'TRENT.NS', label: 'Trent' },
+                        { id: 'TATAMOTORS.NS', label: 'Tata Motors' },
+                        { id: 'MARUTI.NS', label: 'Maruti' },
+                        { id: 'ADANIENT.NS', label: 'Adani Ent' }
+                      ].map((u) => (
+                        <button
+                          key={u.id}
+                          onClick={() => setFoUnderlying(u.id)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                            foUnderlying === u.id
+                              ? 'bg-emerald-500 text-black border border-emerald-500 shadow-sm shadow-emerald-500/10 font-extrabold'
+                              : 'hover:bg-card-hover/20 text-text-secondary border border-transparent'
+                          }`}
+                        >
+                          {u.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Expiry selector */}
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none border-t border-border/40 pt-4">
+                    <span className="text-[10px] font-black text-text-secondary uppercase tracking-wider shrink-0 mr-1">Expiry Date:</span>
+                    {expiryDates.map((d) => (
+                      <button
+                        key={d.value}
+                        onClick={() => setSelectedExpiry(d.value)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border whitespace-nowrap cursor-pointer ${
+                          selectedExpiry === d.value
+                            ? 'bg-emerald-500 text-black border border-emerald-500 shadow-sm'
+                            : 'bg-background hover:bg-card-hover/20 text-text-secondary border-border'
+                        }`}
+                      >
+                        {d.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Option Chain Grid Table */}
+                {(() => {
+                  const underlyingQuote = marketQuotes.find(q => q.symbol === foUnderlying);
+                  if (!underlyingQuote) {
+                    return (
+                      <div className="flex flex-col items-center justify-center py-16 gap-3 text-text-secondary">
+                        <div className="h-6 w-6 animate-spin rounded-full border-2 border-profit border-t-transparent" />
+                        <span className="text-xs font-bold">Querying underlying market index quote...</span>
+                      </div>
+                    );
+                  }
+
+                  const spot = underlyingQuote.regularMarketPrice;
+                  const spotChange = underlyingQuote.regularMarketChangePercent || 0;
+                  
+                  let interval = 100;
+                  if (spot < 100) interval = 5;
+                  else if (spot < 500) interval = 10;
+                  else if (spot < 1000) interval = 20;
+                  else if (spot < 5000) interval = 50;
+                  else if (spot < 20000) interval = 100;
+                  else interval = 100; // Nifty 50 or Bank Nifty
+
+                  const atmStrike = Math.round(spot / interval) * interval;
+                  const strikes: number[] = [];
+                  for (let i = -3; i <= 3; i++) {
+                    strikes.push(atmStrike + i * interval);
+                  }
+
+                  return (
+                    <div className="space-y-4">
+                      {/* Spot Details Header Banner */}
+                      <div className="flex items-center justify-between p-3.5 bg-background border border-border/80 rounded-xl font-bold text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="text-text-primary text-sm font-extrabold uppercase">{foUnderlying.replace('.NS', '')} Spot:</span>
+                          <span className="font-mono text-sm text-text-primary font-black">₹{spot.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-black ${spotChange >= 0 ? 'bg-profit/10 text-profit' : 'bg-loss/10 text-loss'}`}>
+                          {spotChange >= 0 ? '▲ +' : '▼ '}{spotChange.toFixed(2)}%
+                        </span>
+                      </div>
+
+                      {/* Option Chain Grid */}
+                      <div className="overflow-x-auto border border-border/80 rounded-2xl">
+                        <table className="w-full text-left border-collapse min-w-[650px]">
+                          <thead>
+                            <tr className="border-b border-border/80 text-[10px] font-black text-text-secondary bg-card-hover/20 text-center uppercase tracking-widest">
+                              <th colSpan={3} className="p-3 border-r border-border/60 text-emerald-400 bg-emerald-500/5">Call Options (CE)</th>
+                              <th className="p-3">Strike</th>
+                              <th colSpan={3} className="p-3 border-l border-border/60 text-rose-400 bg-rose-500/5">Put Options (PE)</th>
+                            </tr>
+                            <tr className="border-b border-border/80 text-[9px] font-black text-text-secondary uppercase tracking-widest text-center">
+                              <th className="p-3 bg-emerald-500/5">Change%</th>
+                              <th className="p-3 bg-emerald-500/5">LTP (CE)</th>
+                              <th className="p-3 border-r border-border/60 bg-emerald-500/5">Trade CE</th>
+                              <th className="p-3 bg-background font-black text-text-primary text-xs">Strike Price</th>
+                              <th className="p-3 border-l border-border/60 bg-rose-500/5">Trade PE</th>
+                              <th className="p-3 bg-rose-500/5">LTP (PE)</th>
+                              <th className="p-3 bg-rose-500/5">Change%</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {strikes.map((strike) => {
+                              const callOpt = calculateOptionPrice(spot, strike, selectedExpiry, 'CE');
+                              const putOpt = calculateOptionPrice(spot, strike, selectedExpiry, 'PE');
+                              
+                              const callChangePositive = callOpt.change >= 0;
+                              const putChangePositive = putOpt.change >= 0;
+                              
+                              const isATM = strike === atmStrike;
+                              const callSymbol = `${foUnderlying.split('.')[0]}-${selectedExpiry}-${strike}-CE`;
+                              const putSymbol = `${foUnderlying.split('.')[0]}-${selectedExpiry}-${strike}-PE`;
+                              
+                              const callName = `${foUnderlying.split('.')[0]} ${selectedExpiry} ${strike} CE`;
+                              const putName = `${foUnderlying.split('.')[0]} ${selectedExpiry} ${strike} PE`;
+
+                              return (
+                                <tr 
+                                  key={strike} 
+                                  className={`border-b border-border/40 text-xs font-bold text-center transition-colors hover:bg-card-hover/5 ${
+                                    isATM ? 'bg-emerald-500/5 dark:bg-emerald-500/2 border-y border-emerald-500/10' : ''
+                                  }`}
+                                >
+                                  {/* CALL CE DATA */}
+                                  <td className={`p-3 bg-emerald-500/5 tabular-nums ${callChangePositive ? 'text-profit' : 'text-loss'}`}>
+                                    {callChangePositive ? '+' : ''}{callOpt.pct.toFixed(2)}%
+                                  </td>
+                                  <td className="p-3 bg-emerald-500/5 font-mono font-black text-text-primary tabular-nums">
+                                    ₹{callOpt.price.toFixed(2)}
+                                  </td>
+                                  <td className="p-3 bg-emerald-500/5 border-r border-border/60">
+                                    <button
+                                      onClick={() => {
+                                        setTradeSymbol(callSymbol);
+                                        setTradeName(callName);
+                                        setTradePrice(callOpt.price);
+                                        setIsOrderModalOpen(true);
+                                      }}
+                                      className="px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-black rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                                    >
+                                      Trade
+                                    </button>
+                                  </td>
+
+                                  {/* STRIKE PRICE */}
+                                  <td className={`p-3 font-mono font-black text-xs text-center select-none ${
+                                    isATM 
+                                      ? 'text-emerald-400 font-extrabold bg-emerald-500/10 border-x border-emerald-500/20 shadow-inner' 
+                                      : 'text-text-primary bg-background'
+                                  }`}>
+                                    <div className="relative">
+                                      {strike}
+                                      {isATM && (
+                                        <span className="absolute right-1 top-0 text-[7px] font-black px-1 rounded bg-emerald-500 text-black uppercase tracking-widest scale-90">ATM</span>
+                                      )}
+                                    </div>
+                                  </td>
+
+                                  {/* PUT PE DATA */}
+                                  <td className="p-3 bg-rose-500/5 border-l border-border/60">
+                                    <button
+                                      onClick={() => {
+                                        setTradeSymbol(putSymbol);
+                                        setTradeName(putName);
+                                        setTradePrice(putOpt.price);
+                                        setIsOrderModalOpen(true);
+                                      }}
+                                      className="px-2.5 py-1 bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500 hover:text-black rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                                    >
+                                      Trade
+                                    </button>
+                                  </td>
+                                  <td className="p-3 bg-rose-500/5 font-mono font-black text-text-primary tabular-nums">
+                                    ₹{putOpt.price.toFixed(2)}
+                                  </td>
+                                  <td className={`p-3 bg-rose-500/5 tabular-nums ${putChangePositive ? 'text-profit' : 'text-loss'}`}>
+                                    {putChangePositive ? '+' : ''}{putOpt.pct.toFixed(2)}%
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                <div className="flex items-center gap-1.5 p-3 rounded-2xl bg-background border border-border/80 text-[10px] text-text-secondary font-medium">
+                  <Info className="w-4.5 h-4.5 text-emerald-400 shrink-0" />
+                  <span>
+                    Options contracts on indices (Nifty, Bank Nifty) and equities support leverage. Calls (CE) purchase the right to buy, Puts (PE) purchase the right to sell. These are simulated cash-settled contracts.
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
         </div>
 
         {/* Right Column: Gainers, Losers & Most Active (Grid Column Span 1) */}
@@ -1549,6 +1856,17 @@ export default function Home() {
         searchId={selectedIpoSearchId}
         onClose={() => setSelectedIpoSearchId(null)}
       />
+
+      {isOrderModalOpen && (
+        <OrderPlacementModal
+          isOpen={isOrderModalOpen}
+          onClose={() => setIsOrderModalOpen(false)}
+          symbol={tradeSymbol}
+          stockName={tradeName}
+          livePrice={tradePrice}
+          onOrderExecuted={() => {}}
+        />
+      )}
     </div>
   );
 }

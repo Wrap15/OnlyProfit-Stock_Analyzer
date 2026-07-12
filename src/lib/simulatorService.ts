@@ -317,12 +317,28 @@ async function recordOrderInDB(userId: string | null, order: SimulatorOrder): Pr
     order.id = `local-order-${order.timestamp}`;
   }
   
-  const existingIdx = state.orders.findIndex(o => o.timestamp === order.timestamp && o.symbol === order.symbol);
-  if (existingIdx >= 0) {
-    state.orders[existingIdx] = order;
+  if (order.status === 'PENDING') {
+    const existingIdx = state.orders.findIndex(o => o.id === order.id || (o.timestamp === order.timestamp && o.symbol === order.symbol));
+    if (existingIdx >= 0) {
+      state.orders[existingIdx] = order;
+    } else {
+      state.orders.push(order);
+    }
+    // Remove from history if present
+    state.history = state.history.filter(o => o.id !== order.id && !(o.timestamp === order.timestamp && o.symbol === order.symbol));
   } else {
-    state.orders.push(order);
+    const existingIdx = state.history.findIndex(o => o.id === order.id || (o.timestamp === order.timestamp && o.symbol === order.symbol));
+    if (existingIdx >= 0) {
+      state.history[existingIdx] = order;
+    } else {
+      state.history.push(order);
+    }
+    // Remove from pending orders list
+    state.orders = state.orders.filter(o => o.id !== order.id && !(o.timestamp === order.timestamp && o.symbol === order.symbol));
   }
+
+  // Sort history by newest first
+  state.history.sort((a, b) => b.timestamp - a.timestamp);
   saveLocalState(state);
 
   if (!userId) {
@@ -366,9 +382,13 @@ async function recordOrderInDB(userId: string | null, order: SimulatorOrder): Pr
 export async function cancelOrder(userId: string | null, orderId: string): Promise<boolean> {
   // Always cancel locally first as a fallback copy
   const state = getLocalState();
-  const order = state.orders.find(o => o.id === orderId);
-  if (order && order.status === 'PENDING') {
+  const orderIdx = state.orders.findIndex(o => o.id === orderId);
+  if (orderIdx >= 0) {
+    const order = state.orders[orderIdx];
     order.status = 'CANCELLED';
+    state.history.push(order);
+    state.orders.splice(orderIdx, 1);
+    state.history.sort((a, b) => b.timestamp - a.timestamp);
     saveLocalState(state);
   }
 

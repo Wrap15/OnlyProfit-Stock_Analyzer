@@ -631,4 +631,4 @@ export default function BasketDetailPage() {
   );
 }
 
-export const dynamic = 'force-dynamic';
+

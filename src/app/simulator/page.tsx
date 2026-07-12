@@ -21,6 +21,7 @@ import {
 } from '@/lib/simulatorService';
 import { apiClient as axios } from '@/lib/apiClient';
 import MiniSparkline, { generateMockSparkline } from '@/components/MiniSparkline';
+import { parseOptionSymbol, calculateOptionPrice } from '@/lib/foUtils';
 
 export default function SimulatorPage() {
   const { userId, toggleAuthModal } = useStockStore();
@@ -81,17 +82,66 @@ export default function SimulatorPage() {
 
     async function fetchLiveQuotes() {
       try {
-        const symbolsParam = Array.from(allSymbols).join(',');
+        const underlyingsToFetch = new Set<string>();
+        const optionSymbolsInUse: string[] = [];
+
+        allSymbols.forEach(sym => {
+          const parsed = parseOptionSymbol(sym);
+          if (parsed) {
+            underlyingsToFetch.add(parsed.underlying);
+            optionSymbolsInUse.push(sym);
+          } else {
+            underlyingsToFetch.add(sym);
+          }
+        });
+
+        if (underlyingsToFetch.size === 0) {
+          setLivePrices({});
+          return;
+        }
+
+        const symbolsParam = Array.from(underlyingsToFetch).join(',');
         const res = await axios.get(`/api/stock/quote?symbols=${encodeURIComponent(symbolsParam)}`);
+        
         if (res.data && Array.isArray(res.data)) {
           const priceMap: Record<string, { price: number; change: number; pct: number }> = {};
+          
+          // Map underlyings and normal stock tickers first
           res.data.forEach((q: any) => {
             priceMap[q.symbol] = {
               price: q.regularMarketPrice,
               change: q.regularMarketChange,
               pct: q.regularMarketChangePercent
             };
+            const baseSym = q.symbol.split('.')[0];
+            priceMap[baseSym] = {
+              price: q.regularMarketPrice,
+              change: q.regularMarketChange,
+              pct: q.regularMarketChangePercent
+            };
           });
+
+          // Calculate options premium prices from underlyings
+          optionSymbolsInUse.forEach(optSym => {
+            const parsed = parseOptionSymbol(optSym);
+            if (parsed) {
+              const underlyingQuote = priceMap[parsed.underlying] || priceMap[parsed.underlying + '.NS'];
+              if (underlyingQuote) {
+                const optDetails = calculateOptionPrice(
+                  underlyingQuote.price,
+                  parsed.strike,
+                  parsed.expiry,
+                  parsed.type
+                );
+                priceMap[optSym] = {
+                  price: optDetails.price,
+                  change: optDetails.change,
+                  pct: optDetails.pct
+                };
+              }
+            }
+          });
+
           setLivePrices(priceMap);
 
           // After fetching prices, run limit order polling & MIS auto square-off check
@@ -198,9 +248,37 @@ export default function SimulatorPage() {
   });
   const totalHoldingVal = holdingsSegments.reduce((acc, s) => acc + s.value, 0);
   
-  // Statically mock previous close net worth to compute precise Day's P&L pct
-  const prevNetWorth = netWorth - dayPnL;
-  const dayPnLPct = prevNetWorth > 0 ? (dayPnL / prevNetWorth) * 100 : 0;
+  // Compute Day's P&L percentage based on previous close value of active investments
+  const activeInvestmentsVal = holdingsCurrentValue + positionsUnrealizedPnL;
+  const prevInvestmentsVal = activeInvestmentsVal - dayPnL;
+  const dayPnLPct = prevInvestmentsVal > 0 ? (dayPnL / prevInvestmentsVal) * 100 : 0;
+
+  const renderSymbolName = (sym: string) => {
+    const parsed = parseOptionSymbol(sym);
+    if (parsed) {
+      return (
+        <Link href={`/stock/${parsed.underlying}`} className="hover:underline transition-colors block truncate">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="font-extrabold text-text-primary">{parsed.underlying.replace('.NS', '')}</span>
+            <span className="text-[9px] font-black text-text-secondary tracking-tight">{parsed.expiry}</span>
+            <span className="text-[10px] font-mono font-black text-text-primary bg-background border border-border/80 rounded px-1.5 py-0.5">₹{parsed.strike}</span>
+            <span className={`px-1.5 py-0.5 rounded text-[8px] font-black tracking-wider ${
+              parsed.type === 'CE'
+                ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
+                : 'bg-rose-500/10 border border-rose-500/20 text-rose-400'
+            }`}>
+              {parsed.type}
+            </span>
+          </div>
+        </Link>
+      );
+    }
+    return (
+      <Link href={`/stock/${sym}`} className="font-extrabold text-sm text-emerald-400 hover:underline transition-colors block truncate">
+        {sym.replace('.NS', '')}
+      </Link>
+    );
+  };
 
   return (
     <main className="min-h-screen bg-background text-text-primary selection:bg-emerald-500/20">
@@ -223,7 +301,7 @@ export default function SimulatorPage() {
       </nav>
 
       {/* Main Container */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-8 py-10 space-y-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-8 pb-28 pt-10 sm:py-10 space-y-8">
         
         {/* Guest Warning Banner */}
         {!userId && (
@@ -552,9 +630,7 @@ export default function SimulatorPage() {
                                 <td className="p-4 sm:p-5">
                                   <div className="flex items-center gap-3">
                                     <div className="min-w-0">
-                                      <Link href={`/stock/${h.symbol}`} className="font-extrabold text-sm text-emerald-400 hover:underline transition-colors block truncate">
-                                        {h.symbol.replace('.NS', '')}
-                                      </Link>
+                                      {renderSymbolName(h.symbol)}
                                       <div className="text-[10px] text-text-secondary font-medium mt-0.5 truncate">
                                         {h.quantity} shares • Avg. ₹{h.avgBuyPrice.toFixed(2)}
                                       </div>
@@ -670,9 +746,7 @@ export default function SimulatorPage() {
                                 <td className="p-4 sm:p-5">
                                   <div className="flex items-center gap-3">
                                     <div className="min-w-0">
-                                      <Link href={`/stock/${p.symbol}`} className="font-extrabold text-sm text-emerald-400 hover:underline transition-colors block truncate">
-                                        {p.symbol.replace('.NS', '')}
-                                      </Link>
+                                      {renderSymbolName(p.symbol)}
                                       <div className="text-[10px] text-text-secondary font-medium mt-0.5 truncate">
                                         {isSquaredOff ? '0 (Squared Off)' : `${activeQty > 0 ? 'Buy' : 'Short'} • ${Math.abs(activeQty)} shares • Avg. ₹${p.avgPrice.toFixed(2)}`}
                                       </div>
@@ -780,7 +854,7 @@ export default function SimulatorPage() {
                                 {new Date(o.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                               </td>
                               <td className="p-4 sm:p-5">
-                                <span className="font-black text-text-primary">{o.symbol.replace('.NS', '')}</span>
+                                {renderSymbolName(o.symbol)}
                               </td>
                               <td className={`p-4 sm:p-5 font-black uppercase text-[10px] tracking-wider ${o.side === 'BUY' ? 'text-profit' : 'text-loss'}`}>
                                 {o.side}
@@ -792,8 +866,14 @@ export default function SimulatorPage() {
                                 {o.type === 'LIMIT' ? `₹${o.limitPrice?.toFixed(2)}` : o.type === 'SL' ? `₹${o.stopPrice?.toFixed(2)}` : 'Market'}
                               </td>
                               <td className="p-4 sm:p-5">
-                                <span className="px-2.5 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-wider bg-yellow-500/10 border-yellow-500/20 text-yellow-500">
-                                  PENDING
+                                <span className={`px-2.5 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-wider ${
+                                  o.status === 'EXECUTED'
+                                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'
+                                    : o.status === 'REJECTED' || o.status === 'CANCELLED'
+                                    ? 'bg-rose-500/10 border-rose-500/20 text-rose-500'
+                                    : 'bg-yellow-500/10 border-yellow-500/20 text-yellow-500'
+                                }`}>
+                                  {o.status}
                                 </span>
                               </td>
                               <td className="p-4 sm:p-5 text-right">
@@ -845,7 +925,7 @@ export default function SimulatorPage() {
                                 {new Date(h.timestamp).toLocaleString('en-IN', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
                               </td>
                               <td className="p-4 sm:p-5">
-                                <span className="font-black text-text-primary">{h.symbol.replace('.NS', '')}</span>
+                                {renderSymbolName(h.symbol)}
                               </td>
                               <td className={`p-4 sm:p-5 font-black uppercase text-[10px] tracking-wider ${h.side === 'BUY' ? 'text-profit' : 'text-loss'}`}>
                                 {h.side} ({h.type})

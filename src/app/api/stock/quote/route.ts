@@ -65,6 +65,26 @@ function mergeProfileIntoQuote(item: any, profile: any) {
   }
 }
 
+function copyProfileFromCache(item: any, cachedItem: any) {
+  if (!cachedItem) return;
+  item.sector = cachedItem.sector || item.sector;
+  item.industry = cachedItem.industry || item.industry;
+  item.longBusinessSummary = cachedItem.longBusinessSummary || item.longBusinessSummary;
+  item.website = cachedItem.website || item.website;
+  item.headquarters = cachedItem.headquarters || item.headquarters;
+  item.leadership = cachedItem.leadership || item.leadership;
+  item.ceo = cachedItem.ceo || item.ceo;
+  item.trailingPE = cachedItem.trailingPE || item.trailingPE;
+  item.priceToBook = cachedItem.priceToBook || item.priceToBook;
+  item.dividendYield = cachedItem.dividendYield || item.dividendYield;
+  item.epsTrailingTwelveMonths = cachedItem.epsTrailingTwelveMonths || item.epsTrailingTwelveMonths;
+  item.roe = cachedItem.roe || item.roe;
+  item.sectorPE = cachedItem.sectorPE || item.sectorPE;
+  item.sectorPB = cachedItem.sectorPB || item.sectorPB;
+  item.marketCap = cachedItem.marketCap || item.marketCap;
+  item.holdings = cachedItem.holdings || item.holdings;
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const symbolsParam = searchParams.get('symbols');
@@ -147,8 +167,13 @@ export async function GET(request: NextRequest) {
           if (symbols.length === 1) {
             const promises = data.map(async (item) => {
               try {
-                const profile = await fetchCompanyProfileFromAPI(item.symbol);
-                mergeProfileIntoQuote(item, profile);
+                const cached = quoteCache[item.symbol];
+                if (cached?.data?.longBusinessSummary) {
+                  copyProfileFromCache(item, cached.data);
+                } else {
+                  const profile = await fetchCompanyProfileFromAPI(item.symbol);
+                  mergeProfileIntoQuote(item, profile);
+                }
               } catch {}
             });
             await Promise.all(promises);
@@ -192,8 +217,13 @@ export async function GET(request: NextRequest) {
           for (const item of freshData) {
             if (symbols.length === 1) {
               try {
-                const profile = await fetchCompanyProfileFromAPI(item.symbol);
-                mergeProfileIntoQuote(item, profile);
+                const cached = quoteCache[item.symbol];
+                if (cached?.data?.longBusinessSummary) {
+                  copyProfileFromCache(item, cached.data);
+                } else {
+                  const profile = await fetchCompanyProfileFromAPI(item.symbol);
+                  mergeProfileIntoQuote(item, profile);
+                }
               } catch {}
             }
 

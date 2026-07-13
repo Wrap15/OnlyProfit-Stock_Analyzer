@@ -3,18 +3,16 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
-  TrendingUp, Wallet, ArrowLeft, RefreshCw, Trash2, 
+  TrendingUp, Wallet, ArrowLeft, RefreshCw, 
   ChevronRight, Sparkles, ShieldAlert, 
-  History, BookOpen, PlayCircle, BarChart3,
+  History, PlayCircle, BarChart3,
   Eye, EyeOff, Plus
 } from 'lucide-react';
 import { useStockStore } from '@/store/useStockStore';
 import { 
   getSimulatorState, 
-  cancelOrder, 
   pollLimitOrders, 
   checkAutoSquareOff,
-  squareOffPosition,
   syncLocalDataToFirestore,
   saveCashBalance,
   SimulatorState 
@@ -35,7 +33,7 @@ export default function SimulatorPage() {
   
   const [livePrices, setLivePrices] = useState<Record<string, { price: number; change: number; pct: number }>>({});
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'holdings' | 'positions' | 'orders' | 'history'>('holdings');
+  const [activeTab, setActiveTab] = useState<'holdings' | 'history'>('holdings');
   const [isMasked, setIsMasked] = useState(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [triggerRefresh, setTriggerRefresh] = useState(0);
@@ -176,21 +174,7 @@ export default function SimulatorPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [holdingsSymbolsKey, activePositionsSymbolsKey, pendingOrdersSymbolsKey, userId]);
 
-  const handleCancelOrder = async (orderId: string) => {
-    const ok = await cancelOrder(userId, orderId);
-    if (ok) {
-      setTriggerRefresh(prev => prev + 1);
-    }
-  };
 
-  const handleSquareOff = async (symbol: string) => {
-    const quote = livePrices[symbol];
-    if (!quote) return;
-    const ok = await squareOffPosition(userId, symbol, quote.price);
-    if (ok) {
-      setTriggerRefresh(prev => prev + 1);
-    }
-  };
 
   const handleAddMoney = async () => {
     const addedAmount = 100000; // Add ₹1,00,000 virtual cash
@@ -208,9 +192,17 @@ export default function SimulatorPage() {
     const currentPrice = quote ? quote.price : h.avgBuyPrice;
     const change = quote ? quote.change : 0;
     
+    // Check if the last purchase was made today
+    const lastBuyOrder = state.history.find(hist => hist.symbol === h.symbol && hist.side === 'BUY' && hist.status === 'EXECUTED');
+    const isBoughtToday = lastBuyOrder && new Date(lastBuyOrder.timestamp).toDateString() === new Date().toDateString();
+    
+    const holdingDayPnL = isBoughtToday 
+      ? (currentPrice - h.avgBuyPrice) * h.quantity 
+      : change * h.quantity;
+
     holdingsInvested += h.totalInvested;
     holdingsCurrentValue += currentPrice * h.quantity;
-    holdingsDayPnL += change * h.quantity;
+    holdingsDayPnL += holdingDayPnL;
   });
 
   let positionsUnrealizedPnL = 0;
@@ -562,33 +554,6 @@ export default function SimulatorPage() {
                 >
                   Holdings (CNC)
                 </button>
-                
-                <button
-                  onClick={() => setActiveTab('positions')}
-                  className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                    activeTab === 'positions'
-                      ? 'bg-background text-emerald-400 border border-border shadow-sm'
-                      : 'text-text-secondary hover:text-text-primary'
-                  }`}
-                >
-                  Positions (MIS)
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('orders')}
-                  className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl text-xs font-black transition-all relative cursor-pointer ${
-                    activeTab === 'orders'
-                      ? 'bg-background text-emerald-400 border border-border shadow-sm'
-                      : 'text-text-secondary hover:text-text-primary'
-                  }`}
-                >
-                  Order Book
-                  {state.orders.length > 0 && (
-                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[8px] font-black text-black select-none">
-                      {state.orders.length}
-                    </span>
-                  )}
-                </button>
 
                 <button
                   onClick={() => setActiveTab('history')}
@@ -612,8 +577,9 @@ export default function SimulatorPage() {
                       <thead>
                         <tr className="border-b border-border/80 text-[10px] font-black text-text-secondary uppercase tracking-widest bg-card-hover/20">
                           <th className="p-4 sm:p-5">Company</th>
+                          <th className="p-4 sm:p-5">Purchase Date</th>
                           <th className="p-4 sm:p-5">Market price (1D%)</th>
-                          <th className="p-4 sm:p-5">Returns (%)</th>
+                          <th className="p-4 sm:p-5">Returns (Total / 1D)</th>
                           <th className="p-4 sm:p-5">Current (Invested)</th>
                           <th className="p-4 sm:p-5 text-right">Actions</th>
                         </tr>
@@ -630,6 +596,22 @@ export default function SimulatorPage() {
                             const pnlPct = h.totalInvested > 0 ? (pnl / h.totalInvested) * 100 : 0;
                             const isPnLPositive = pnl >= 0;
                             const sparkPoints = generateMockSparkline(h.symbol, isStockPositive);
+
+                            // Calculate Purchase Date
+                            const lastBuyOrder = state.history.find(hist => hist.symbol === h.symbol && hist.side === 'BUY' && hist.status === 'EXECUTED');
+                            const purchaseDate = lastBuyOrder 
+                              ? new Date(lastBuyOrder.timestamp).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                              : 'N/A';
+                            const isBoughtToday = lastBuyOrder && new Date(lastBuyOrder.timestamp).toDateString() === new Date().toDateString();
+
+                            // Calculate 1D Returns
+                            const holdingDayPnL = isBoughtToday 
+                              ? (ltp - h.avgBuyPrice) * h.quantity 
+                              : (quote ? quote.change : 0) * h.quantity;
+                            const holdingDayPnLPct = isBoughtToday
+                              ? (h.avgBuyPrice > 0 ? ((ltp - h.avgBuyPrice) / h.avgBuyPrice) * 100 : 0)
+                              : pct;
+                            const isHoldingDayPnLPositive = holdingDayPnL >= 0;
 
                             return (
                               <tr key={h.symbol} className="border-b border-border/40 hover:bg-card-hover/10 text-xs font-bold transition-all">
@@ -648,6 +630,13 @@ export default function SimulatorPage() {
                                   </div>
                                 </td>
 
+                                {/* Purchase Date Column */}
+                                <td className="p-4 sm:p-5">
+                                  <div className="font-extrabold text-text-secondary tabular-nums">
+                                    {purchaseDate}
+                                  </div>
+                                </td>
+
                                 {/* Market Price Column */}
                                 <td className="p-4 sm:p-5">
                                   <div className="font-extrabold text-text-primary tabular-nums font-mono">
@@ -660,11 +649,16 @@ export default function SimulatorPage() {
 
                                 {/* Returns Column */}
                                 <td className="p-4 sm:p-5">
+                                  {/* Total Returns */}
                                   <div className={`font-black tabular-nums font-mono ${isPnLPositive ? 'text-profit' : 'text-loss'}`}>
                                     {isMasked ? '•••••' : `${isPnLPositive ? '+' : ''}₹${pnl.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
                                   </div>
                                   <div className={`text-[10px] font-black tabular-nums flex items-center gap-0.5 mt-0.5 ${isPnLPositive ? 'text-profit' : 'text-loss'}`}>
-                                    <span>{isPnLPositive ? '+' : ''}{pnlPct.toFixed(2)}%</span>
+                                    <span>Total: {isPnLPositive ? '+' : ''}{pnlPct.toFixed(2)}%</span>
+                                  </div>
+                                  {/* 1D Returns */}
+                                  <div className={`text-[10px] font-black tabular-nums flex items-center gap-0.5 mt-1.5 ${isHoldingDayPnLPositive ? 'text-profit' : 'text-loss'}`}>
+                                    <span>1D: {isMasked ? '•••••' : `${isHoldingDayPnLPositive ? '+' : ''}₹${holdingDayPnL.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`} ({isHoldingDayPnLPositive ? '+' : ''}{holdingDayPnLPct.toFixed(2)}%)</span>
                                   </div>
                                 </td>
 
@@ -693,7 +687,7 @@ export default function SimulatorPage() {
                           })
                         ) : (
                           <tr>
-                            <td colSpan={5} className="p-12 text-center text-xs text-text-secondary font-bold">
+                            <td colSpan={6} className="p-12 text-center text-xs text-text-secondary font-bold">
                               <div className="flex flex-col items-center justify-center gap-4 py-4">
                                 <TrendingUp className="h-10 w-10 text-text-secondary/30 animate-pulse" />
                                 <div className="space-y-1">
@@ -707,198 +701,6 @@ export default function SimulatorPage() {
                                   Explore Stocks to Buy
                                 </Link>
                               </div>
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                {/* 2. POSITIONS TAB */}
-                {activeTab === 'positions' && (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="border-b border-border/80 text-[10px] font-black text-text-secondary uppercase tracking-widest bg-card-hover/20">
-                          <th className="p-4 sm:p-5">Company</th>
-                          <th className="p-4 sm:p-5">Market price (1D%)</th>
-                          <th className="p-4 sm:p-5">Returns (%)</th>
-                          <th className="p-4 sm:p-5">Current (Invested)</th>
-                          <th className="p-4 sm:p-5 text-right font-black">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {state.positions.length > 0 ? (
-                          state.positions.map((p) => {
-                            const quote = livePrices[p.symbol];
-                            const ltp = quote ? quote.price : p.avgPrice;
-                            const pct = quote ? quote.pct : 0;
-                            const isStockPositive = pct >= 0;
-                            const activeQty = p.quantity;
-                            const isSquaredOff = activeQty === 0;
-                            
-                            const unrealizedPnL = isSquaredOff ? 0 : (
-                              activeQty > 0 
-                                ? (ltp - p.avgPrice) * activeQty
-                                : (p.avgPrice - ltp) * Math.abs(activeQty)
-                            );
-                            const totalPnL = p.realizedPnL + unrealizedPnL;
-                            const isPnLPositive = totalPnL >= 0;
-                            const sparkPoints = generateMockSparkline(p.symbol, isStockPositive);
-
-                            return (
-                              <tr key={p.symbol} className="border-b border-border/40 hover:bg-card-hover/10 text-xs font-bold transition-all">
-                                {/* Company Column */}
-                                <td className="p-4 sm:p-5">
-                                  <div className="flex items-center gap-3">
-                                    <div className="min-w-0">
-                                      {renderSymbolName(p.symbol)}
-                                      <div className="text-[10px] text-text-secondary font-medium mt-0.5 truncate">
-                                        {isSquaredOff ? '0 (Squared Off)' : `${activeQty > 0 ? 'Buy' : 'Short'} • ${Math.abs(activeQty)} shares • Avg. ₹${p.avgPrice.toFixed(2)}`}
-                                      </div>
-                                    </div>
-                                    {!isSquaredOff && (
-                                      <div className="ml-auto pr-2 shrink-0">
-                                        <MiniSparkline data={sparkPoints} isPositive={isStockPositive} width={60} height={20} />
-                                      </div>
-                                    )}
-                                  </div>
-                                </td>
-
-                                {/* Market Price */}
-                                <td className="p-4 sm:p-5">
-                                  <div className="font-extrabold text-text-primary tabular-nums font-mono">
-                                    ₹{ltp.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                  </div>
-                                  <div className={`text-[10px] font-black tabular-nums flex items-center gap-0.5 mt-0.5 ${isStockPositive ? 'text-profit' : 'text-loss'}`}>
-                                    <span>{isStockPositive ? '▲ +' : '▼ '}{pct.toFixed(2)}%</span>
-                                  </div>
-                                </td>
-
-                                {/* Returns */}
-                                <td className="p-4 sm:p-5">
-                                  <div className={`font-black tabular-nums font-mono ${isPnLPositive ? 'text-profit' : 'text-loss'}`}>
-                                    {isMasked ? '•••••' : `${isPnLPositive ? '+' : ''}₹${totalPnL.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
-                                  </div>
-                                  <div className="text-[10px] text-text-secondary font-medium mt-0.5">
-                                    {unrealizedPnL !== 0 ? `Unrealized: ₹${unrealizedPnL.toFixed(0)}` : 'Realized'}
-                                  </div>
-                                </td>
-
-                                {/* Current Value / Margin */}
-                                <td className="p-4 sm:p-5">
-                                  <div className="font-extrabold text-text-primary tabular-nums font-mono">
-                                    {isSquaredOff ? '—' : (isMasked ? '•••••' : `₹${(ltp * Math.abs(activeQty)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`)}
-                                  </div>
-                                  <div className="text-[10px] text-text-secondary font-medium mt-0.5">
-                                    {isSquaredOff ? 'Closed' : 'MIS Margin'}
-                                  </div>
-                                </td>
-
-                                {/* Actions */}
-                                <td className="p-4 sm:p-5 text-right">
-                                  {!isSquaredOff ? (
-                                    <button
-                                      onClick={() => handleSquareOff(p.symbol)}
-                                      className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
-                                    >
-                                      Square Off
-                                    </button>
-                                  ) : (
-                                    <span className="text-[10px] text-text-secondary font-bold uppercase tracking-wider">Completed</span>
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          })
-                        ) : (
-                          <tr>
-                            <td colSpan={5} className="p-12 text-center text-xs text-text-secondary font-bold">
-                              <div className="flex flex-col items-center justify-center gap-4 py-4">
-                                <PlayCircle className="h-10 w-10 text-text-secondary/30 animate-pulse" />
-                                <div className="space-y-1">
-                                  <div>No active MIS Intraday Positions found.</div>
-                                  <div className="text-[10px] font-medium text-text-secondary/80">Execute MIS orders on any stock page to trace daily margins.</div>
-                                </div>
-                                <Link 
-                                  href="/?tab=explore"
-                                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-black rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow-md shadow-emerald-500/10 active:scale-[0.98]"
-                                >
-                                  Explore Intraday Equities
-                                </Link>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                {/* 3. ORDER BOOK TAB */}
-                {activeTab === 'orders' && (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="border-b border-border/80 text-[10px] font-black text-text-secondary uppercase tracking-widest bg-card-hover/20">
-                          <th className="p-4 sm:p-5">Time</th>
-                          <th className="p-4 sm:p-5">Symbol</th>
-                          <th className="p-4 sm:p-5">Side</th>
-                          <th className="p-4 sm:p-5">Product</th>
-                          <th className="p-4 sm:p-5">Type</th>
-                          <th className="p-4 sm:p-5">Qty</th>
-                          <th className="p-4 sm:p-5">Price Input</th>
-                          <th className="p-4 sm:p-5">Status</th>
-                          <th className="p-4 sm:p-5 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {state.orders.length > 0 ? (
-                          state.orders.map((o) => (
-                            <tr key={o.id} className="border-b border-border/40 hover:bg-card-hover/10 text-xs font-bold transition-all">
-                              <td className="p-4 sm:p-5 text-text-secondary">
-                                {new Date(o.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                              </td>
-                              <td className="p-4 sm:p-5">
-                                {renderSymbolName(o.symbol)}
-                              </td>
-                              <td className={`p-4 sm:p-5 font-black uppercase text-[10px] tracking-wider ${o.side === 'BUY' ? 'text-profit' : 'text-loss'}`}>
-                                {o.side}
-                              </td>
-                              <td className="p-4 sm:p-5 text-text-secondary uppercase tracking-wider text-[10px]">{o.productType}</td>
-                              <td className="p-4 sm:p-5 text-text-secondary uppercase text-[10px]">{o.type}</td>
-                              <td className="p-4 sm:p-5 text-text-primary">{o.quantity}</td>
-                              <td className="p-4 sm:p-5 text-text-primary">
-                                {o.type === 'LIMIT' ? `₹${o.limitPrice?.toFixed(2)}` : o.type === 'SL' ? `₹${o.stopPrice?.toFixed(2)}` : 'Market'}
-                              </td>
-                              <td className="p-4 sm:p-5">
-                                <span className={`px-2.5 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-wider ${
-                                  o.status === 'EXECUTED'
-                                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'
-                                    : o.status === 'REJECTED' || o.status === 'CANCELLED'
-                                    ? 'bg-rose-500/10 border-rose-500/20 text-rose-500'
-                                    : 'bg-yellow-500/10 border-yellow-500/20 text-yellow-500'
-                                }`}>
-                                  {o.status}
-                                </span>
-                              </td>
-                              <td className="p-4 sm:p-5 text-right">
-                                <button
-                                  onClick={() => handleCancelOrder(o.id)}
-                                  className="inline-flex items-center gap-1 px-3 py-1.5 border border-border hover:border-red-500/20 bg-background hover:bg-red-500/5 text-text-secondary hover:text-red-500 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                  Cancel
-                                </button>
-                              </td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan={9} className="p-12 text-center text-xs text-text-secondary font-bold">
-                              <BookOpen className="w-10 h-10 mx-auto text-text-secondary/30 mb-2" />
-                              No pending orders in order book. Limit and Stop Loss orders sit here until execution.
                             </td>
                           </tr>
                         )}

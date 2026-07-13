@@ -245,10 +245,10 @@ export default function StockCard({ symbol, initialQuote }: StockCardProps) {
 
   const volatility = getVolatility(symbol);
 
-  const cleanSymbol = symbol.replace('.NS', '').replace('.BO', '');
+  const cleanSymbol = symbol.toUpperCase().replace('.NS', '').replace('.BO', '');
 
   const handleCardClick = () => {
-    router.push(`/stock/${cleanSymbol}`);
+    router.push(`/stock/${encodeURIComponent(cleanSymbol)}`);
   };
 
   return (

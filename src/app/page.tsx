@@ -660,7 +660,9 @@ export default function Home() {
       try {
         const res = await axios.get(`/api/stock/search?q=${encodeURIComponent(searchFilter)}`);
         const searchResults: any[] = res.data || [];
-        const symbols = searchResults.map(r => r.symbol);
+        const symbols = searchResults
+          .filter((r: any) => r.type !== 'MUTUALFUND' && r.exchange !== 'MF')
+          .map(r => r.symbol);
         setExploreSymbols(symbols);
       } catch (err) {
         console.error('Explore dynamic search failed', err);

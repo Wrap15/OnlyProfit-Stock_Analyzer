@@ -97,7 +97,7 @@ export default function BottomNav() {
 
   return (
     <>
-      <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-md border-t border-border px-4 py-2 pb-safe shadow-[0_-5px_20px_rgba(0,0,0,0.08)]">
+      <div className="sm:hidden fixed bottom-4 left-4 right-4 z-50 bg-card/75 backdrop-blur-xl border border-border/80 rounded-3xl px-4 py-2 shadow-[0_16px_48px_rgba(0,0,0,0.3)] transition-all duration-300">
         <div className="flex items-center justify-between gap-1">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -115,16 +115,25 @@ export default function BottomNav() {
 
             const content = (
               <>
-                <Icon className={`h-5.5 w-5.5 transition-transform duration-200 ${isActive ? 'scale-110' : ''}`} />
-                <span className="text-[9px] font-black uppercase tracking-wider mt-0.5">{tab.label}</span>
+                <div className={`relative flex items-center justify-center p-2 rounded-xl transition-all duration-200 ${
+                  isActive 
+                    ? 'bg-profit/10 text-profit scale-105' 
+                    : 'text-text-secondary group-hover:text-text-primary'
+                }`}>
+                  <Icon className="h-5 w-5" />
+                  {isActive && (
+                    <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full bg-profit animate-pulse" />
+                  )}
+                </div>
+                <span className={`text-[8px] font-black uppercase tracking-widest mt-0.5 transition-colors duration-200 ${
+                  isActive ? 'text-profit' : 'text-text-secondary/80'
+                }`}>
+                  {tab.label}
+                </span>
               </>
             );
 
-            const className = `flex flex-col items-center justify-center flex-1 py-1 transition-all cursor-pointer ${
-              isActive 
-                ? 'text-profit font-black' 
-                : 'text-text-secondary hover:text-text-primary'
-            }`;
+            const className = `flex flex-col items-center justify-center flex-1 py-0.5 transition-all duration-200 active:scale-[0.9] cursor-pointer group`;
 
             if (isProfileTab) {
               return (

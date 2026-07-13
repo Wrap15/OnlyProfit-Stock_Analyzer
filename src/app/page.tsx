@@ -681,40 +681,40 @@ export default function Home() {
   }, [searchFilter, activeCollection, activeTab]);
 
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-28 pt-8 sm:py-8 md:py-12 transition-colors duration-300">
+    <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 pb-28 pt-6 sm:py-8 md:py-12 transition-colors duration-300">
       
       {/* Hero Header Command Center Section */}
-      <div className="mb-8 p-6 rounded-3xl border border-border bg-glass shadow-premium relative overflow-hidden animate-fade-in">
+      <div className="mb-6 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-border bg-glass shadow-premium relative overflow-hidden animate-fade-in">
         {/* Decorative corner background gradient blur glow */}
         <div className="absolute top-0 right-0 h-40 w-40 bg-gradient-to-br from-emerald-500/5 to-indigo-500/5 rounded-full blur-3xl pointer-events-none select-none" />
         
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6 relative z-10">
           <div className="space-y-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] font-black uppercase tracking-widest bg-profit/15 text-profit px-2 py-0.5 rounded-md border border-profit/20">
+              <span className="text-[9px] font-black uppercase tracking-widest bg-profit/15 text-profit px-1.5 py-0.5 rounded border border-profit/20">
                 PRO PLATFORM
               </span>
-              <div className="flex items-center gap-1.5 text-xs text-text-secondary font-bold">
+              <div className="flex items-center gap-1.5 text-[10px] text-text-secondary font-bold">
                 <span className="h-1.5 w-1.5 rounded-full bg-border" />
                 <span>Exchange: NSE India</span>
               </div>
             </div>
             
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-text-primary mt-1">
-              Market Command Center — <span className="bg-gradient-to-r from-profit to-teal-500 bg-clip-text text-transparent">OnlyProfit</span>
+            <h1 className="text-xl sm:text-3xl font-black tracking-tight text-text-primary mt-1">
+              Market Dashboard — <span className="bg-gradient-to-r from-profit to-teal-500 bg-clip-text text-transparent">OnlyProfit</span>
             </h1>
-            <p className="text-xs sm:text-sm text-text-secondary font-medium max-w-2xl leading-relaxed">
+            <p className="hidden sm:block text-xs sm:text-sm text-text-secondary font-medium max-w-2xl leading-relaxed">
               Real-time analytics, interactive trading charts, and sector valuation metrics for NSE-listed equities.
             </p>
           </div>
           
           {/* Status widgets panel */}
-          <div className="flex items-center gap-3 self-start md:self-auto flex-wrap">
+          <div className="flex items-center gap-2.5 self-start md:self-auto flex-wrap">
             {/* Live Clock Widget */}
             {timeStr && (
-              <div className="px-4 py-2 rounded-2xl bg-background border border-border/80 flex flex-col items-center justify-center shadow-inner select-none font-mono">
-                <span className="text-[8px] font-extrabold text-text-secondary uppercase tracking-widest">LOCAL TIME</span>
-                <span className="text-xs font-black text-text-primary tracking-wider mt-0.5">{timeStr}</span>
+              <div className="px-3 py-1.5 rounded-xl sm:rounded-2xl bg-background border border-border/85 flex flex-col items-center justify-center shadow-inner select-none font-mono">
+                <span className="text-[7px] sm:text-[8px] font-extrabold text-text-secondary uppercase tracking-widest">LOCAL TIME</span>
+                <span className="text-2xs sm:text-xs font-black text-text-primary tracking-wider mt-0.5">{timeStr}</span>
               </div>
             )}
             
@@ -723,11 +723,11 @@ export default function Home() {
               (() => {
                 const status = getDetailedMarketStatus();
                 return (
-                  <div className="px-4 py-2 rounded-2xl bg-background border border-border/80 flex flex-col items-start shadow-inner select-none animate-fade-in">
-                    <span className="text-[8px] font-extrabold text-text-secondary uppercase tracking-widest">MARKET STATUS</span>
+                  <div className="px-3 py-1.5 rounded-xl sm:rounded-2xl bg-background border border-border/85 flex flex-col items-start shadow-inner select-none animate-fade-in">
+                    <span className="text-[7px] sm:text-[8px] font-extrabold text-text-secondary uppercase tracking-widest">MARKET STATUS</span>
                     <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className={`h-2 w-2 rounded-full ${status.dotColor} shrink-0`} />
-                      <span className={`text-[10px] font-black uppercase ${status.className}`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${status.dotColor} shrink-0`} />
+                      <span className={`text-[9px] sm:text-[10px] font-black uppercase ${status.className}`}>
                         {status.label}
                       </span>
                     </div>
@@ -735,11 +735,11 @@ export default function Home() {
                 );
               })()
             ) : (
-              <div className="px-4 py-2 rounded-2xl bg-background border border-border/80 flex flex-col items-start shadow-inner select-none">
-                <span className="text-[8px] font-extrabold text-text-secondary uppercase tracking-widest">MARKET STATUS</span>
+              <div className="px-3 py-1.5 rounded-xl sm:rounded-2xl bg-background border border-border/85 flex flex-col items-start shadow-inner select-none">
+                <span className="text-[7px] sm:text-[8px] font-extrabold text-text-secondary uppercase tracking-widest">MARKET STATUS</span>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="h-2 w-2 rounded-full bg-border shrink-0" />
-                  <span className="text-[10px] font-black uppercase text-text-secondary">
+                  <span className="h-1.5 w-1.5 rounded-full bg-border shrink-0" />
+                  <span className="text-[9px] sm:text-[10px] font-black uppercase text-text-secondary">
                     LOADING...
                   </span>
                 </div>
@@ -793,7 +793,7 @@ export default function Home() {
           <div className="flex overflow-x-auto scrollbar-none max-w-full gap-2 p-1 bg-card border border-border/70 rounded-xl self-start">
             <button
               onClick={() => handleTabSwitch('trending')}
-              className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all duration-200 flex items-center gap-1.5 shrink-0 ${
+              className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all duration-200 active:scale-[0.96] flex items-center gap-1.5 shrink-0 ${
                 activeTab === 'trending'
                   ? 'bg-profit/10 text-profit border border-profit/20 shadow-sm'
                   : 'text-text-secondary hover:text-text-primary hover:bg-background border border-transparent'
@@ -804,7 +804,7 @@ export default function Home() {
 
             <button
               onClick={() => handleTabSwitch('mostsearched')}
-              className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all duration-200 flex items-center gap-1.5 shrink-0 ${
+              className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all duration-200 active:scale-[0.96] flex items-center gap-1.5 shrink-0 ${
                 activeTab === 'mostsearched'
                   ? 'bg-profit/10 text-profit border border-profit/20 shadow-sm'
                   : 'text-text-secondary hover:text-text-primary hover:bg-background border border-transparent'
@@ -815,7 +815,7 @@ export default function Home() {
             
             <button
               onClick={() => handleTabSwitch('watchlist')}
-              className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all duration-200 flex items-center gap-1.5 shrink-0 ${
+              className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all duration-200 active:scale-[0.96] flex items-center gap-1.5 shrink-0 ${
                 activeTab === 'watchlist'
                   ? 'bg-profit/10 text-profit border border-profit/20 shadow-sm'
                   : 'text-text-secondary hover:text-text-primary hover:bg-background border border-transparent'
@@ -829,7 +829,7 @@ export default function Home() {
 
             <button
               onClick={() => handleTabSwitch('explore')}
-              className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all duration-200 flex items-center gap-1.5 shrink-0 ${
+              className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all duration-200 active:scale-[0.96] flex items-center gap-1.5 shrink-0 ${
                 activeTab === 'explore'
                   ? 'bg-profit/10 text-profit border border-profit/20 shadow-sm'
                   : 'text-text-secondary hover:text-text-primary hover:bg-background border border-transparent'
@@ -843,7 +843,7 @@ export default function Home() {
 
             <button
               onClick={() => handleTabSwitch('ipo')}
-              className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all duration-200 flex items-center gap-1.5 shrink-0 ${
+              className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all duration-200 active:scale-[0.96] flex items-center gap-1.5 shrink-0 ${
                 activeTab === 'ipo'
                   ? 'bg-profit/10 text-profit border border-profit/20 shadow-sm'
                   : 'text-text-secondary hover:text-text-primary hover:bg-background border border-transparent'
@@ -854,7 +854,7 @@ export default function Home() {
 
             <button
               onClick={() => handleTabSwitch('fo')}
-              className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all duration-200 flex items-center gap-1.5 shrink-0 ${
+              className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all duration-200 active:scale-[0.96] flex items-center gap-1.5 shrink-0 ${
                 activeTab === 'fo'
                   ? 'bg-profit/10 text-profit border border-profit/20 shadow-sm'
                   : 'text-text-secondary hover:text-text-primary hover:bg-background border border-transparent'

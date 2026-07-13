@@ -595,7 +595,11 @@ export default function StockDetailPage() {
   const newsList = liveNews;
   const eventsList = getMockEvents();
 
-  // Recommendation Card suggestions
+  // Safe fallback variables for day range & 52-week range limits
+  const dayLow = quote.regularMarketDayLow ?? quote.regularMarketPrice;
+  const dayHigh = quote.regularMarketDayHigh ?? quote.regularMarketPrice;
+  const fiftyTwoLow = quote.fiftyTwoWeekLow ?? quote.regularMarketPrice;
+  const fiftyTwoHigh = quote.fiftyTwoWeekHigh ?? quote.regularMarketPrice;
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-28 pt-6 sm:py-6 transition-colors duration-300 animate-fade-in space-y-6">
@@ -878,12 +882,12 @@ export default function StockDetailPage() {
               </div>
               
               {/* Range Filters */}
-              <div className="flex p-0.5 rounded-xl bg-background border border-border self-stretch sm:self-start justify-between sm:justify-start overflow-x-auto scrollbar-none w-full sm:w-auto">
+              <div className="flex p-0.5 rounded-xl bg-background border border-border self-stretch sm:self-start justify-between sm:justify-start overflow-x-auto scrollbar-none w-full sm:w-auto gap-1">
                 {RANGES.map((r) => (
                   <button
                     key={r.value}
                     onClick={() => setActiveRange(r.value)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 active:scale-95 ${
                       activeRange === r.value
                         ? 'bg-card text-profit shadow-sm'
                         : 'text-text-secondary hover:text-text-primary'
@@ -921,63 +925,63 @@ export default function StockDetailPage() {
             {/* 1. Overview Tab */}
             {activeTab === 'overview' && (
               <div className="space-y-6 animate-fade-in">
-                
-                {/* Visual Sliders: Day Range & 52-Week Range */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-card border border-border p-5 rounded-2xl shadow-soft dark:shadow-soft-dark">
-                  <div className="space-y-2 p-3.5 rounded-xl bg-background/50 border border-border/50">
-                    <div className="flex justify-between items-center text-[10px] font-black text-text-secondary uppercase tracking-wider">
-                      <span>Day Range</span>
-                      <span className="text-text-primary">Current: ₹{quote.regularMarketPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                    </div>
-                    <div className="relative pt-1">
-                      <div className="flex mb-1.5 items-center justify-between text-[10px] font-bold text-text-secondary">
-                        <span>L: ₹{quote.regularMarketDayLow.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                        <span>H: ₹{quote.regularMarketDayHigh.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  
+                  {/* Visual Sliders: Day Range & 52-Week Range */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-card border border-border p-5 rounded-2xl shadow-soft dark:shadow-soft-dark">
+                    <div className="space-y-2 p-3.5 rounded-xl bg-background/50 border border-border/50">
+                      <div className="flex justify-between items-center text-[10px] font-black text-text-secondary uppercase tracking-wider">
+                        <span>Day Range</span>
+                        <span className="text-text-primary">Current: ₹{quote.regularMarketPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                       </div>
-                      <div className="overflow-hidden h-1.5 text-xs flex rounded-full bg-border relative items-center">
-                        <div 
-                          style={{ 
-                            width: `${quote.regularMarketDayHigh === quote.regularMarketDayLow ? 50 : Math.min(100, Math.max(0, ((quote.regularMarketPrice - quote.regularMarketDayLow) / (quote.regularMarketDayHigh - quote.regularMarketDayLow)) * 100))}%` 
-                          }}
-                          className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-profit/40 h-full rounded-full"
-                        />
-                        <div
-                          style={{ 
-                            left: `${quote.regularMarketDayHigh === quote.regularMarketDayLow ? 50 : Math.min(100, Math.max(0, ((quote.regularMarketPrice - quote.regularMarketDayLow) / (quote.regularMarketDayHigh - quote.regularMarketDayLow)) * 100))}%` 
-                          }}
-                          className="absolute w-2.5 h-2.5 rounded-full bg-profit border-2 border-card -ml-1.5 shadow"
-                        />
+                      <div className="relative pt-1">
+                        <div className="flex mb-1.5 items-center justify-between text-[10px] font-bold text-text-secondary">
+                          <span>L: ₹{dayLow.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                          <span>H: ₹{dayHigh.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        <div className="overflow-hidden h-1.5 text-xs flex rounded-full bg-border relative items-center">
+                          <div 
+                            style={{ 
+                              width: `${dayHigh === dayLow ? 50 : Math.min(100, Math.max(0, ((quote.regularMarketPrice - dayLow) / (dayHigh - dayLow)) * 100))}%` 
+                            }}
+                            className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-profit/40 h-full rounded-full"
+                          />
+                          <div
+                            style={{ 
+                              left: `${dayHigh === dayLow ? 50 : Math.min(100, Math.max(0, ((quote.regularMarketPrice - dayLow) / (dayHigh - dayLow)) * 100))}%` 
+                            }}
+                            className="absolute w-2.5 h-2.5 rounded-full bg-profit border-2 border-card -ml-1.5 shadow"
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="space-y-2 p-3.5 rounded-xl bg-background/50 border border-border/50">
-                    <div className="flex justify-between items-center text-[10px] font-black text-text-secondary uppercase tracking-wider">
-                      <span>52-Week Range</span>
-                      <span className="text-text-primary">Current: ₹{quote.regularMarketPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                    </div>
-                    <div className="relative pt-1">
-                      <div className="flex mb-1.5 items-center justify-between text-[10px] font-bold text-text-secondary">
-                        <span className="text-loss">L: ₹{quote.fiftyTwoWeekLow.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                        <span className="text-profit">H: ₹{quote.fiftyTwoWeekHigh.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    <div className="space-y-2 p-3.5 rounded-xl bg-background/50 border border-border/50">
+                      <div className="flex justify-between items-center text-[10px] font-black text-text-secondary uppercase tracking-wider">
+                        <span>52-Week Range</span>
+                        <span className="text-text-primary">Current: ₹{quote.regularMarketPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                       </div>
-                      <div className="overflow-hidden h-1.5 text-xs flex rounded-full bg-border relative items-center">
-                        <div 
-                          style={{ 
-                            width: `${quote.fiftyTwoWeekHigh === quote.fiftyTwoWeekLow ? 50 : Math.min(100, Math.max(0, ((quote.regularMarketPrice - quote.fiftyTwoWeekLow) / (quote.fiftyTwoWeekHigh - quote.fiftyTwoWeekLow)) * 100))}%` 
-                          }}
-                          className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-profit/40 h-full rounded-full"
-                        />
-                        <div
-                          style={{ 
-                            left: `${quote.fiftyTwoWeekHigh === quote.fiftyTwoWeekLow ? 50 : Math.min(100, Math.max(0, ((quote.regularMarketPrice - quote.fiftyTwoWeekLow) / (quote.fiftyTwoWeekHigh - quote.fiftyTwoWeekLow)) * 100))}%` 
-                          }}
-                          className="absolute w-2.5 h-2.5 rounded-full bg-profit border-2 border-card -ml-1.5 shadow"
-                        />
+                      <div className="relative pt-1">
+                        <div className="flex mb-1.5 items-center justify-between text-[10px] font-bold text-text-secondary">
+                          <span className="text-loss">L: ₹{fiftyTwoLow.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                          <span className="text-profit">H: ₹{fiftyTwoHigh.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        <div className="overflow-hidden h-1.5 text-xs flex rounded-full bg-border relative items-center">
+                          <div 
+                            style={{ 
+                              width: `${fiftyTwoHigh === fiftyTwoLow ? 50 : Math.min(100, Math.max(0, ((quote.regularMarketPrice - fiftyTwoLow) / (fiftyTwoHigh - fiftyTwoLow)) * 100))}%` 
+                            }}
+                            className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-profit/40 h-full rounded-full"
+                          />
+                          <div
+                            style={{ 
+                              left: `${fiftyTwoHigh === fiftyTwoLow ? 50 : Math.min(100, Math.max(0, ((quote.regularMarketPrice - fiftyTwoLow) / (fiftyTwoHigh - fiftyTwoLow)) * 100))}%` 
+                            }}
+                            className="absolute w-2.5 h-2.5 rounded-full bg-profit border-2 border-card -ml-1.5 shadow"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
                 {/* Key Metrics Grid */}
                 <div className="bg-card border border-border rounded-2xl p-6 shadow-soft dark:shadow-soft-dark space-y-4">
@@ -1998,6 +2002,33 @@ export default function StockDetailPage() {
             triggerToast(`Order placed successfully for ${tradeSymbol}!`);
           }}
         />
+      )}
+      {/* Mobile Sticky Trade Bar */}
+      {!symbol.startsWith('^') && quote && (
+        <div className="sm:hidden fixed bottom-[90px] left-4 right-4 z-45 bg-card/85 backdrop-blur-xl border border-border/80 rounded-2xl p-3 shadow-[0_12px_32px_rgba(0,0,0,0.3)] flex items-center justify-between gap-3 animate-fade-in animate-in slide-in-from-bottom duration-300">
+          <div className="flex flex-col">
+            <span className="text-[8px] font-black text-text-secondary uppercase tracking-widest">LTP</span>
+            <span className="text-sm font-black text-text-primary font-mono">
+              ₹{quote.regularMarketPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            </span>
+            <span className={`text-[9px] font-bold ${isPositive ? 'text-profit' : 'text-loss'}`}>
+              {isPositive ? '+' : ''}{quote.regularMarketChangePercent.toFixed(2)}%
+            </span>
+          </div>
+          
+          <button
+            onClick={() => {
+              setTradeSymbol(symbol);
+              setTradeName(quote.longName || quote.shortName || symbol);
+              setTradePrice(quote.regularMarketPrice);
+              setIsOrderModalOpen(true);
+            }}
+            className="flex-1 py-3 bg-profit text-black hover:brightness-105 rounded-xl font-black text-xs uppercase tracking-wider transition-all duration-200 shadow-md shadow-profit/15 flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
+          >
+            <TrendingUp className="h-4 w-4" />
+            <span>Paper Trade</span>
+          </button>
+        </div>
       )}
     </div>
   );

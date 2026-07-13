@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Star } from 'lucide-react';
+import { Star, ChevronRight } from 'lucide-react';
 import { useStockStore } from '@/store/useStockStore';
 import MiniSparkline from './MiniSparkline';
 import { apiClient as axios } from '@/lib/apiClient';
@@ -254,35 +254,35 @@ export default function StockCard({ symbol, initialQuote }: StockCardProps) {
       >
       
       {/* MOBILE LAYOUT: Compact List Row */}
-      <div className={`flex sm:hidden items-center justify-between w-full p-4 rounded-xl border bg-glass transition-all duration-200 ${
+      <div className={`flex sm:hidden items-center justify-between w-full p-2.5 rounded-xl border bg-glass transition-all duration-150 active:scale-[0.98] ${
         isPositive 
-          ? 'border-emerald-500/10 dark:border-emerald-500/5 shadow-glow-profit hover:bg-emerald-500/5 active:scale-[0.98]' 
-          : 'border-rose-500/10 dark:border-rose-500/5 shadow-glow-loss hover:bg-rose-500/5 active:scale-[0.98]'
+          ? 'border-emerald-500/10 dark:border-emerald-500/5 shadow-glow-profit hover:bg-emerald-500/5' 
+          : 'border-rose-500/10 dark:border-rose-500/5 shadow-glow-loss hover:bg-rose-500/5'
       }`}>
         {/* Left Ticker & Name & PE Badge */}
-        <div className="flex items-center gap-3 min-w-0 max-w-[55%]">
+        <div className="flex items-center gap-2 min-w-0 max-w-[45%]">
           <StockLogo symbol={symbol} size="sm" />
           <div className="flex flex-col min-w-0">
             <div className="flex flex-wrap items-center gap-1">
-              <span className="font-extrabold text-xs text-text-primary truncate">{symbol.split('.')[0]}</span>
+              <span className="font-extrabold text-[11px] text-text-primary truncate">{symbol.split('.')[0]}</span>
               {!symbol.startsWith('^') && (
-                <span className="text-[7px] font-bold px-1 rounded bg-background border border-border text-text-secondary uppercase select-none">
+                <span className="text-[6.5px] font-bold px-0.5 rounded bg-background border border-border text-text-secondary uppercase select-none">
                   EQ
                 </span>
               )}
               {!symbol.startsWith('^') && (
-                <span className={`text-[7px] font-bold px-1 rounded border ${volatility.className} uppercase select-none`}>
+                <span className={`text-[6.5px] font-bold px-0.5 rounded border ${volatility.className} uppercase select-none`}>
                   {volatility.label.split(' ')[0]}
                 </span>
               )}
             </div>
-            <span className="text-[10px] text-text-secondary truncate mt-0.5">{data.name}</span>
+            <span className="text-[9px] text-text-secondary truncate mt-0.5">{data.name}</span>
             <div className="flex gap-1 mt-1 flex-wrap">
-              <span className="text-[8px] font-medium px-1 py-0.5 rounded bg-background border border-border text-text-secondary max-w-[80px] truncate">
+              <span className="text-[7.5px] font-medium px-1 py-0.5 rounded bg-background border border-border text-text-secondary max-w-[70px] truncate">
                 {data.sector}
               </span>
               {data.pe && (
-                <span className="text-[8px] font-extrabold text-text-secondary/90 bg-background px-1.5 py-0.5 rounded border border-border/60">
+                <span className="text-[7.5px] font-extrabold text-text-secondary/90 bg-background px-1 py-0.5 rounded border border-border/60">
                   P/E: {data.pe.toFixed(1)}
                 </span>
               )}
@@ -292,20 +292,36 @@ export default function StockCard({ symbol, initialQuote }: StockCardProps) {
 
         {/* Center Sparkline */}
         {data.chart.length > 0 && (
-          <div className="h-6 w-16 opacity-80 shrink-0">
-            <MiniSparkline data={data.chart} isPositive={isPositive} width={64} height={24} />
+          <div className="h-5 w-14 opacity-80 shrink-0">
+            <MiniSparkline data={data.chart} isPositive={isPositive} width={56} height={20} />
           </div>
         )}
 
-        {/* Right Price & Percent */}
-        <div className="flex flex-col items-end shrink-0">
-          <span className="text-xs font-extrabold rounded px-1.5 py-0.5 tabular-nums text-text-primary font-mono">
-            ₹{data.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-          </span>
-          <span className={`text-[10px] font-extrabold flex items-center gap-0.5 mt-0.5 ${isPositive ? 'text-profit' : 'text-loss'}`}>
-            <span>{isPositive ? '▲' : '▼'}</span>
-            <span>{isPositive ? '+' : ''}{data.changePercent.toFixed(2)}%</span>
-          </span>
+        {/* Right Price & Percent & Star Toggle */}
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-col items-end">
+            <span className="text-[11px] font-extrabold rounded px-1 tabular-nums text-text-primary font-mono">
+              ₹{data.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            </span>
+            <span className={`text-[9px] font-extrabold flex items-center gap-0.5 mt-0.5 ${isPositive ? 'text-profit' : 'text-loss'}`}>
+              <span>{isPositive ? '▲' : '▼'}</span>
+              <span>{isPositive ? '+' : ''}{data.changePercent.toFixed(2)}%</span>
+            </span>
+          </div>
+
+          <button
+            onClick={handleFavoriteClick}
+            className={`p-1 rounded-lg border transition-all duration-150 active:scale-90 z-20 shrink-0 ${
+              isFavorited
+                ? 'bg-amber-500/10 border-amber-500/20 text-amber-500 shadow-sm'
+                : 'border-border text-text-secondary hover:text-text-primary hover:bg-background'
+            }`}
+            title={isFavorited ? "Remove from Watchlist" : "Add to Watchlist"}
+          >
+            <Star className={`h-3 w-3 ${isFavorited ? 'fill-current' : ''}`} />
+          </button>
+          
+          <ChevronRight className="h-3.5 w-3.5 text-text-secondary/40 shrink-0" />
         </div>
       </div>
 
@@ -388,9 +404,9 @@ export default function StockCard({ symbol, initialQuote }: StockCardProps) {
       {/* Watchlist Toggle - Rendered outside Link to prevent W3C nested anchor warnings */}
       <button
         onClick={handleFavoriteClick}
-        className={`absolute top-[22px] right-5 p-1.5 rounded-lg border transition-all duration-200 z-10 ${
+        className={`hidden sm:block absolute top-[22px] right-5 p-1.5 rounded-lg border transition-all duration-200 z-10 ${
           isFavorited
-            ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/50 text-amber-500'
+            ? 'bg-amber-550 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/50 text-amber-500'
             : 'border-border text-text-secondary hover:text-text-primary hover:bg-background'
         }`}
         title={isFavorited ? "Remove from Watchlist" : "Add to Watchlist"}

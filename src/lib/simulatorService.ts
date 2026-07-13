@@ -754,3 +754,45 @@ export async function syncLocalDataToFirestore(userId: string): Promise<void> {
     console.error('Failed to sync guest simulator data to Firestore:', err);
   }
 }
+
+export async function resetSimulatorState(userId: string | null): Promise<boolean> {
+  const defaultState: SimulatorState = { cash: DEFAULT_BALANCE, holdings: [], positions: [], orders: [], history: [] };
+  
+  if (!userId) {
+    saveLocalState(null, defaultState);
+    return true;
+  }
+
+  try {
+    return await withTimeout((async () => {
+      // 1. Reset Cash Balance
+      const walletRef = doc(db, 'users', userId, 'simulator', 'wallet');
+      await setDoc(walletRef, { cash: DEFAULT_BALANCE });
+
+      // 2. Clear Holdings collection
+      const holdingsSnap = await getDocs(collection(db, 'users', userId, 'simulator_holdings'));
+      for (const d of holdingsSnap.docs) {
+        await deleteDoc(doc(db, 'users', userId, 'simulator_holdings', d.id));
+      }
+
+      // 3. Clear Positions collection
+      const positionsSnap = await getDocs(collection(db, 'users', userId, 'simulator_positions'));
+      for (const d of positionsSnap.docs) {
+        await deleteDoc(doc(db, 'users', userId, 'simulator_positions', d.id));
+      }
+
+      // 4. Clear Orders collection
+      const ordersSnap = await getDocs(collection(db, 'users', userId, 'simulator_orders'));
+      for (const d of ordersSnap.docs) {
+        await deleteDoc(doc(db, 'users', userId, 'simulator_orders', d.id));
+      }
+
+      // Also reset local storage backup just in case
+      saveLocalState(userId, defaultState);
+      return true;
+    })(), 4000);
+  } catch (err) {
+    console.error('Failed to reset simulator state on Firestore:', err);
+    return false;
+  }
+}

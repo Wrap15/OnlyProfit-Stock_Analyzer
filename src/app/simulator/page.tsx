@@ -15,6 +15,7 @@ import {
   checkAutoSquareOff,
   syncLocalDataToFirestore,
   saveCashBalance,
+  resetSimulatorState,
   SimulatorState 
 } from '@/lib/simulatorService';
 import { apiClient as axios } from '@/lib/apiClient';
@@ -180,6 +181,16 @@ export default function SimulatorPage() {
     const addedAmount = 100000; // Add ₹1,00,000 virtual cash
     await saveCashBalance(userId, state.cash + addedAmount);
     setTriggerRefresh(prev => prev + 1);
+  };
+
+  const handleResetSimulator = async () => {
+    const ok = window.confirm('Are you sure you want to reset your paper trading simulator account? This will clear all holdings, order book history, and reset your cash balance back to ₹10,00,000.');
+    if (!ok) return;
+    
+    setLoading(true);
+    await resetSimulatorState(userId);
+    setTriggerRefresh(prev => prev + 1);
+    setLoading(false);
   };
 
   // 3. Compute Portfolio Math
@@ -567,213 +578,379 @@ export default function SimulatorPage() {
                 </button>
               </div>
 
-              {/* Tab Views */}
               <div className="bg-card border border-border rounded-3xl overflow-hidden shadow-sm">
                 
                 {/* 1. HOLDINGS TAB */}
                 {activeTab === 'holdings' && (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="border-b border-border/80 text-[10px] font-black text-text-secondary uppercase tracking-widest bg-card-hover/20">
-                          <th className="p-4 sm:p-5">Company</th>
-                          <th className="p-4 sm:p-5">Purchase Date</th>
-                          <th className="p-4 sm:p-5">Market price (1D%)</th>
-                          <th className="p-4 sm:p-5">Returns (Total / 1D)</th>
-                          <th className="p-4 sm:p-5">Current (Invested)</th>
-                          <th className="p-4 sm:p-5 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {state.holdings.length > 0 ? (
-                          state.holdings.map((h) => {
-                            const quote = livePrices[h.symbol];
-                            const ltp = quote ? quote.price : h.avgBuyPrice;
-                            const pct = quote ? quote.pct : 0;
-                            const isStockPositive = pct >= 0;
-                            const currentValue = ltp * h.quantity;
-                            const pnl = currentValue - h.totalInvested;
-                            const pnlPct = h.totalInvested > 0 ? (pnl / h.totalInvested) * 100 : 0;
-                            const isPnLPositive = pnl >= 0;
-                            const sparkPoints = generateMockSparkline(h.symbol, isStockPositive);
+                  <>
+                    {/* Desktop table */}
+                    <div className="hidden sm:block overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="border-b border-border/80 text-[10px] font-black text-text-secondary uppercase tracking-widest bg-card-hover/20">
+                            <th className="p-4 sm:p-5">Company</th>
+                            <th className="p-4 sm:p-5">Purchase Date</th>
+                            <th className="p-4 sm:p-5">Market price (1D%)</th>
+                            <th className="p-4 sm:p-5">Returns (Total / 1D)</th>
+                            <th className="p-4 sm:p-5">Current (Invested)</th>
+                            <th className="p-4 sm:p-5 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {state.holdings.length > 0 ? (
+                            state.holdings.map((h) => {
+                              const quote = livePrices[h.symbol];
+                              const ltp = quote ? quote.price : h.avgBuyPrice;
+                              const pct = quote ? quote.pct : 0;
+                              const isStockPositive = pct >= 0;
+                              const currentValue = ltp * h.quantity;
+                              const pnl = currentValue - h.totalInvested;
+                              const pnlPct = h.totalInvested > 0 ? (pnl / h.totalInvested) * 100 : 0;
+                              const isPnLPositive = pnl >= 0;
+                              const sparkPoints = generateMockSparkline(h.symbol, isStockPositive);
 
-                            // Calculate Purchase Date
-                            const lastBuyOrder = state.history.find(hist => hist.symbol === h.symbol && hist.side === 'BUY' && hist.status === 'EXECUTED');
-                            const purchaseDate = lastBuyOrder 
-                              ? new Date(lastBuyOrder.timestamp).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-                              : 'N/A';
-                            const isBoughtToday = lastBuyOrder && new Date(lastBuyOrder.timestamp).toDateString() === new Date().toDateString();
+                              // Calculate Purchase Date
+                              const lastBuyOrder = state.history.find(hist => hist.symbol === h.symbol && hist.side === 'BUY' && hist.status === 'EXECUTED');
+                              const purchaseDate = lastBuyOrder 
+                                ? new Date(lastBuyOrder.timestamp).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                                : 'N/A';
+                              const isBoughtToday = lastBuyOrder && new Date(lastBuyOrder.timestamp).toDateString() === new Date().toDateString();
 
-                            // Calculate 1D Returns
-                            const holdingDayPnL = isBoughtToday 
-                              ? (ltp - h.avgBuyPrice) * h.quantity 
-                              : (quote ? quote.change : 0) * h.quantity;
-                            const holdingDayPnLPct = isBoughtToday
-                              ? (h.avgBuyPrice > 0 ? ((ltp - h.avgBuyPrice) / h.avgBuyPrice) * 100 : 0)
-                              : pct;
-                            const isHoldingDayPnLPositive = holdingDayPnL >= 0;
+                              // Calculate 1D Returns
+                              const holdingDayPnL = isBoughtToday 
+                                ? (ltp - h.avgBuyPrice) * h.quantity 
+                                : (quote ? quote.change : 0) * h.quantity;
+                              const holdingDayPnLPct = isBoughtToday
+                                ? (h.avgBuyPrice > 0 ? ((ltp - h.avgBuyPrice) / h.avgBuyPrice) * 100 : 0)
+                                : pct;
+                              const isHoldingDayPnLPositive = holdingDayPnL >= 0;
 
-                            return (
-                              <tr key={h.symbol} className="border-b border-border/40 hover:bg-card-hover/10 text-xs font-bold transition-all">
-                                {/* Company Column */}
-                                <td className="p-4 sm:p-5">
-                                  <div className="flex items-center gap-3">
-                                    <div className="min-w-0">
-                                      {renderSymbolName(h.symbol)}
-                                      <div className="text-[10px] text-text-secondary font-medium mt-0.5 truncate">
-                                        {h.quantity} shares • Avg. ₹{h.avgBuyPrice.toFixed(2)}
+                              return (
+                                <tr key={h.symbol} className="border-b border-border/40 hover:bg-card-hover/10 text-xs font-bold transition-all">
+                                  {/* Company Column */}
+                                  <td className="p-4 sm:p-5">
+                                    <div className="flex items-center gap-3">
+                                      <div className="min-w-0">
+                                        {renderSymbolName(h.symbol)}
+                                        <div className="text-[10px] text-text-secondary font-medium mt-0.5 truncate">
+                                          {h.quantity} shares • Avg. ₹{h.avgBuyPrice.toFixed(2)}
+                                        </div>
+                                      </div>
+                                      <div className="ml-auto pr-2 shrink-0">
+                                        <MiniSparkline data={sparkPoints} isPositive={isStockPositive} width={60} height={20} />
                                       </div>
                                     </div>
-                                    <div className="ml-auto pr-2 shrink-0">
-                                      <MiniSparkline data={sparkPoints} isPositive={isStockPositive} width={60} height={20} />
+                                  </td>
+
+                                  {/* Purchase Date Column */}
+                                  <td className="p-4 sm:p-5">
+                                    <div className="font-extrabold text-text-secondary tabular-nums">
+                                      {purchaseDate}
                                     </div>
-                                  </div>
-                                </td>
+                                  </td>
 
-                                {/* Purchase Date Column */}
-                                <td className="p-4 sm:p-5">
-                                  <div className="font-extrabold text-text-secondary tabular-nums">
-                                    {purchaseDate}
-                                  </div>
-                                </td>
+                                  {/* Market Price Column */}
+                                  <td className="p-4 sm:p-5">
+                                    <div className="font-extrabold text-text-primary tabular-nums font-mono">
+                                      ₹{ltp.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                    </div>
+                                    <div className={`text-[10px] font-black tabular-nums flex items-center gap-0.5 mt-0.5 ${isStockPositive ? 'text-profit' : 'text-loss'}`}>
+                                      <span>{isStockPositive ? '▲ +' : '▼ '}{pct.toFixed(2)}%</span>
+                                    </div>
+                                  </td>
 
-                                {/* Market Price Column */}
-                                <td className="p-4 sm:p-5">
-                                  <div className="font-extrabold text-text-primary tabular-nums font-mono">
-                                    ₹{ltp.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                  </div>
-                                  <div className={`text-[10px] font-black tabular-nums flex items-center gap-0.5 mt-0.5 ${isStockPositive ? 'text-profit' : 'text-loss'}`}>
-                                    <span>{isStockPositive ? '▲ +' : '▼ '}{pct.toFixed(2)}%</span>
-                                  </div>
-                                </td>
+                                  {/* Returns Column */}
+                                  <td className="p-4 sm:p-5">
+                                    {/* Total Returns */}
+                                    <div className={`font-black tabular-nums font-mono ${isPnLPositive ? 'text-profit' : 'text-loss'}`}>
+                                      {isMasked ? '•••••' : `${isPnLPositive ? '+' : ''}₹${pnl.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
+                                    </div>
+                                    <div className={`text-[10px] font-black tabular-nums flex items-center gap-0.5 mt-0.5 ${isPnLPositive ? 'text-profit' : 'text-loss'}`}>
+                                      <span>Total: {isPnLPositive ? '+' : ''}{pnlPct.toFixed(2)}%</span>
+                                    </div>
+                                    {/* 1D Returns */}
+                                    <div className={`text-[10px] font-black tabular-nums flex items-center gap-0.5 mt-1.5 ${isHoldingDayPnLPositive ? 'text-profit' : 'text-loss'}`}>
+                                      <span>1D: {isMasked ? '•••••' : `${isHoldingDayPnLPositive ? '+' : ''}₹${holdingDayPnL.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`} ({isHoldingDayPnLPositive ? '+' : ''}{holdingDayPnLPct.toFixed(2)}%)</span>
+                                    </div>
+                                  </td>
 
-                                {/* Returns Column */}
-                                <td className="p-4 sm:p-5">
-                                  {/* Total Returns */}
-                                  <div className={`font-black tabular-nums font-mono ${isPnLPositive ? 'text-profit' : 'text-loss'}`}>
-                                    {isMasked ? '•••••' : `${isPnLPositive ? '+' : ''}₹${pnl.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
-                                  </div>
-                                  <div className={`text-[10px] font-black tabular-nums flex items-center gap-0.5 mt-0.5 ${isPnLPositive ? 'text-profit' : 'text-loss'}`}>
-                                    <span>Total: {isPnLPositive ? '+' : ''}{pnlPct.toFixed(2)}%</span>
-                                  </div>
-                                  {/* 1D Returns */}
-                                  <div className={`text-[10px] font-black tabular-nums flex items-center gap-0.5 mt-1.5 ${isHoldingDayPnLPositive ? 'text-profit' : 'text-loss'}`}>
-                                    <span>1D: {isMasked ? '•••••' : `${isHoldingDayPnLPositive ? '+' : ''}₹${holdingDayPnL.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`} ({isHoldingDayPnLPositive ? '+' : ''}{holdingDayPnLPct.toFixed(2)}%)</span>
-                                  </div>
-                                </td>
+                                  {/* Current (Invested) Column */}
+                                  <td className="p-4 sm:p-5">
+                                    <div className="font-extrabold text-text-primary tabular-nums font-mono">
+                                      {isMasked ? '•••••' : `₹${currentValue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
+                                    </div>
+                                    <div className="text-[10px] text-text-secondary font-medium tabular-nums mt-0.5">
+                                      ₹{h.totalInvested.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                    </div>
+                                  </td>
 
-                                {/* Current (Invested) Column */}
-                                <td className="p-4 sm:p-5">
-                                  <div className="font-extrabold text-text-primary tabular-nums font-mono">
-                                    {isMasked ? '•••••' : `₹${currentValue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
+                                  {/* Action Row */}
+                                  <td className="p-4 sm:p-5 text-right">
+                                    <Link 
+                                      href={`/stock/${h.symbol}`}
+                                      className="inline-flex items-center gap-1 px-3 py-1.5 border border-border hover:border-emerald-500/20 bg-background hover:bg-emerald-500/5 text-text-secondary hover:text-emerald-400 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all"
+                                    >
+                                      Trade
+                                      <ChevronRight className="w-3.5 h-3.5" />
+                                    </Link>
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          ) : (
+                            <tr>
+                              <td colSpan={6} className="p-12 text-center text-xs text-text-secondary font-bold">
+                                <div className="flex flex-col items-center justify-center gap-4 py-4">
+                                  <TrendingUp className="h-10 w-10 text-text-secondary/30 animate-pulse" />
+                                  <div className="space-y-1">
+                                    <div>No active CNC Holdings found.</div>
+                                    <div className="text-[10px] font-medium text-text-secondary/80">Place a delivery order from any stock page to build your portfolio.</div>
                                   </div>
-                                  <div className="text-[10px] text-text-secondary font-medium tabular-nums mt-0.5">
-                                    ₹{h.totalInvested.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                  </div>
-                                </td>
-
-                                {/* Action Row */}
-                                <td className="p-4 sm:p-5 text-right">
                                   <Link 
-                                    href={`/stock/${h.symbol}`}
-                                    className="inline-flex items-center gap-1 px-3 py-1.5 border border-border hover:border-emerald-500/20 bg-background hover:bg-emerald-500/5 text-text-secondary hover:text-emerald-400 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all"
+                                    href="/?tab=explore"
+                                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-black rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow-md shadow-emerald-500/10 active:scale-[0.98]"
                                   >
-                                    Trade
-                                    <ChevronRight className="w-3.5 h-3.5" />
+                                    Explore Stocks to Buy
                                   </Link>
-                                </td>
-                              </tr>
-                            );
-                          })
-                        ) : (
-                          <tr>
-                            <td colSpan={6} className="p-12 text-center text-xs text-text-secondary font-bold">
-                              <div className="flex flex-col items-center justify-center gap-4 py-4">
-                                <TrendingUp className="h-10 w-10 text-text-secondary/30 animate-pulse" />
-                                <div className="space-y-1">
-                                  <div>No active CNC Holdings found.</div>
-                                  <div className="text-[10px] font-medium text-text-secondary/80">Place a delivery order from any stock page to build your portfolio.</div>
                                 </div>
-                                <Link 
-                                  href="/?tab=explore"
-                                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-black rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow-md shadow-emerald-500/10 active:scale-[0.98]"
-                                >
-                                  Explore Stocks to Buy
-                                </Link>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                {/* 4. TRADE HISTORY TAB */}
-                {activeTab === 'history' && (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="border-b border-border/80 text-[10px] font-black text-text-secondary uppercase tracking-widest bg-card-hover/20">
-                          <th className="p-4 sm:p-5">Date & Time</th>
-                          <th className="p-4 sm:p-5">Symbol</th>
-                          <th className="p-4 sm:p-5">Type</th>
-                          <th className="p-4 sm:p-5">Product</th>
-                          <th className="p-4 sm:p-5">Qty</th>
-                          <th className="p-4 sm:p-5">Exec Price</th>
-                          <th className="p-4 sm:p-5">Fees Paid</th>
-                          <th className="p-4 sm:p-5">Status</th>
-                          <th className="p-4 sm:p-5 text-right">Reason</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {state.history.length > 0 ? (
-                          state.history.map((h) => (
-                            <tr key={h.id} className="border-b border-border/40 hover:bg-card-hover/10 text-xs font-bold transition-all">
-                              <td className="p-4 sm:p-5 text-text-secondary">
-                                {new Date(h.timestamp).toLocaleString('en-IN', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                              </td>
-                              <td className="p-4 sm:p-5">
-                                {renderSymbolName(h.symbol)}
-                              </td>
-                              <td className={`p-4 sm:p-5 font-black uppercase text-[10px] tracking-wider ${h.side === 'BUY' ? 'text-profit' : 'text-loss'}`}>
-                                {h.side} ({h.type})
-                              </td>
-                              <td className="p-4 sm:p-5 text-text-secondary uppercase tracking-wider text-[10px]">{h.productType}</td>
-                              <td className="p-4 sm:p-5 text-text-primary">{h.quantity}</td>
-                              <td className="p-4 sm:p-5 text-text-primary">
-                                {h.status === 'EXECUTED' ? `₹${h.executionPrice?.toFixed(2)}` : '-'}
-                              </td>
-                              <td className="p-4 sm:p-5 text-text-secondary">
-                                ₹{(h.brokerage + h.taxes).toFixed(2)}
-                              </td>
-                              <td className="p-4 sm:p-5">
-                                <span className={`px-2 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-wider ${
-                                  h.status === 'EXECUTED'
-                                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                                    : h.status === 'CANCELLED'
-                                    ? 'bg-slate-500/10 border-slate-500/20 text-text-secondary'
-                                    : 'bg-red-500/10 border-red-500/20 text-red-500'
-                                }`}>
-                                  {h.status}
-                                </span>
-                              </td>
-                              <td className="p-4 sm:p-5 text-right text-text-secondary max-w-xs truncate">
-                                {h.rejectionReason || '-'}
                               </td>
                             </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan={9} className="p-12 text-center text-xs text-text-secondary font-bold">
-                              <History className="w-10 h-10 mx-auto text-text-secondary/30 mb-2" />
-                              No transaction history available. Completed buy/sell logs appear here.
-                            </td>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Mobile cards list */}
+                    <div className="block sm:hidden space-y-3 p-4 bg-background/20">
+                      {state.holdings.length > 0 ? (
+                        state.holdings.map((h) => {
+                          const quote = livePrices[h.symbol];
+                          const ltp = quote ? quote.price : h.avgBuyPrice;
+                          const pct = quote ? quote.pct : 0;
+                          const isStockPositive = pct >= 0;
+                          const currentValue = ltp * h.quantity;
+                          const pnl = currentValue - h.totalInvested;
+                          const pnlPct = h.totalInvested > 0 ? (pnl / h.totalInvested) * 105 : 0;
+                          const isPnLPositive = pnl >= 0;
+
+                          const lastBuyOrder = state.history.find(hist => hist.symbol === h.symbol && hist.side === 'BUY' && hist.status === 'EXECUTED');
+                          const purchaseDate = lastBuyOrder 
+                            ? new Date(lastBuyOrder.timestamp).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
+                            : 'N/A';
+                          const isBoughtToday = lastBuyOrder && new Date(lastBuyOrder.timestamp).toDateString() === new Date().toDateString();
+
+                          const holdingDayPnL = isBoughtToday 
+                            ? (ltp - h.avgBuyPrice) * h.quantity 
+                            : (quote ? quote.change : 0) * h.quantity;
+                          const holdingDayPnLPct = isBoughtToday
+                            ? (h.avgBuyPrice > 0 ? ((ltp - h.avgBuyPrice) / h.avgBuyPrice) * 100 : 0)
+                            : pct;
+                          const isHoldingDayPnLPositive = holdingDayPnL >= 0;
+
+                          return (
+                            <div key={h.symbol} className="p-4 rounded-2xl border border-border bg-card flex flex-col gap-3.5 shadow-sm relative overflow-hidden">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <div className="flex items-center gap-1.5">
+                                    {renderSymbolName(h.symbol)}
+                                    <span className="text-[8px] font-black text-text-secondary/75 uppercase bg-background border border-border px-1 py-0.5 rounded">CNC</span>
+                                  </div>
+                                  <div className="text-[10px] text-text-secondary font-semibold mt-1">
+                                    {h.quantity} shares • Avg: ₹{h.avgBuyPrice.toFixed(2)}
+                                  </div>
+                                </div>
+                                <div className="flex flex-col items-end">
+                                  <span className="text-xs font-mono font-black text-text-primary">₹{ltp.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                  <span className={`text-[9px] font-black mt-0.5 ${isStockPositive ? 'text-profit' : 'text-loss'}`}>
+                                    {isStockPositive ? '▲ +' : '▼ '}{pct.toFixed(2)}%
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/40 text-[10px]">
+                                <div>
+                                  <span className="text-text-secondary font-semibold">Total Invested:</span>
+                                  <div className="font-mono font-extrabold text-text-primary mt-0.5">₹{h.totalInvested.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+                                </div>
+                                <div>
+                                  <span className="text-text-secondary font-semibold">Current Value:</span>
+                                  <div className="font-mono font-extrabold text-text-primary mt-0.5">{isMasked ? '•••••' : `₹${currentValue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}</div>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/40 text-[10px]">
+                                <div>
+                                  <span className="text-text-secondary font-semibold">Total PnL Returns:</span>
+                                  <div className={`font-mono font-black mt-0.5 ${isPnLPositive ? 'text-profit' : 'text-loss'}`}>
+                                    {isMasked ? '•••••' : `${isPnLPositive ? '+' : ''}₹${pnl.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`} ({isPnLPositive ? '+' : ''}{pnlPct.toFixed(2)}%)
+                                  </div>
+                                </div>
+                                <div>
+                                  <span className="text-text-secondary font-semibold">1D Return:</span>
+                                  <div className={`font-mono font-black mt-0.5 ${isHoldingDayPnLPositive ? 'text-profit' : 'text-loss'}`}>
+                                    {isMasked ? '•••••' : `${isHoldingDayPnLPositive ? '+' : ''}₹${holdingDayPnL.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`} ({isHoldingDayPnLPositive ? '+' : ''}{holdingDayPnLPct.toFixed(2)}%)
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center justify-between pt-2.5 border-t border-border/40 text-[9px] text-text-secondary font-semibold">
+                                <span>Bought: {purchaseDate}</span>
+                                <Link 
+                                  href={`/stock/${h.symbol}`}
+                                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-profit text-black rounded-xl font-black uppercase tracking-wider transition-all duration-150 active:scale-95 shadow-sm shadow-profit/10"
+                                >
+                                  Trade
+                                  <ChevronRight className="w-3.5 h-3.5" />
+                                </Link>
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="text-center py-10 bg-card rounded-2xl border border-border p-4">
+                          <TrendingUp className="h-8 w-8 text-text-secondary/30 mx-auto mb-2 animate-pulse" />
+                          <span className="text-[10px] text-text-secondary font-semibold block">No delivery holdings found.</span>
+                          <Link 
+                            href="/?tab=explore"
+                            className="mt-3 inline-block px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-black rounded-xl text-[9px] font-black uppercase tracking-wider shadow-md shadow-emerald-500/10 active:scale-[0.98]"
+                          >
+                            Explore Stocks to Buy
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {activeTab === 'history' && (
+                  <>
+                    {/* Desktop table */}
+                    <div className="hidden sm:block overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="border-b border-border/80 text-[10px] font-black text-text-secondary uppercase tracking-widest bg-card-hover/20">
+                            <th className="p-4 sm:p-5">Date & Time</th>
+                            <th className="p-4 sm:p-5">Symbol</th>
+                            <th className="p-4 sm:p-5">Type</th>
+                            <th className="p-4 sm:p-5">Product</th>
+                            <th className="p-4 sm:p-5">Qty</th>
+                            <th className="p-4 sm:p-5">Exec Price</th>
+                            <th className="p-4 sm:p-5">Fees Paid</th>
+                            <th className="p-4 sm:p-5">Status</th>
+                            <th className="p-4 sm:p-5 text-right">Reason</th>
                           </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {state.history.length > 0 ? (
+                            state.history.map((h) => (
+                              <tr key={h.id} className="border-b border-border/40 hover:bg-card-hover/10 text-xs font-bold transition-all">
+                                <td className="p-4 sm:p-5 text-text-secondary">
+                                  {new Date(h.timestamp).toLocaleString('en-IN', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                </td>
+                                <td className="p-4 sm:p-5">
+                                  {renderSymbolName(h.symbol)}
+                                </td>
+                                <td className={`p-4 sm:p-5 font-black uppercase text-[10px] tracking-wider ${h.side === 'BUY' ? 'text-profit' : 'text-loss'}`}>
+                                  {h.side} ({h.type})
+                                </td>
+                                <td className="p-4 sm:p-5 text-text-secondary uppercase tracking-wider text-[10px]">{h.productType}</td>
+                                <td className="p-4 sm:p-5 text-text-primary">{h.quantity}</td>
+                                <td className="p-4 sm:p-5 text-text-primary">
+                                  {h.status === 'EXECUTED' ? `₹${h.executionPrice?.toFixed(2)}` : '-'}
+                                </td>
+                                <td className="p-4 sm:p-5 text-text-secondary">
+                                  ₹{(h.brokerage + h.taxes).toFixed(2)}
+                                </td>
+                                <td className="p-4 sm:p-5">
+                                  <span className={`px-2 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-wider ${
+                                    h.status === 'EXECUTED'
+                                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                                      : h.status === 'CANCELLED'
+                                      ? 'bg-slate-500/10 border-slate-500/20 text-text-secondary'
+                                      : 'bg-red-500/10 border-red-500/20 text-red-500'
+                                  }`}>
+                                    {h.status}
+                                  </span>
+                                </td>
+                                <td className="p-4 sm:p-5 text-right text-text-secondary max-w-xs truncate">
+                                  {h.rejectionReason || '-'}
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={9} className="p-12 text-center text-xs text-text-secondary font-bold">
+                                <History className="w-10 h-10 mx-auto text-text-secondary/30 mb-2" />
+                                No transaction history available. Completed buy/sell logs appear here.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Mobile cards list */}
+                    <div className="block sm:hidden space-y-3 p-4 bg-background/20">
+                      {state.history.length > 0 ? (
+                        state.history.map((h) => (
+                          <div key={h.id} className="p-4 rounded-2xl border border-border bg-card flex flex-col gap-2 shadow-sm relative overflow-hidden">
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <div className="flex items-center gap-1.5">
+                                  {renderSymbolName(h.symbol)}
+                                  <span className={`text-[8px] font-black px-1.5 py-0.5 rounded border uppercase tracking-wider ${
+                                    h.side === 'BUY' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border-red-500/20 text-red-500'
+                                  }`}>
+                                    {h.side}
+                                  </span>
+                                  <span className="text-[8px] font-black text-text-secondary/85 uppercase bg-background border border-border px-1 py-0.5 rounded">{h.productType}</span>
+                                </div>
+                                <span className="text-[8px] text-text-secondary font-semibold block mt-1">
+                                  {new Date(h.timestamp).toLocaleString('en-IN', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                              
+                              <span className={`px-2 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-wider shrink-0 ${
+                                h.status === 'EXECUTED'
+                                  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                                  : h.status === 'CANCELLED'
+                                  ? 'bg-slate-500/10 border-slate-500/20 text-text-secondary'
+                                  : 'bg-red-500/10 border-red-500/20 text-red-500'
+                              }`}>
+                                {h.status}
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/40 text-[10px] font-semibold text-text-secondary">
+                              <div>
+                                <span>Quantity:</span>
+                                <div className="font-extrabold text-text-primary mt-0.5">{h.quantity}</div>
+                              </div>
+                              <div>
+                                <span>Price:</span>
+                                <div className="font-mono font-extrabold text-text-primary mt-0.5">₹{h.executionPrice?.toFixed(2)}</div>
+                              </div>
+                              <div>
+                                <span>Fees Paid:</span>
+                                <div className="font-mono font-extrabold text-text-primary mt-0.5">₹{(h.brokerage + h.taxes).toFixed(2)}</div>
+                              </div>
+                            </div>
+
+                            {h.rejectionReason && (
+                              <div className="mt-1.5 p-2 bg-red-500/5 border border-red-500/10 text-red-400 rounded-lg text-[9px] font-bold">
+                                Reason: {h.rejectionReason}
+                              </div>
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-10 bg-card rounded-2xl border border-border p-4">
+                          <History className="h-8 w-8 text-text-secondary/30 mx-auto mb-2" />
+                          <span className="text-[10px] text-text-secondary font-semibold block">No completed trades found.</span>
+                        </div>
+                      )}
+                    </div>
+                  </>
                 )}
 
               </div>
@@ -782,32 +959,43 @@ export default function SimulatorPage() {
             {/* Right Column (Info widget, cash balance, search help) */}
             <div className="lg:col-span-1 space-y-6">
               
-              {/* Balance Card */}
-              <div className="bg-card border border-border rounded-3xl p-6 space-y-6 shadow-sm">
+              {/* Premium Virtual Cash & Margin Dashboard */}
+              <div className="bg-card border border-border rounded-3xl p-6 space-y-5 shadow-sm">
                 <div className="flex justify-between items-center">
-                  <div className="space-y-1">
-                    <h3 className="text-sm font-black text-text-secondary uppercase tracking-widest">
-                      Available Cash
+                  <div>
+                    <h3 className="text-xs font-black text-text-secondary uppercase tracking-widest">
+                      Virtual Margin Account
                     </h3>
-                    <p className="text-[10px] text-text-secondary font-medium leading-normal">
-                      Simulated margin balance for buying stocks and holding intraday positions
-                    </p>
+                    <p className="text-[9px] text-text-secondary font-semibold mt-0.5">Practice trading with risk-free capital</p>
                   </div>
-                  <div className="h-10 w-10 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-2xl flex items-center justify-center shrink-0">
-                    <Wallet className="w-5 h-5" />
+                  <div className="h-9 w-9 bg-emerald-500/10 text-emerald-450 border border-emerald-500/20 rounded-xl flex items-center justify-center shrink-0 shadow-sm shadow-emerald-500/5">
+                    <Wallet className="w-4.5 h-4.5" />
                   </div>
                 </div>
-                
-                <div className="flex justify-between items-baseline pt-2">
-                  <div className="text-3xl font-black text-text-primary tracking-tight font-mono">
+
+                <div className="space-y-1 py-1">
+                  <span className="text-[9px] font-black text-text-secondary uppercase tracking-wider block">Available Margin Cash</span>
+                  <div className="text-3xl font-mono font-black text-text-primary tracking-tight">
                     ₹{state.cash.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </div>
-                  <button 
+                </div>
+
+                {/* Dashboard Action Tiles Grid */}
+                <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border/60">
+                  <button
                     onClick={handleAddMoney}
-                    className="text-xs font-black text-emerald-400 hover:text-emerald-300 underline underline-offset-4 cursor-pointer flex items-center gap-0.5 bg-transparent border-none outline-none"
+                    className="flex flex-col items-center justify-center p-3 rounded-2xl bg-emerald-500/5 hover:bg-emerald-500/10 border border-emerald-500/15 text-emerald-400 hover:text-emerald-350 transition-all duration-200 cursor-pointer active:scale-95 text-center gap-1.5"
                   >
-                    <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                    Add money
+                    <Plus className="w-4 h-4 stroke-[3]" />
+                    <span className="text-[10px] font-black uppercase tracking-wider">Add ₹1 Lakh</span>
+                  </button>
+
+                  <button
+                    onClick={handleResetSimulator}
+                    className="flex flex-col items-center justify-center p-3 rounded-2xl bg-rose-500/5 hover:bg-rose-500/10 border border-rose-500/15 text-rose-400 hover:text-rose-350 transition-all duration-200 cursor-pointer active:scale-95 text-center gap-1.5"
+                  >
+                    <RefreshCw className="w-4 h-4 stroke-[3]" />
+                    <span className="text-[10px] font-black uppercase tracking-wider">Reset Account</span>
                   </button>
                 </div>
               </div>

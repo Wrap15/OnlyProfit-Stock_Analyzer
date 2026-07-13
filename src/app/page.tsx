@@ -227,6 +227,7 @@ export default function Home() {
   const [activeCollection, setActiveCollection] = useState<'all' | 'bluechip' | 'growth' | 'dividend' | 'debtfree'>('all');
   const [exploreSymbols, setExploreSymbols] = useState<string[]>(MONITOR_SYMBOLS);
   const [exploreLoading, setExploreLoading] = useState(false);
+  const [visibleExploreCount, setVisibleExploreCount] = useState(12);
 
   // IPO States
   const [ipoData, setIpoData] = useState<{ open: any[]; closed: any[]; upcoming: any[] } | null>(null);
@@ -674,6 +675,11 @@ export default function Home() {
     return () => clearTimeout(delayDebounce);
   }, [searchFilter, activeCollection, activeTab, marketQuotes]);
 
+  // Reset pagination count when active collection or search filters change
+  useEffect(() => {
+    setVisibleExploreCount(12);
+  }, [searchFilter, activeCollection, activeTab]);
+
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-28 pt-8 sm:py-8 md:py-12 transition-colors duration-300">
       
@@ -965,11 +971,23 @@ export default function Home() {
                   <span className="text-xs font-bold">Querying NSE/BSE exchange directory...</span>
                 </div>
               ) : exploreSymbols.length > 0 ? (
-                <div className="grid grid-cols-1 gap-2.5 sm:gap-4 sm:grid-cols-2">
-                  {exploreSymbols.map((symbol) => {
-                    const quote = marketQuotes.find(q => q.symbol === symbol);
-                    return <StockCard key={symbol} symbol={symbol} initialQuote={quote} />;
-                  })}
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 gap-2.5 sm:gap-4 sm:grid-cols-2">
+                    {exploreSymbols.slice(0, visibleExploreCount).map((symbol) => {
+                      const quote = marketQuotes.find(q => q.symbol === symbol);
+                      return <StockCard key={symbol} symbol={symbol} initialQuote={quote} />;
+                    })}
+                  </div>
+                  {visibleExploreCount < exploreSymbols.length && (
+                    <div className="flex justify-center pt-4">
+                      <button
+                        onClick={() => setVisibleExploreCount(prev => prev + 12)}
+                        className="px-6 py-2.5 bg-card hover:bg-card-hover border border-border text-text-primary rounded-xl text-xs font-bold transition-all hover:border-profit/30 cursor-pointer shadow-soft active:scale-[0.98] duration-200"
+                      >
+                        Load More Stocks
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-12 text-sm text-text-secondary font-bold">

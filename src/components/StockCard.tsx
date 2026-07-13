@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Star } from 'lucide-react';
 import { useStockStore } from '@/store/useStockStore';
 import MiniSparkline from './MiniSparkline';
@@ -66,7 +66,6 @@ interface StockCardProps {
 }
 
 export default function StockCard({ symbol, initialQuote }: StockCardProps) {
-  const router = useRouter();
   const { watchlist, toggleWatchlist } = useStockStore();
   
   const [data, setData] = useState<{
@@ -247,16 +246,12 @@ export default function StockCard({ symbol, initialQuote }: StockCardProps) {
 
   const cleanSymbol = symbol.toUpperCase().replace('.NS', '').replace('.BO', '');
 
-  const handleCardClick = () => {
-    router.push(`/stock/${encodeURIComponent(cleanSymbol)}`);
-  };
-
   return (
-    <div 
-      ref={containerRef} 
-      onClick={handleCardClick}
-      className="w-full cursor-pointer select-none block w-full animate-fade-in"
-    >
+    <div ref={containerRef} className="relative w-full group">
+      <Link 
+        href={`/stock/${encodeURIComponent(cleanSymbol)}`}
+        className="block w-full animate-fade-in"
+      >
       
       {/* MOBILE LAYOUT: Compact List Row */}
       <div className={`flex sm:hidden items-center justify-between w-full p-4 rounded-xl border bg-glass transition-all duration-200 ${
@@ -350,17 +345,8 @@ export default function StockCard({ symbol, initialQuote }: StockCardProps) {
               </div>
             </div>
           </div>
-          <button
-            onClick={handleFavoriteClick}
-            className={`p-1.5 rounded-lg border transition-all duration-200 ${
-              isFavorited
-                ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/50 text-amber-500'
-                : 'border-border text-text-secondary hover:text-text-primary hover:bg-background'
-            }`}
-            title={isFavorited ? "Remove from Watchlist" : "Add to Watchlist"}
-          >
-            <Star className={`h-3.5 w-3.5 ${isFavorited ? 'fill-current' : ''}`} />
-          </button>
+          {/* Star Spacer */}
+          <div className="h-7 w-7 shrink-0" />
         </div>
 
         {/* Price section */}
@@ -397,6 +383,20 @@ export default function StockCard({ symbol, initialQuote }: StockCardProps) {
           </div>
         </div>
       </div>
+      </Link>
+
+      {/* Watchlist Toggle - Rendered outside Link to prevent W3C nested anchor warnings */}
+      <button
+        onClick={handleFavoriteClick}
+        className={`absolute top-[22px] right-5 p-1.5 rounded-lg border transition-all duration-200 z-10 ${
+          isFavorited
+            ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/50 text-amber-500'
+            : 'border-border text-text-secondary hover:text-text-primary hover:bg-background'
+        }`}
+        title={isFavorited ? "Remove from Watchlist" : "Add to Watchlist"}
+      >
+        <Star className={`h-3.5 w-3.5 ${isFavorited ? 'fill-current' : ''}`} />
+      </button>
     </div>
   );
 }

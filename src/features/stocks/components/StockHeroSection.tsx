@@ -163,7 +163,7 @@ export default function StockHeroSection({
         {/* Price display and CTA actions */}
         <div className="flex flex-col md:items-end justify-between gap-4 relative z-10 shrink-0">
           <div className="flex flex-col md:items-end">
-            <div className="text-3xl font-black tracking-tight text-text-primary rounded-xl px-2 py-0.5 inline-block font-mono">
+            <div className={`text-3xl font-black tracking-tight rounded-xl px-2 py-0.5 inline-block font-mono ${isPositive ? 'text-profit' : 'text-loss'}`}>
               ₹{quote.regularMarketPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </div>
             <div className={`flex items-center gap-1.5 text-xs font-black mt-1 ${isPositive ? 'text-profit' : 'text-loss'}`}>

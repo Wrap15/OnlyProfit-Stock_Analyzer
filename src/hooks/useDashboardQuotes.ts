@@ -75,9 +75,14 @@ export function useDashboardQuotes(activeTab: string, foUnderlying: string) {
       const fresh = (res.data || []).map((q: any) => ({ ...q, isRealUpdate: true }));
       
       setMarketQuotes((prev) => {
-        const map = new Map(prev.map((q) => [q.symbol.toUpperCase(), q]));
+        const map = new Map();
+        for (const q of prev) {
+          if (q && q.symbol) {
+            map.set(q.symbol.toUpperCase(), q);
+          }
+        }
         for (const q of fresh) {
-          if (q.symbol) {
+          if (q && q.symbol) {
             map.set(q.symbol.toUpperCase(), q);
           }
         }
@@ -105,9 +110,14 @@ export function useDashboardQuotes(activeTab: string, foUnderlying: string) {
           const fresh = (res.data || []).map((q: any) => ({ ...q, isRealUpdate: true }));
           
           setMarketQuotes((prev) => {
-            const map = new Map(prev.map((q) => [q.symbol.toUpperCase(), q]));
+            const map = new Map();
+            for (const q of prev) {
+              if (q && q.symbol) {
+                map.set(q.symbol.toUpperCase(), q);
+              }
+            }
             for (const q of fresh) {
-              if (q.symbol) {
+              if (q && q.symbol) {
                 map.set(q.symbol.toUpperCase(), q);
               }
             }

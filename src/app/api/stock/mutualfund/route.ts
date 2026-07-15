@@ -50,6 +50,7 @@ function generateMockMFData(fund: SchemeInfo) {
     nav: parseFloat(fund.baseNav.toFixed(2)),
     oneYearReturn: fund.y1Return,
     threeYearReturn: fund.y3Return,
+    fiveYearReturn: fund.y5Return || parseFloat((fund.y3Return * 1.18 + 0.85).toFixed(2)),
     rating: realData ? realData.rating : 4,
     minSipAmount: realData ? realData.minSipAmount : 500,
     sparkline: points.reverse()

@@ -11,8 +11,8 @@ interface MutualFundsSectionProps {
   mfLoading: boolean;
   activeMFCategory: string;
   setActiveMFCategory: (category: string) => void;
-  mfReturnDuration: '1y' | '3y';
-  setMfReturnDuration: (duration: '1y' | '3y') => void;
+  mfReturnDuration: '1y' | '3y' | '5y';
+  setMfReturnDuration: (duration: '1y' | '3y' | '5y') => void;
 }
 
 export default function MutualFundsSection({
@@ -51,9 +51,9 @@ export default function MutualFundsSection({
           <p className="text-[10px] text-text-secondary font-medium mt-0.5">Top-rated direct mutual funds by asset class.</p>
         </div>
 
-        {/* 1Y vs 3Y duration toggle */}
+        {/* 1Y vs 3Y vs 5Y duration toggle */}
         <div className="flex items-center gap-1 bg-background p-0.5 rounded-lg border border-border/80 self-start sm:self-auto">
-          {(['1y', '3y'] as const).map((duration) => (
+          {(['1y', '3y', '5y'] as const).map((duration) => (
             <button
               key={duration}
               onClick={() => setMfReturnDuration(duration)}
@@ -63,7 +63,7 @@ export default function MutualFundsSection({
                   : 'text-text-secondary hover:text-text-primary'
               }`}
             >
-              {duration === '1y' ? '1Y Return' : '3Y Return'}
+              {duration === '1y' ? '1Y' : duration === '3y' ? '3Y' : '5Y'}
             </button>
           ))}
         </div>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchStockQuoteFromAPI } from '@/lib/yahooFinance';
+import { fetchStockQuoteFromAPI, searchStocksFromAPI } from '@/lib/yahooFinance';
 import { 
   LARGE_CAP_SYMBOLS, 
   MID_CAP_SYMBOLS, 
@@ -94,6 +94,31 @@ The **${targetFund.name}** is an active scheme under the **${targetFund.category
         targetSymbol = sym;
         cleanSymbolName = cleanSym;
         break;
+      }
+    }
+
+    // Dynamic Search Fallback (for any stock listed on NSE e.g., GOLDIAM)
+    if (!targetSymbol) {
+      const searchTerm = cleanMsg
+        .replace(/analyze/g, '')
+        .replace(/should i buy/g, '')
+        .replace(/what about/g, '')
+        .replace(/tell me about/g, '')
+        .replace(/stock quote/g, '')
+        .replace(/analysis/g, '')
+        .replace(/quote/g, '')
+        .trim();
+        
+      if (searchTerm.length >= 3) {
+        try {
+          const searchResults = await searchStocksFromAPI(searchTerm);
+          if (searchResults && searchResults.length > 0) {
+            targetSymbol = searchResults[0].symbol;
+            cleanSymbolName = targetSymbol.replace('.NS', '').replace('.BO', '');
+          }
+        } catch (searchErr) {
+          console.error('AI chat dynamic search fallback failed:', searchErr);
+        }
       }
     }
 

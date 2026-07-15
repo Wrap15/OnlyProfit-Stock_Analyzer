@@ -80,7 +80,7 @@ export default function Home() {
   const [activeMFCategory, setActiveMFCategory] = useState<string>('largecap');
   const [mutualFunds, setMutualFunds] = useState<any[]>([]);
   const [mfLoading, setMFLoading] = useState<boolean>(true);
-  const [mfReturnDuration, setMfReturnDuration] = useState<'1y' | '3y'>('1y');
+  const [mfReturnDuration, setMfReturnDuration] = useState<'1y' | '3y' | '5y'>('1y');
 
   // Order Placement Modal states
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);

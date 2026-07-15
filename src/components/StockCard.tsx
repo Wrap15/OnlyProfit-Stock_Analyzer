@@ -300,7 +300,7 @@ export default function StockCard({ symbol, initialQuote }: StockCardProps) {
         {/* Right Price & Percent & Star Toggle */}
         <div className="flex items-center gap-2 shrink-0">
           <div className="flex flex-col items-end">
-            <span className="text-[11px] font-extrabold rounded px-1 tabular-nums text-text-primary font-mono">
+            <span className={`text-[11px] font-extrabold rounded px-1 tabular-nums font-mono ${isPositive ? 'text-profit font-black' : 'text-loss font-black'}`}>
               ₹{data.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </span>
             <span className={`text-[9px] font-extrabold flex items-center gap-0.5 mt-0.5 ${isPositive ? 'text-profit' : 'text-loss'}`}>
@@ -367,7 +367,7 @@ export default function StockCard({ symbol, initialQuote }: StockCardProps) {
 
         {/* Price section */}
         <div className="mt-4">
-          <div className="text-xl font-extrabold tracking-tight rounded-lg px-2 py-0.5 inline-block tabular-nums text-text-primary font-mono">
+          <div className={`text-xl font-extrabold tracking-tight rounded-lg px-2 py-0.5 inline-block tabular-nums font-mono ${isPositive ? 'text-profit font-black' : 'text-loss font-black'}`}>
             ₹{data.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
           </div>
           <div className={`flex items-center gap-1.5 text-xs font-bold mt-1 ${isPositive ? 'text-profit' : 'text-loss'}`}>

@@ -19,7 +19,8 @@ export default function MutualFundChart({ data, isPositive }: MutualFundChartPro
   const { theme } = useStockStore();
 
   useEffect(() => {
-    if (!chartContainerRef.current || data.length === 0) return;
+    // Configure Chart early exit if data is invalid
+    if (!chartContainerRef.current || !data || !Array.isArray(data) || data.length === 0) return;
 
     const container = chartContainerRef.current;
     const isDark = theme === 'dark';
@@ -73,14 +74,30 @@ export default function MutualFundChart({ data, isPositive }: MutualFundChartPro
       },
     });
 
-    // Parse data points
-    const formattedData = data.map((pt) => ({
-      time: pt.time as UTCTimestamp,
-      value: pt.value,
-    }));
+    // Parse, deduplicate and sort data points to strictly guarantee chronological uniqueness
+    const seenTimes = new Set<number>();
+    const formattedData: any[] = [];
+    
+    // Sort input data chronologically first
+    const sortedData = [...data].sort((a, b) => a.time - b.time);
+    
+    for (const pt of sortedData) {
+      if (pt && pt.time && typeof pt.value === 'number' && !isNaN(pt.value)) {
+        const t = Math.floor(pt.time);
+        if (!seenTimes.has(t)) {
+          seenTimes.add(t);
+          formattedData.push({
+            time: t as UTCTimestamp,
+            value: pt.value,
+          });
+        }
+      }
+    }
 
-    areaSeries.setData(formattedData);
-    chart.timeScale().fitContent();
+    if (formattedData.length > 0) {
+      areaSeries.setData(formattedData);
+      chart.timeScale().fitContent();
+    }
 
     // Responsive sizing observer
     const resizeObserver = new ResizeObserver((entries) => {

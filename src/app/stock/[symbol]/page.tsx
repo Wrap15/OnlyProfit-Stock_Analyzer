@@ -652,7 +652,7 @@ export default function StockDetailPage() {
       )}
 
       {/* Sticky Bottom Paper Trading Action Bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-card/85 backdrop-blur-md border-t border-border px-4 py-3 shadow-[0_-8px_32px_rgba(0,0,0,0.12)] animate-slide-up flex items-center justify-between">
+      <div className="fixed bottom-[80px] md:bottom-0 left-0 right-0 z-40 bg-card/85 backdrop-blur-md border-t border-border px-4 py-3 shadow-[0_-8px_32px_rgba(0,0,0,0.12)] animate-slide-up flex items-center justify-between">
         <div className="max-w-7xl mx-auto w-full flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <span className="hidden sm:inline-flex h-8 w-8 items-center justify-center rounded-xl bg-profit/10 text-profit font-black text-xs select-none">

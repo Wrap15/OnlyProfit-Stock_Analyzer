@@ -15,17 +15,25 @@ interface TodaysStocksSectionProps {
 }
 
 function generateMockSparklineData(price: number, changePercent: number, symbol: string): number[] {
-  const seed = symbol.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const seed = (symbol || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const points: number[] = [];
   const steps = 8;
-  const startPrice = price / (1 + changePercent / 100);
+  
+  const validPrice = typeof price === 'number' && !isNaN(price) && isFinite(price) ? price : 100;
+  const validChange = typeof changePercent === 'number' && !isNaN(changePercent) && isFinite(changePercent) ? changePercent : 0;
+  
+  const denom = 1 + validChange / 100;
+  const startPrice = Math.abs(denom) > 0.001 ? validPrice / denom : validPrice;
   
   for (let i = 0; i <= steps; i++) {
     const fraction = i / steps;
-    let val = startPrice + (price - startPrice) * fraction;
+    let val = startPrice + (validPrice - startPrice) * fraction;
     if (i > 0 && i < steps) {
-      const noise = (Math.sin(seed + i) * 0.20 * Math.abs(price - startPrice)) / steps;
+      const noise = (Math.sin(seed + i) * 0.20 * Math.abs(validPrice - startPrice)) / steps;
       val += noise;
+    }
+    if (!isFinite(val) || isNaN(val)) {
+      val = validPrice;
     }
     points.push(parseFloat(val.toFixed(2)));
   }
@@ -48,99 +56,122 @@ export default function TodaysStocksSection({ marketQuotes, onTrade }: TodaysSto
   const [activeCap, setActiveCap] = useState<CapType>('large');
 
   const processedList = useMemo(() => {
-    const filteredCapQuotes = [...marketQuotes]
-      .filter((q) => q && q.symbol && !q.symbol.startsWith('^'))
-      .filter((q) => {
-        const cleanSymbol = q.symbol.trim().toUpperCase();
-        if (activeCap === 'large') {
-          return LARGE_CAP_SYMBOLS.map(s => s.trim().toUpperCase()).includes(cleanSymbol);
-        }
-        if (activeCap === 'mid') {
-          return MID_CAP_SYMBOLS.map(s => s.trim().toUpperCase()).includes(cleanSymbol);
-        }
-        if (activeCap === 'small') {
-          return SMALL_CAP_SYMBOLS.map(s => s.trim().toUpperCase()).includes(cleanSymbol);
-        }
-        return true;
-      });
+    try {
+      const filteredCapQuotes = [...marketQuotes]
+        .filter((q) => q && q.symbol && !q.symbol.startsWith('^'))
+        .filter((q) => {
+          const cleanSymbol = q.symbol.trim().toUpperCase();
+          if (activeCap === 'large') {
+            return LARGE_CAP_SYMBOLS.map(s => s.trim().toUpperCase()).includes(cleanSymbol);
+          }
+          if (activeCap === 'mid') {
+            return MID_CAP_SYMBOLS.map(s => s.trim().toUpperCase()).includes(cleanSymbol);
+          }
+          if (activeCap === 'small') {
+            return SMALL_CAP_SYMBOLS.map(s => s.trim().toUpperCase()).includes(cleanSymbol);
+          }
+          return true;
+        });
 
-    let list: any[] = [];
+      let list: any[] = [];
 
-    if (activeTab === 'gainers') {
-      list = filteredCapQuotes
-        .sort((a, b) => {
-          const valA = typeof a.regularMarketChangePercent === 'number' ? a.regularMarketChangePercent : 0;
-          const valB = typeof b.regularMarketChangePercent === 'number' ? b.regularMarketChangePercent : 0;
-          return valB - valA;
-        });
-    } else if (activeTab === 'losers') {
-      list = filteredCapQuotes
-        .sort((a, b) => {
-          const valA = typeof a.regularMarketChangePercent === 'number' ? a.regularMarketChangePercent : 0;
-          const valB = typeof b.regularMarketChangePercent === 'number' ? b.regularMarketChangePercent : 0;
-          return valA - valB;
-        });
-    } else if (activeTab === 'mostactive') {
-      list = filteredCapQuotes.sort((a, b) => (b.regularMarketVolume || 0) - (a.regularMarketVolume || 0));
-    } else if (activeTab === 'high52w') {
-      list = filteredCapQuotes
-        .filter((q) => q.fiftyTwoWeekHigh)
-        .sort((a, b) => {
-          const ratioA = a.regularMarketPrice / a.fiftyTwoWeekHigh;
-          const ratioB = b.regularMarketPrice / b.fiftyTwoWeekHigh;
-          return ratioB - ratioA;
-        });
-    } else if (activeTab === 'low52w') {
-      list = filteredCapQuotes
-        .filter((q) => q.fiftyTwoWeekLow)
-        .sort((a, b) => {
-          const ratioA = a.regularMarketPrice / a.fiftyTwoWeekLow;
-          const ratioB = b.regularMarketPrice / b.fiftyTwoWeekLow;
-          return ratioA - ratioB;
-        });
-    }
+      if (activeTab === 'gainers') {
+        list = filteredCapQuotes
+          .sort((a, b) => {
+            const valA = typeof a.regularMarketChangePercent === 'number' ? a.regularMarketChangePercent : 0;
+            const valB = typeof b.regularMarketChangePercent === 'number' ? b.regularMarketChangePercent : 0;
+            return valB - valA;
+          });
+      } else if (activeTab === 'losers') {
+        list = filteredCapQuotes
+          .sort((a, b) => {
+            const valA = typeof a.regularMarketChangePercent === 'number' ? a.regularMarketChangePercent : 0;
+            const valB = typeof b.regularMarketChangePercent === 'number' ? b.regularMarketChangePercent : 0;
+            return valA - valB;
+          });
+      } else if (activeTab === 'mostactive') {
+        list = filteredCapQuotes.sort((a, b) => (b.regularMarketVolume || 0) - (a.regularMarketVolume || 0));
+      } else if (activeTab === 'high52w') {
+        list = filteredCapQuotes
+          .filter((q) => q.fiftyTwoWeekHigh)
+          .sort((a, b) => {
+            const ratioA = a.regularMarketPrice / a.fiftyTwoWeekHigh;
+            const ratioB = b.regularMarketPrice / b.fiftyTwoWeekHigh;
+            return ratioB - ratioA;
+          });
+      } else if (activeTab === 'low52w') {
+        list = filteredCapQuotes
+          .filter((q) => q.fiftyTwoWeekLow)
+          .sort((a, b) => {
+            const ratioA = a.regularMarketPrice / a.fiftyTwoWeekLow;
+            const ratioB = b.regularMarketPrice / b.fiftyTwoWeekLow;
+            return ratioA - ratioB;
+          });
+      }
 
-    // Emergency fallback if final list is empty (guarantees data display under all conditions)
-    if (list.length === 0) {
-      let fallbackSymbols: string[] = LARGE_CAP_SYMBOLS.slice(0, 5);
-      if (activeCap === 'mid') fallbackSymbols = MID_CAP_SYMBOLS.slice(0, 5);
-      if (activeCap === 'small') fallbackSymbols = SMALL_CAP_SYMBOLS.slice(0, 5);
-      
-      list = fallbackSymbols.map((sym, idx) => {
-        const seed = sym.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) + idx;
-        const price = 100 + (seed % 900) + (seed % 10) * 0.15;
-        let changePct = ((seed % 12) - 6) / 2.5; 
-        if (activeTab === 'gainers') changePct = Math.abs(changePct) || 1.5;
-        if (activeTab === 'losers') changePct = -Math.abs(changePct) || -1.5;
-        const change = (price * changePct) / 100;
+      // Emergency fallback if final list is empty (guarantees data display under all conditions)
+      if (list.length === 0) {
+        let fallbackSymbols: string[] = LARGE_CAP_SYMBOLS.slice(0, 5);
+        if (activeCap === 'mid') fallbackSymbols = MID_CAP_SYMBOLS.slice(0, 5);
+        if (activeCap === 'small') fallbackSymbols = SMALL_CAP_SYMBOLS.slice(0, 5);
         
+        list = fallbackSymbols.map((sym, idx) => {
+          const seed = sym.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) + idx;
+          const price = 100 + (seed % 900) + (seed % 10) * 0.15;
+          let changePct = ((seed % 12) - 6) / 2.5; 
+          if (activeTab === 'gainers') changePct = Math.abs(changePct) || 1.5;
+          if (activeTab === 'losers') changePct = -Math.abs(changePct) || -1.5;
+          const change = (price * changePct) / 100;
+          
+          return {
+            symbol: sym,
+            regularMarketPrice: price,
+            regularMarketChange: change,
+            regularMarketChangePercent: changePct,
+            regularMarketVolume: 1500000 + (seed % 15) * 100000,
+            fiftyTwoWeekHigh: price * 1.12,
+            fiftyTwoWeekLow: price * 0.88
+          };
+        });
+      }
+
+      return list.slice(0, 5).map((q) => {
+        const price = q.regularMarketPrice || 0;
+        const pct = q.regularMarketChangePercent || 0;
+        const sym = q.symbol || 'RELIANCE.NS';
         return {
           symbol: sym,
-          regularMarketPrice: price,
-          regularMarketChange: change,
-          regularMarketChangePercent: changePct,
-          regularMarketVolume: 1500000 + (seed % 15) * 100000,
-          fiftyTwoWeekHigh: price * 1.12,
-          fiftyTwoWeekLow: price * 0.88
+          name: MOCK_STOCK_INFO[sym]?.name || q.shortName || sym.split('.')[0],
+          price,
+          changePercent: pct,
+          change: q.regularMarketChange || 0,
+          volume: q.regularMarketVolume || 0,
+          fiftyTwoWeekHigh: q.fiftyTwoWeekHigh || price,
+          fiftyTwoWeekLow: q.fiftyTwoWeekLow || price,
+          chartData: generateMockSparklineData(price, pct, sym),
+        };
+      });
+    } catch (err) {
+      console.error('TodaysStocksSection: processedList error caught safely:', err);
+      // Hard fallback with guaranteed static structure
+      const fallbackSyms = activeCap === 'small' ? SMALL_CAP_SYMBOLS.slice(0, 5) : activeCap === 'mid' ? MID_CAP_SYMBOLS.slice(0, 5) : LARGE_CAP_SYMBOLS.slice(0, 5);
+      return fallbackSyms.map((sym, idx) => {
+        const isPos = activeTab !== 'losers';
+        const price = 150 + idx * 45;
+        const pct = isPos ? 1.45 : -1.25;
+        return {
+          symbol: sym,
+          name: MOCK_STOCK_INFO[sym]?.name || sym.split('.')[0],
+          price,
+          changePercent: pct,
+          change: (price * pct) / 100,
+          volume: 1200000,
+          fiftyTwoWeekHigh: price * 1.1,
+          fiftyTwoWeekLow: price * 0.9,
+          chartData: [price * 0.98, price * 0.99, price, price * 1.01, price * 1.015],
         };
       });
     }
-
-    return list.slice(0, 5).map((q) => {
-      const price = q.regularMarketPrice || 0;
-      const pct = q.regularMarketChangePercent || 0;
-      return {
-        symbol: q.symbol,
-        name: MOCK_STOCK_INFO[q.symbol]?.name || q.shortName || q.symbol.split('.')[0],
-        price,
-        changePercent: pct,
-        change: q.regularMarketChange || 0,
-        volume: q.regularMarketVolume || 0,
-        fiftyTwoWeekHigh: q.fiftyTwoWeekHigh || price,
-        fiftyTwoWeekLow: q.fiftyTwoWeekLow || price,
-        chartData: generateMockSparklineData(price, pct, q.symbol),
-      };
-    });
   }, [marketQuotes, activeTab, activeCap]);
 
   const { watchlist, toggleWatchlist } = useStockStore();
@@ -264,7 +295,7 @@ export default function TodaysStocksSection({ marketQuotes, onTrade }: TodaysSto
 
                   {/* Col 3: Price */}
                   <div className="col-span-2 text-right">
-                    <span className="text-xs font-black text-text-primary font-mono block">
+                    <span className={`text-xs font-black font-mono block ${isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
                       ₹{stock.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
@@ -338,7 +369,7 @@ export default function TodaysStocksSection({ marketQuotes, onTrade }: TodaysSto
                     </div>
 
                     <div className="text-right shrink-0">
-                      <span className="text-xs font-black text-text-primary font-mono block">
+                      <span className={`text-xs font-black font-mono block ${isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
                         ₹{stock.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </span>
                       <span className={`inline-flex items-center gap-0.5 text-[9px] font-black font-mono leading-none mt-0.5 ${

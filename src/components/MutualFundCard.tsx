@@ -14,6 +14,7 @@ interface MutualFundData {
   nav: number;
   oneYearReturn: number;
   threeYearReturn: number;
+  fiveYearReturn: number;
   rating?: number;
   minSipAmount?: number;
   sparkline: number[];
@@ -21,7 +22,7 @@ interface MutualFundData {
 
 interface MutualFundCardProps {
   fund: MutualFundData;
-  returnDuration?: '1y' | '3y';
+  returnDuration?: '1y' | '3y' | '5y';
 }
 
 export default function MutualFundCard({ fund, returnDuration = '1y' }: MutualFundCardProps) {
@@ -29,7 +30,12 @@ export default function MutualFundCard({ fund, returnDuration = '1y' }: MutualFu
   const isBookmarked = watchlist.includes(fund.code);
   const [imgError, setImgError] = React.useState(false);
 
-  const returnVal = returnDuration === '1y' ? fund.oneYearReturn : fund.threeYearReturn;
+  const rawReturn = returnDuration === '1y' 
+    ? fund.oneYearReturn 
+    : returnDuration === '3y' 
+    ? fund.threeYearReturn 
+    : fund.fiveYearReturn;
+  const returnVal = typeof rawReturn === 'number' && !isNaN(rawReturn) ? rawReturn : (fund.threeYearReturn ? fund.threeYearReturn * 1.15 : 15.0);
   const isPositive = returnVal >= 0;
 
   // Clean fund name: e.g., strip ' - Growth' or ' - Direct Plan' for minimal clean UI

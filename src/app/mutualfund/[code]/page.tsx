@@ -269,7 +269,7 @@ export default function MutualFundDetailPage() {
       </div>
 
       {/* Mobile Sticky Bottom CTA Bar */}
-      <div className="md:hidden fixed bottom-0 inset-x-0 bg-card/90 backdrop-blur-md border-t border-border p-4 z-40 shadow-premium flex items-center justify-between gap-4">
+      <div className="md:hidden fixed bottom-[80px] inset-x-0 bg-card/90 backdrop-blur-md border-t border-border p-4 z-40 shadow-premium flex items-center justify-between gap-4">
         <div className="flex flex-col">
           <span className="text-[9px] text-text-secondary font-black uppercase tracking-wider">Latest NAV</span>
           <span className="text-base font-black text-text-primary">

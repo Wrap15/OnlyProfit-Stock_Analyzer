@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useMarketHours } from '@/hooks/useMarketHours';
-import { TrendingUp } from 'lucide-react';
+import { TrendingUp, Clock, Activity } from 'lucide-react';
 
 export default function DashboardHeroHeader() {
   const { label, className, dotColor, timeStr } = useMarketHours();
@@ -33,23 +33,41 @@ export default function DashboardHeroHeader() {
         </div>
         
         {/* Status widgets panel */}
-        <div className="flex items-center gap-2.5 self-start md:self-auto flex-wrap">
+        <div className="flex items-center gap-2 sm:gap-3 self-start md:self-auto flex-wrap select-none">
           {/* Live Clock Widget */}
           {timeStr && (
-            <div className="px-3 py-1.5 rounded-xl sm:rounded-2xl bg-background border border-border/85 flex flex-col items-center justify-center shadow-inner select-none font-mono">
-              <span className="text-[7px] sm:text-[8px] font-extrabold text-text-secondary uppercase tracking-widest">LOCAL TIME</span>
-              <span className="text-2xs sm:text-xs font-black text-text-primary tracking-wider mt-0.5">{timeStr}</span>
+            <div className="px-2.5 py-1 sm:px-4 sm:py-2 rounded-xl sm:rounded-2xl bg-indigo-500/5 dark:bg-indigo-400/5 border border-indigo-500/15 dark:border-indigo-400/15 flex items-center gap-1.5 sm:gap-2.5 shadow-sm hover:scale-[1.02] transition-transform duration-200">
+              <div className="flex h-5 w-5 sm:h-7 sm:w-7 items-center justify-center rounded-lg sm:rounded-xl bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 shrink-0">
+                <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[6px] sm:text-[8px] font-black text-text-secondary uppercase tracking-widest leading-none">LOCAL TIME</span>
+                <span className="text-[9px] sm:text-xs font-black text-text-primary tracking-wider font-mono mt-0.5 sm:mt-1 leading-none">{timeStr}</span>
+              </div>
             </div>
           )}
           
           {/* Live Market Hours Status Widget */}
-          <div className="px-3 py-1.5 rounded-xl sm:rounded-2xl bg-background border border-border/85 flex flex-col items-start shadow-inner select-none animate-fade-in">
-            <span className="text-[7px] sm:text-[8px] font-extrabold text-text-secondary uppercase tracking-widest">MARKET STATUS</span>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className={`h-1.5 w-1.5 rounded-full ${dotColor} shrink-0`} />
-              <span className={`text-[9px] sm:text-[10px] font-black uppercase ${className}`}>
-                {label}
-              </span>
+          <div className={`px-2.5 py-1 sm:px-4 sm:py-2 rounded-xl sm:rounded-2xl border flex items-center gap-1.5 sm:gap-2.5 shadow-sm hover:scale-[1.02] transition-transform duration-200 ${
+            label.toLowerCase().includes('open')
+              ? 'bg-emerald-500/5 border-emerald-500/15 text-emerald-500'
+              : 'bg-slate-500/5 border-slate-500/15 text-slate-400'
+          }`}>
+            <div className={`flex h-5 w-5 sm:h-7 sm:w-7 items-center justify-center rounded-lg sm:rounded-xl shrink-0 ${
+              label.toLowerCase().includes('open')
+                ? 'bg-emerald-500/10 text-emerald-500'
+                : 'bg-slate-500/10 text-slate-400'
+            }`}>
+              <Activity className={`h-3 w-3 sm:h-4 sm:w-4 ${label.toLowerCase().includes('open') ? 'animate-pulse' : ''}`} />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[6px] sm:text-[8px] font-black text-text-secondary uppercase tracking-widest leading-none">MARKET STATUS</span>
+              <div className="flex items-center gap-1 sm:gap-1.5 mt-0.5 sm:mt-1 leading-none">
+                <span className={`h-1 w-1 sm:h-1.5 sm:w-1.5 rounded-full ${dotColor} shrink-0`} />
+                <span className={`text-[8px] sm:text-[10px] font-black uppercase ${className}`}>
+                  {label}
+                </span>
+              </div>
             </div>
           </div>
         </div>

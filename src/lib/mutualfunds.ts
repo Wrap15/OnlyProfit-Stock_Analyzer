@@ -8,6 +8,7 @@ export interface SchemeInfo {
   baseNav: number;
   y1Return: number;
   y3Return: number;
+  y5Return?: number;
 }
 
 export const MUTUAL_FUNDS: SchemeInfo[] = [

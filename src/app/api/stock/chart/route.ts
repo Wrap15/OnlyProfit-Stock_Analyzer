@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchStockChartFromAPI, generateMockChartData, quoteCache } from '@/lib/yahooFinance';
 
+export const dynamic = 'force-dynamic';
+
 interface CacheEntry {
   data: any;
   timestamp: number;
@@ -12,7 +14,10 @@ const chartCache: Record<string, CacheEntry> = {};
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const symbol = searchParams.get('symbol');
-  const range = searchParams.get('range') || '1d';
+  let range = searchParams.get('range') || '1d';
+  if (range === '5d' || range === '1w') range = '1w';
+  if (range === '1m' || range === '1mo') range = '1mo';
+  if (range === '6m' || range === '6mo') range = '6mo';
 
   if (!symbol) {
     return NextResponse.json({ error: 'Symbol parameter is required' }, { status: 400 });
@@ -75,4 +80,3 @@ export async function GET(request: NextRequest) {
     }
   });
 }
-export const dynamic = 'force-dynamic';

@@ -42,16 +42,18 @@ export default function SearchCommandCenter({ isOpen, onClose }: SearchCommandCe
   const [apiResults, setApiResults] = useState<ResultItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [searchLimit, setSearchLimit] = useState(6);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const activeItemRef = useRef<HTMLButtonElement>(null);
 
-  // Focus input when opened
+  // Focus input & reset pagination when opened
   useEffect(() => {
     if (isOpen) {
       setQuery('');
       setSelectedIndex(0);
+      setSearchLimit(6);
       setApiResults([]);
       setTimeout(() => {
         inputRef.current?.focus();
@@ -119,7 +121,6 @@ export default function SearchCommandCenter({ isOpen, onClose }: SearchCommandCe
   // Combine all lists logically: Baskets -> Instant Local Matches -> Broader API Matches
   const combinedResults: ResultItem[] = useMemo(() => {
     if (queryClean.length === 0) {
-      // Map recent searches to ResultItem dynamically
       return (recentSearches || []).map(sym => {
         const isMf = /^\d+$/.test(sym);
         const name = isMf 
@@ -140,7 +141,6 @@ export default function SearchCommandCenter({ isOpen, onClose }: SearchCommandCe
       });
     }
 
-    // 1. Filter local baskets
     const filteredBaskets: ResultItem[] = queryClean
       ? LOCAL_BASKETS.filter(b => 
           b.name.toLowerCase().includes(queryClean) || 
@@ -155,7 +155,6 @@ export default function SearchCommandCenter({ isOpen, onClose }: SearchCommandCe
         }))
       : [];
 
-    // 2. Filter local mutual funds
     const filteredLocalMFs: ResultItem[] = queryClean
       ? MUTUAL_FUNDS.filter(f => 
           f.name.toLowerCase().includes(queryClean) || 
@@ -171,7 +170,6 @@ export default function SearchCommandCenter({ isOpen, onClose }: SearchCommandCe
         }))
       : [];
 
-    // 3. Filter local stock info to provide instantaneous search feedback
     const filteredLocalStocks: ResultItem[] = queryClean
       ? Object.keys(MOCK_STOCK_INFO).filter(sym => 
           sym.toLowerCase().includes(queryClean) || 
@@ -237,7 +235,15 @@ export default function SearchCommandCenter({ isOpen, onClose }: SearchCommandCe
     const handleKeyboard = (e: KeyboardEvent) => {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setSelectedIndex(prev => (combinedResults.length > 0 ? (prev + 1) % combinedResults.length : 0));
+        setSelectedIndex(prev => {
+          if (combinedResults.length === 0) return 0;
+          const next = (prev + 1) % combinedResults.length;
+          // Auto-expand pagination search limit on keyboard scroll down past visible items
+          if (next >= searchLimit && searchLimit < combinedResults.length) {
+            setSearchLimit(l => l + 6);
+          }
+          return next;
+        });
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         setSelectedIndex(prev => (combinedResults.length > 0 ? (prev - 1 + combinedResults.length) % combinedResults.length : 0));
@@ -256,9 +262,12 @@ export default function SearchCommandCenter({ isOpen, onClose }: SearchCommandCe
     return () => {
       window.removeEventListener('keydown', handleKeyboard);
     };
-  }, [isOpen, combinedResults, selectedIndex, onClose, handleSelect]);
+  }, [isOpen, combinedResults, selectedIndex, searchLimit, onClose, handleSelect]);
 
   if (!isOpen) return null;
+
+  const slicedResults = combinedResults.slice(0, searchLimit);
+  const hasMoreResults = combinedResults.length > searchLimit;
 
   return (
     <div className="fixed inset-0 z-[100] bg-slate-950/45 dark:bg-slate-950/70 backdrop-blur-sm flex items-start justify-center pt-[10vh] px-4 animate-in fade-in duration-200">
@@ -274,13 +283,16 @@ export default function SearchCommandCenter({ isOpen, onClose }: SearchCommandCe
             type="text"
             placeholder="Search stock tickers, mutual funds, or thematic baskets..."
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setSearchLimit(6); // reset pagination when typing
+            }}
             className="flex-1 bg-transparent border-0 outline-none text-text-primary placeholder:text-text-secondary py-4 px-3 text-sm focus:ring-0 focus:outline-none"
           />
           <div className="flex items-center gap-1.5 shrink-0">
             {query && (
               <button 
-                onClick={() => { setQuery(''); setApiResults([]); }}
+                onClick={() => { setQuery(''); setApiResults([]); setSearchLimit(6); }}
                 className="p-1 rounded-lg text-text-secondary hover:text-text-primary mr-1"
               >
                 <X className="h-4 w-4" />
@@ -315,9 +327,9 @@ export default function SearchCommandCenter({ isOpen, onClose }: SearchCommandCe
               <p className="text-xs font-semibold">Start typing to search stocks, funds, or baskets...</p>
               <p className="text-[10px] text-text-secondary opacity-75">Simulated mutual funds & thematic baskets search is fully offline.</p>
             </div>
-          ) : combinedResults.length > 0 ? (
+          ) : slicedResults.length > 0 ? (
             <div className="space-y-0.5">
-              {combinedResults.map((item, index) => {
+              {slicedResults.map((item, index) => {
                 const isSelected = index === selectedIndex;
                 return (
                   <div
@@ -331,7 +343,7 @@ export default function SearchCommandCenter({ isOpen, onClose }: SearchCommandCe
                     <button
                       ref={isSelected ? activeItemRef : null}
                       onClick={() => handleSelect(item)}
-                      className={`flex-1 flex items-center justify-between p-3 text-left transition-colors ${
+                      className={`flex-1 flex items-center justify-between p-3 text-left transition-colors cursor-pointer ${
                         isSelected ? 'text-text-primary font-medium' : 'text-text-secondary'
                       }`}
                     >
@@ -379,6 +391,18 @@ export default function SearchCommandCenter({ isOpen, onClose }: SearchCommandCe
                   </div>
                 );
               })}
+
+              {hasMoreResults && (
+                <div className="flex justify-center py-2.5">
+                  <button
+                    onClick={() => setSearchLimit(prev => prev + 6)}
+                    className="px-4 py-1.5 border border-border hover:border-profit/30 bg-background hover:bg-profit/5 text-[10px] text-text-secondary hover:text-profit font-black uppercase rounded-xl transition-all cursor-pointer"
+                  >
+                    Show More Results ({combinedResults.length - searchLimit} remaining)
+                  </button>
+                </div>
+              )}
+
               {loading && (
                 <div className="flex items-center justify-center py-4 text-xs text-text-secondary">
                   <div className="h-3.5 w-3.5 animate-spin rounded-full border border-profit border-t-transparent mr-2" />

@@ -9,6 +9,7 @@ import GlobalLoadingBar from "@/components/GlobalLoadingBar";
 import TopTickerTape from "@/components/TopTickerTape";
 import Link from "next/link";
 import { TrendingUp } from "lucide-react";
+import Providers from "@/components/Providers";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -73,15 +74,17 @@ export default function RootLayout({
         />
       </head>
       <body className="bg-background text-foreground min-h-screen flex flex-col pb-16 sm:pb-0">
-        <GlobalLoadingBar />
-        <TopGreetingBanner />
-        <TopTickerTape />
-        <Navbar />
-        <TopIndexStrip />
-        <main className="flex-grow">
-          {children}
-        </main>
-        <BottomNav />
+        <Providers>
+          <GlobalLoadingBar />
+          <TopGreetingBanner />
+          <TopTickerTape />
+          <Navbar />
+          <TopIndexStrip />
+          <main className="flex-grow">
+            {children}
+          </main>
+          <BottomNav />
+        </Providers>
         
         <footer className="border-t border-border bg-card/65 backdrop-blur-md pt-10 pb-6 text-text-secondary select-none font-semibold mt-auto">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

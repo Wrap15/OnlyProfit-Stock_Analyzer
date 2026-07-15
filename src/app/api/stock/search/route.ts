@@ -3,6 +3,8 @@ import { searchStocksFromAPI } from '@/lib/yahooFinance';
 import { MUTUAL_FUNDS } from '@/lib/mutualfunds';
 import axios from 'axios';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get('q');
@@ -73,4 +75,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json([...mfResults, ...mockStocks]);
   }
 }
-export const dynamic = 'force-dynamic';

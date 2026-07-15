@@ -3,6 +3,8 @@ import axios from 'axios';
 import { MUTUAL_FUNDS, SchemeInfo, fillMissingBusinessDays, fetchLatestNAVFromGroww } from '@/lib/mutualfunds';
 import { REAL_MF_DATA } from '@/lib/mutualfundsData';
 
+export const dynamic = 'force-dynamic';
+
 // Cache in memory with SWR thresholds
 let cachedMutualFunds: any = null;
 let cacheTime = 0;
@@ -187,5 +189,3 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json(filtered);
 }
-
-export const dynamic = 'force-dynamic';

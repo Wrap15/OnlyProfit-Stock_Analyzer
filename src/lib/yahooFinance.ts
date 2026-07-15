@@ -2396,8 +2396,11 @@ export async function fetchStockChartFromAPI(symbol: string, range: string) {
     interval = '30m';
   } else if (range === '1mo' || range === '6mo' || range === '1y') {
     interval = '1d';
-  } else if (range === '5y') {
+  } else if (range === '5y' || range === '3y') {
     interval = '1wk';
+  } else if (range === 'max') {
+    apiRange = 'max';
+    interval = '1mo';
   }
 
   try {

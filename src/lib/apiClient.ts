@@ -11,6 +11,9 @@ const pendingRequests: Record<string, Promise<any> | undefined> = {};
 
 // Helper to determine cache duration (in milliseconds) based on route and query params
 function getCacheDuration(url: string, params: any = {}): number {
+  if (url.includes('/api/dashboard')) {
+    return 15000; // 15 seconds for dashboard layout aggregation
+  }
   if (url.includes('/api/stock/quote')) {
     return 10000; // 10 seconds for live prices
   }

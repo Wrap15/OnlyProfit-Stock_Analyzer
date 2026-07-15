@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios';
 
+export const dynamic = 'force-dynamic';
+
 const HEADERS = {
   'User-Agent': 'Mozilla/5.5 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
   'Accept': 'application/json'
@@ -460,5 +462,3 @@ export async function GET() {
   
   return NextResponse.json(fallbackNews);
 }
-
-export const dynamic = 'force-dynamic';

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchStockQuoteFromAPI, fetchCompanyProfileFromAPI, quoteCache, pendingFetches, MOCK_STOCK_INFO } from '@/lib/yahooFinance';
 
+export const dynamic = 'force-dynamic';
+
 function getMockQuote(symbol: string) {
   const cleanSym = symbol.replace('.NS', '');
   const info = MOCK_STOCK_INFO[cleanSym] || MOCK_STOCK_INFO[symbol] || {
@@ -30,8 +32,8 @@ function getMockQuote(symbol: string) {
   };
 }
 
-const FRESH_DURATION = 20000;   // 20 seconds fresh limit
-const STALE_DURATION = 600000;  // 10 minutes stale allowed
+const FRESH_DURATION = 2000;   // 2 seconds fresh limit (ultra low latency)
+const STALE_DURATION = 10000;  // 10 seconds stale limit
 
 function mergeProfileIntoQuote(item: any, profile: any) {
   if (!profile) return;
@@ -268,4 +270,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: error.message || 'Failed to fetch stock quote' }, { status: 500 });
   }
 }
-export const dynamic = 'force-dynamic';

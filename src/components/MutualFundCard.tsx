@@ -96,7 +96,7 @@ export default function MutualFundCard({ fund, returnDuration = '1y' }: MutualFu
   return (
     <Link
       href={`/mutualfund/${fund.code}`}
-      className="flex items-center justify-between p-4 bg-card hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-all duration-200 cursor-pointer group"
+      className="flex items-center justify-between p-4 bg-card border border-border/50 rounded-2xl shadow-xs hover:-translate-y-1 hover:border-profit/30 hover:shadow-lg hover:shadow-profit/5 dark:hover:shadow-profit/10 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-all duration-300 ease-out cursor-pointer group"
     >
       <div className="flex items-center gap-3.5 min-w-0">
         {/* AMC Logo inside rounded-xl white frame or beautiful initials gradient placeholder */}

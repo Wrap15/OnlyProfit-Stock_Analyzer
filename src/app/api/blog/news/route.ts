@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios';
 
+export const dynamic = 'force-dynamic';
+
 // In-Memory cache variables
 let cachedNews: any[] = [];
 let cacheTime = 0;
@@ -225,5 +227,3 @@ export async function GET() {
     }
   });
 }
-
-export const dynamic = 'force-dynamic';

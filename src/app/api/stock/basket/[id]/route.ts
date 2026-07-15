@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchStockQuoteFromAPI, fetchStockChartFromAPI } from '@/lib/yahooFinance';
 
+export const dynamic = 'force-dynamic';
+
 interface BasketConfig {
   id: string;
   name: string;
@@ -238,5 +240,3 @@ export async function GET(
     return NextResponse.json({ error: 'Internal server error while resolving basket' }, { status: 500 });
   }
 }
-
-export const dynamic = 'force-dynamic';

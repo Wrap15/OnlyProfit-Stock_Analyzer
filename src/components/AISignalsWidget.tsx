@@ -1,8 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Lock, Cpu, Sparkles, Clock, Zap, ChevronRight, Activity, Shield } from 'lucide-react';
+import { 
+  Lock, Cpu, Sparkles, Clock, Zap, ChevronRight, 
+  Activity, Shield, MessageSquare, Send, Bot, RefreshCw, User 
+} from 'lucide-react';
 import { useStockStore } from '@/store/useStockStore';
 import StockLogo from './StockLogo';
 import MiniSparkline from './MiniSparkline';
@@ -23,9 +26,136 @@ interface SignalItem {
   time: string;
 }
 
-// Entire pool of 24 assets (16 Stocks, 8 Mutual Funds) divided across 3 market time blocks
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+function renderMarkdown(text: string): React.ReactNode {
+  if (!text) return null;
+  const lines = text.split('\n');
+  const elements: React.ReactNode[] = [];
+  
+  let inTable = false;
+  let tableHeaders: string[] = [];
+  let tableRows: string[][] = [];
+  
+  const parseInline = (lineText: string): React.ReactNode[] => {
+    const parts = lineText.split(/\*\*([^*]+)\*\*/g);
+    return parts.map((part, idx) => {
+      if (idx % 2 === 1) {
+        if (part.startsWith('`') && part.endsWith('`')) {
+          return <code key={idx} className="px-1.5 py-0.5 rounded bg-background border border-border font-mono text-[10px] font-black text-profit">{part.slice(1, -1)}</code>;
+        }
+        return <strong key={idx} className="font-extrabold text-text-primary">{part}</strong>;
+      }
+      const codeParts = part.split(/`([^`]+)`/g);
+      if (codeParts.length > 1) {
+        return codeParts.map((subPart, subIdx) => {
+          if (subIdx % 2 === 1) {
+            return <code key={subIdx} className="px-1.5 py-0.5 rounded bg-background border border-border font-mono text-[10px] font-black text-profit">{subPart}</code>;
+          }
+          return subPart;
+        });
+      }
+      return part;
+    });
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    
+    if (line.startsWith('|')) {
+      const cells = line.split('|').map(c => c.trim()).filter((_, idx, arr) => idx > 0 && idx < arr.length - 1);
+      if (line.includes('---')) {
+        continue;
+      }
+      if (!inTable) {
+        inTable = true;
+        tableHeaders = cells;
+      } else {
+        tableRows.push(cells);
+      }
+      continue;
+    } else if (inTable) {
+      inTable = false;
+      const headers = [...tableHeaders];
+      const rows = [...tableRows];
+      elements.push(
+        <div key={`table-${i}`} className="overflow-x-auto my-2 rounded-xl border border-border/80 bg-background/50">
+          <table className="min-w-full divide-y divide-border/60 text-[10px] text-left">
+            <thead className="bg-card select-none">
+              <tr>
+                {headers.map((h, idx) => (
+                  <th key={idx} className="px-3 py-1.5 font-black text-text-secondary uppercase tracking-wider">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/20 font-medium text-text-primary">
+              {rows.map((row, rIdx) => (
+                <tr key={rIdx} className="hover:bg-card/30">
+                  {row.map((cell, cIdx) => (
+                    <td key={cIdx} className="px-3 py-1.5 font-mono">{parseInline(cell)}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+      tableRows = [];
+      tableHeaders = [];
+    }
+
+    if (line.startsWith('###')) {
+      elements.push(<h4 key={i} className="text-[11px] font-black text-text-primary uppercase tracking-wider mt-3 mb-1 flex items-center gap-1">{parseInline(line.replace('###', '').trim())}</h4>);
+    } else if (line.startsWith('##')) {
+      elements.push(<h3 key={i} className="text-xs font-black text-text-primary mt-3 mb-1.5 flex items-center gap-1">{parseInline(line.replace('##', '').trim())}</h3>);
+    } else if (line.startsWith('#')) {
+      elements.push(<h2 key={i} className="text-sm font-black text-text-primary mt-3 mb-1.5 flex items-center gap-1">{parseInline(line.replace('#', '').trim())}</h2>);
+    } else if (line.startsWith('-') || line.startsWith('*')) {
+      elements.push(<div key={i} className="flex gap-1.5 pl-1.5 text-text-secondary text-[11px]"><span className="text-profit font-black">•</span><div className="flex-1">{parseInline(line.substring(1).trim())}</div></div>);
+    } else if (/^\d+\./.test(line)) {
+      const match = line.match(/^(\d+)\.(.*)/);
+      if (match) {
+        elements.push(<div key={i} className="flex gap-1.5 pl-1.5 text-text-secondary text-[11px]"><span className="text-profit font-black">{match[1]}.</span><div className="flex-1">{parseInline(match[2].trim())}</div></div>);
+      }
+    } else if (line) {
+      elements.push(<p key={i} className="text-[11px] leading-relaxed text-text-secondary font-medium" style={{ margin: '4px 0' }}>{parseInline(line)}</p>);
+    }
+  }
+
+  if (inTable && tableHeaders.length > 0) {
+    const headers = [...tableHeaders];
+    const rows = [...tableRows];
+    elements.push(
+      <div key="table-trail" className="overflow-x-auto my-2 rounded-xl border border-border/80 bg-background/50">
+        <table className="min-w-full divide-y divide-border/60 text-[10px] text-left">
+          <thead className="bg-card select-none">
+            <tr>
+              {headers.map((h, idx) => (
+                <th key={idx} className="px-3 py-1.5 font-black text-text-secondary uppercase tracking-wider">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/20 font-medium text-text-primary">
+            {rows.map((row, rIdx) => (
+              <tr key={rIdx} className="hover:bg-card/30">
+                {row.map((cell, cIdx) => (
+                  <td key={cIdx} className="px-3 py-1.5 font-mono">{parseInline(cell)}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  return <div className="space-y-1.5">{elements}</div>;
+}
+
 const ALL_SIGNALS_POOL: SignalItem[] = [
-  // Block 0: 9:15 AM to 11:15 AM (5 Stocks, 3 Mutual Funds)
   {
     symbol: 'RELIANCE.NS',
     name: 'Reliance Industries',
@@ -39,7 +169,7 @@ const ALL_SIGNALS_POOL: SignalItem[] = [
     time: '9:15 AM'
   },
   {
-    symbol: '122639', // PPFAS
+    symbol: '122639',
     name: 'Parag Parikh Flexi Cap Fund',
     indicator: 'NAV Breakout (50 EMA)',
     signal: 'STRONG_BUY',
@@ -63,7 +193,7 @@ const ALL_SIGNALS_POOL: SignalItem[] = [
     time: '9:25 AM'
   },
   {
-    symbol: '118778', // Nippon India
+    symbol: '118778',
     name: 'Nippon India Small Cap Fund',
     indicator: 'Volume Breakout Trigger',
     signal: 'BUY',
@@ -87,7 +217,7 @@ const ALL_SIGNALS_POOL: SignalItem[] = [
     time: '9:45 AM'
   },
   {
-    symbol: '120334', // ICICI Pru
+    symbol: '120334',
     name: 'ICICI Pru Multi Asset Fund',
     indicator: 'Asset Allocation Rebalance',
     signal: 'SELL',
@@ -97,281 +227,40 @@ const ALL_SIGNALS_POOL: SignalItem[] = [
     stopLoss: 890.00,
     riskReward: '1:1.8',
     time: '9:50 AM'
-  },
-  {
-    symbol: 'INFY.NS',
-    name: 'Infosys Limited',
-    indicator: 'EMA Bearish Breakdown',
-    signal: 'STRONG_SELL',
-    confidence: 89,
-    defaultPrice: 1440.50,
-    targetPrice: 1310.00,
-    stopLoss: 1510.00,
-    riskReward: '1:2.2',
-    time: '10:05 AM'
-  },
-  {
-    symbol: 'SBIN.NS',
-    name: 'State Bank of India',
-    indicator: 'RSI Overbought Fatigue',
-    signal: 'SELL',
-    confidence: 82,
-    defaultPrice: 840.15,
-    targetPrice: 785.00,
-    stopLoss: 870.00,
-    riskReward: '1:1.9',
-    time: '10:12 AM'
-  },
-
-  // Block 1: 11:15 AM to 1:15 PM (5 Stocks, 3 Mutual Funds)
-  {
-    symbol: 'BHARTIARTL.NS',
-    name: 'Bharti Airtel Limited',
-    indicator: 'Trendline Breakout Support',
-    signal: 'STRONG_BUY',
-    confidence: 93,
-    defaultPrice: 1420.40,
-    targetPrice: 1550.00,
-    stopLoss: 1360.00,
-    riskReward: '1:2.2',
-    time: '11:15 AM'
-  },
-  {
-    symbol: '125497', // SBI Small Cap Fund
-    name: 'SBI Small Cap Fund',
-    indicator: 'Weekly NAV Breakout',
-    signal: 'BUY',
-    confidence: 88,
-    defaultPrice: 193.44,
-    targetPrice: 212.00,
-    stopLoss: 186.00,
-    riskReward: '1:2.4',
-    time: '11:20 AM'
-  },
-  {
-    symbol: 'ICICIBANK.NS',
-    name: 'ICICI Bank Limited',
-    indicator: 'Fibonacci Retracement 61.8%',
-    signal: 'BUY',
-    confidence: 86,
-    defaultPrice: 1110.15,
-    targetPrice: 1220.00,
-    stopLoss: 1060.00,
-    riskReward: '1:2.2',
-    time: '11:30 AM'
-  },
-  {
-    symbol: '120843', // Quant Flexi Cap Fund
-    name: 'Quant Flexi Cap Fund',
-    indicator: 'Momentum Scan Trigger',
-    signal: 'STRONG_BUY',
-    confidence: 95,
-    defaultPrice: 117.88,
-    targetPrice: 130.00,
-    stopLoss: 112.50,
-    riskReward: '1:2.3',
-    time: '11:45 AM'
-  },
-  {
-    symbol: 'LT.NS',
-    name: 'Larsen & Toubro Limited',
-    indicator: 'Volume Trend Reversal',
-    signal: 'STRONG_BUY',
-    confidence: 90,
-    defaultPrice: 3540.20,
-    targetPrice: 3820.00,
-    stopLoss: 3410.00,
-    riskReward: '1:2.1',
-    time: '12:05 PM'
-  },
-  {
-    symbol: '118955', // HDFC Flexi Cap
-    name: 'HDFC Flexi Cap Fund',
-    indicator: 'Asset Allocation Shift',
-    signal: 'SELL',
-    confidence: 83,
-    defaultPrice: 2118.33,
-    targetPrice: 2020.00,
-    stopLoss: 2170.00,
-    riskReward: '1:1.9',
-    time: '12:20 PM'
-  },
-  {
-    symbol: 'WIPRO.NS',
-    name: 'Wipro Limited',
-    indicator: 'Bollinger Band Contraction',
-    signal: 'SELL',
-    confidence: 84,
-    defaultPrice: 480.10,
-    targetPrice: 440.00,
-    stopLoss: 505.00,
-    riskReward: '1:1.6',
-    time: '12:35 PM'
-  },
-  {
-    symbol: 'KOTAKBANK.NS',
-    name: 'Kotak Mahindra Bank',
-    indicator: 'EMA Bearish Crossover',
-    signal: 'STRONG_SELL',
-    confidence: 87,
-    defaultPrice: 1720.50,
-    targetPrice: 1580.00,
-    stopLoss: 1795.00,
-    riskReward: '1:2.1',
-    time: '1:05 PM'
-  },
-
-  // Block 2: 1:15 PM to 3:30 PM (5 Stocks, 3 Mutual Funds)
-  {
-    symbol: 'MARUTI.NS',
-    name: 'Maruti Suzuki India',
-    indicator: 'Symmetrical Triangle Breakout',
-    signal: 'STRONG_BUY',
-    confidence: 92,
-    defaultPrice: 12100.40,
-    targetPrice: 13200.00,
-    stopLoss: 11600.00,
-    riskReward: '1:2.2',
-    time: '1:15 PM'
-  },
-  {
-    symbol: '130503', // HDFC Small Cap
-    name: 'HDFC Small Cap Fund',
-    indicator: 'High Growth Momentum',
-    signal: 'BUY',
-    confidence: 89,
-    defaultPrice: 151.48,
-    targetPrice: 168.00,
-    stopLoss: 145.00,
-    riskReward: '1:2.5',
-    time: '1:25 PM'
-  },
-  {
-    symbol: 'ITC.NS',
-    name: 'ITC Limited',
-    indicator: 'Double Bottom Support',
-    signal: 'BUY',
-    confidence: 85,
-    defaultPrice: 430.25,
-    targetPrice: 475.00,
-    stopLoss: 412.00,
-    riskReward: '1:2.5',
-    time: '1:45 PM'
-  },
-  {
-    symbol: '120823', // Quant Active Fund
-    name: 'Quant Active Fund',
-    indicator: 'Alpha Outperformance Breakout',
-    signal: 'STRONG_BUY',
-    confidence: 94,
-    defaultPrice: 693.82,
-    targetPrice: 755.00,
-    stopLoss: 668.00,
-    riskReward: '1:2.3',
-    time: '2:05 PM'
-  },
-  {
-    symbol: 'AXISBANK.NS',
-    name: 'Axis Bank Limited',
-    indicator: 'MACD Bullish Crossover',
-    signal: 'STRONG_BUY',
-    confidence: 90,
-    defaultPrice: 1120.30,
-    targetPrice: 1240.00,
-    stopLoss: 1070.00,
-    riskReward: '1:2.4',
-    time: '2:20 PM'
-  },
-  {
-    symbol: '120716', // UTI Nifty Index Fund
-    name: 'UTI Nifty 50 Index Fund',
-    indicator: 'Tracking Error Minimized',
-    signal: 'BUY',
-    confidence: 82,
-    defaultPrice: 162.61,
-    targetPrice: 174.00,
-    stopLoss: 158.00,
-    riskReward: '1:1.9',
-    time: '2:35 PM'
-  },
-  {
-    symbol: 'HCLTECH.NS',
-    name: 'HCL Technologies Limited',
-    indicator: 'RSI Bearish Breakdown',
-    signal: 'SELL',
-    confidence: 86,
-    defaultPrice: 1350.20,
-    targetPrice: 1240.00,
-    stopLoss: 1410.00,
-    riskReward: '1:1.8',
-    time: '2:50 PM'
-  },
-  {
-    symbol: 'TATASTEEL.NS',
-    name: 'Tata Steel Limited',
-    indicator: 'MACD Bearish Crossover',
-    signal: 'STRONG_SELL',
-    confidence: 88,
-    defaultPrice: 165.10,
-    targetPrice: 148.00,
-    stopLoss: 174.00,
-    riskReward: '1:1.9',
-    time: '3:05 PM'
   }
 ];
 
 export default function AISignalsWidget() {
   const router = useRouter();
   const { userId } = useStockStore();
+  
+  const [activeTab, setActiveTab] = useState<'scanner' | 'copilot'>('scanner');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [signals, setSignals] = useState<SignalItem[]>([]);
   const [quotes, setQuotes] = useState<Record<string, { price: number; changePercent: number }>>({});
 
-  // Helper: Get active block index based on IST time
-  const getActiveBlockIndex = useCallback((): number => {
-    const now = new Date();
-    // Convert to Indian Time (IST)
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'Asia/Kolkata',
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-    
-    const parts = formatter.formatToParts(now);
-    const hourStr = parts.find(p => p.type === 'hour')?.value || '12';
-    const minuteStr = parts.find(p => p.type === 'minute')?.value || '00';
-    const hour = parseInt(hourStr, 10);
-    const minute = parseInt(minuteStr, 10);
-    const timeInMinutes = hour * 60 + minute;
+  // Chatbot State
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([
+    {
+      role: 'assistant',
+      content: `Hello! I am your **OnlyProfit AI Copilot**.
 
-    const marketOpenMinutes = 9 * 60 + 15;   // 9:15 AM IST (555)
-    const marketCloseMinutes = 15 * 60 + 30; // 3:30 PM IST (930)
-
-    // Before or after market hours: freeze on the final block (Block 2)
-    if (timeInMinutes < marketOpenMinutes || timeInMinutes > marketCloseMinutes) {
-      return 2;
+I can scan breakouts, calculate targets, or inspect live market indices. Try asking me:
+- *"Analyze Reliance Industries"*
+- *"What are the top buy signals today?"*
+- *"Should I buy HDFC bank?"*`
     }
+  ]);
+  const [inputVal, setInputVal] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatBottomRef = useRef<HTMLDivElement>(null);
 
-    const elapsed = timeInMinutes - marketOpenMinutes;
-    // Split 6 hours 15 mins of market hours into three 2-hour blocks (0, 1, or 2)
-    return Math.min(2, Math.floor(elapsed / 120));
+  // Sync signals list
+  useEffect(() => {
+    setSignals(ALL_SIGNALS_POOL);
   }, []);
 
-  // Sync signals list block index based on time
-  useEffect(() => {
-    const updateActiveSignals = () => {
-      const idx = getActiveBlockIndex();
-      const subset = ALL_SIGNALS_POOL.slice(idx * 8, (idx * 8) + 8);
-      setSignals(subset);
-    };
-
-    updateActiveSignals();
-    const interval = setInterval(updateActiveSignals, 10000); // verify block bounds every 10s
-    return () => clearInterval(interval);
-  }, [getActiveBlockIndex]);
-
-  // Fetch Live Quotes for component stocks (gets closing stats immediately, polls during market hours)
+  // Fetch Live Quotes for component stocks
   useEffect(() => {
     if (signals.length === 0) return;
     const stockSymbols = signals.filter(s => s.symbol.includes('.NS')).map(s => s.symbol);
@@ -400,7 +289,7 @@ export default function AISignalsWidget() {
       if (isIndianMarketOpen()) {
         fetchQuotes();
       }
-    }, 12000); // refresh every 12 seconds
+    }, 24000);
     return () => clearInterval(interval);
   }, [signals]);
 
@@ -409,29 +298,13 @@ export default function AISignalsWidget() {
     return { price: defaultPrice, changePercent: 0.0 };
   }, [quotes]);
 
-  // Simulate Mutual Fund NAV Live price ticks (only when market is open)
   const getMutualFundNAV = useCallback((code: string) => {
     const fund = MUTUAL_FUNDS.find(f => f.code === code);
     if (!fund) return { price: 100, changePercent: 0 };
     const seed = parseInt(code) || 100;
-    const isMarketActive = isIndianMarketOpen();
-    const variation = isMarketActive 
-      ? Math.sin(Date.now() / 20000 + seed) * 0.3 // fluctuating value
-      : Math.sin(seed) * 0.3; // static value if closed
+    const variation = Math.sin(seed) * 0.3;
     const price = fund.baseNav * (1 + variation / 100);
     return { price, changePercent: variation };
-  }, []);
-
-  // Generate deterministic mini sparkline for signals
-  const getSignalSparkline = useCallback((symbol: string): number[] => {
-    const seed = symbol.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const points = [];
-    let base = 100;
-    for (let i = 0; i < 7; i++) {
-      base += Math.sin(seed + i) * 3;
-      points.push(parseFloat(base.toFixed(2)));
-    }
-    return points;
   }, []);
 
   const getSignalBadge = (signal: SignalItem['signal']) => {
@@ -453,14 +326,47 @@ export default function AISignalsWidget() {
     return 'bg-rose-500';
   };
 
-  const getSignalLabel = (signal: SignalItem['signal']) => {
-    return signal.replace('_', ' ');
+  // Scroll chat to bottom
+  useEffect(() => {
+    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatHistory, chatLoading]);
+
+  // Send message to AI endpoint
+  const handleSendMessage = async (textToSend?: string) => {
+    const messageText = textToSend || inputVal;
+    if (!messageText.trim()) return;
+
+    if (!textToSend) setInputVal('');
+
+    const newUserMessage: ChatMessage = { role: 'user', content: messageText };
+    setChatHistory(prev => [...prev, newUserMessage]);
+    setChatLoading(true);
+
+    try {
+      const updatedMessages = [...chatHistory, newUserMessage];
+      const res = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: updatedMessages }),
+      });
+      const data = await res.json();
+      if (data && data.content) {
+        setChatHistory(prev => [...prev, { role: 'assistant', content: data.content }]);
+      } else {
+        throw new Error('Invalid chat response payload');
+      }
+    } catch (err) {
+      console.error('Chat compilation error', err);
+      setChatHistory(prev => [...prev, { role: 'assistant', content: 'Connection timed out. Please try sending your query again.' }]);
+    } finally {
+      setChatLoading(false);
+    }
   };
 
-  const isMarketActive = isIndianMarketOpen();
 
   return (
     <div className="space-y-4">
+      
       {/* Widget Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 select-none">
         <div className="flex items-center gap-2">
@@ -468,303 +374,227 @@ export default function AISignalsWidget() {
             <Cpu className="h-4.5 w-4.5" />
           </span>
           <h2 className="text-xl font-black text-text-primary tracking-tight flex items-center gap-2">
-            AI Intelligence & Technical Signals
+            AI Scanners & Chat Copilot
             <span className="inline-flex items-center gap-0.5 text-[9px] font-black bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 px-2 py-0.5 rounded-md border border-amber-400/20 shadow-sm shadow-amber-500/10 uppercase select-none">
               <Zap className="h-2.5 w-2.5 fill-current" />
               Pro
             </span>
           </h2>
         </div>
-        
-        {/* Radar live scanner animation & Market Status */}
-        <div className="flex items-center gap-4 text-[10px] font-bold text-text-secondary">
-          <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/40 border border-border/40 rounded-full px-2.5 py-1">
-            <span className="relative flex h-2 w-2">
-              <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${
-                isMarketActive ? 'animate-ping bg-emerald-400' : 'animate-pulse bg-amber-400'
-              }`}></span>
-              <span className={`relative inline-flex rounded-full h-2 w-2 ${
-                isMarketActive ? 'bg-emerald-500' : 'bg-amber-500'
-              }`}></span>
-            </span>
-            <span className="text-[9px] uppercase tracking-wider text-text-primary">
-              {isMarketActive ? 'AI Agent Scanning Active' : 'Market Closed - Scans Paused'}
-            </span>
-          </div>
 
-          <div className="flex items-center gap-1">
-            <Clock className="h-3.5 w-3.5" />
-            <span>{isMarketActive ? 'Updates Live' : 'Next Scan 09:15 AM'}</span>
-          </div>
+        {/* Tab Selector Strip */}
+        <div className="flex p-0.5 rounded-xl bg-card border border-border">
+          <button
+            onClick={() => setActiveTab('scanner')}
+            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+              activeTab === 'scanner'
+                ? 'bg-background text-profit border border-border shadow-xs'
+                : 'text-text-secondary hover:text-text-primary'
+            }`}
+          >
+            Signal Scanner
+          </button>
+          <button
+            onClick={() => setActiveTab('copilot')}
+            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+              activeTab === 'copilot'
+                ? 'bg-background text-profit border border-border shadow-xs'
+                : 'text-text-secondary hover:text-text-primary'
+            }`}
+          >
+            AI Copilot Chat
+          </button>
         </div>
       </div>
 
       {/* Signals Body Workspace */}
-      <div className="relative rounded-3xl border border-border bg-card overflow-hidden shadow-soft dark:shadow-soft-dark min-h-[320px] flex flex-col">
+      <div className="relative rounded-3xl border border-border bg-card overflow-hidden shadow-soft dark:shadow-soft-dark min-h-[380px] flex flex-col">
         
-        {/* Desktop Grid Columns Header (Hidden on Mobile) */}
-        <div className={`hidden md:grid grid-cols-12 gap-4 px-6 py-3 border-b border-border/40 bg-slate-50/40 dark:bg-slate-800/15 text-[10px] font-bold uppercase tracking-wider text-text-secondary select-none ${
-          !userId ? 'blur-[1.5px] pointer-events-none' : ''
-        }`}>
-          <div className="col-span-3">Asset</div>
-          <div className="col-span-3">Technical Breakout Indicator</div>
-          <div className="col-span-2">Simulated Live Price</div>
-          <div className="col-span-2 text-center">AI Signal & Confidence</div>
-          <div className="col-span-1.5 text-right pl-2">R:R Ratio</div>
-          <div className="col-span-0.5"></div>
-        </div>
+        {/* TAB 1: RADAR SIGNAL SCANNER */}
+        {activeTab === 'scanner' && (
+          <div className="flex flex-col flex-grow">
+            {/* Desktop Grid Columns Header (Hidden on Mobile) */}
+            <div className={`hidden md:grid grid-cols-12 gap-4 px-6 py-3 border-b border-border/40 bg-slate-50/40 dark:bg-slate-800/15 text-[10px] font-bold uppercase tracking-wider text-text-secondary select-none ${
+              !userId ? 'blur-[1.5px] pointer-events-none' : ''
+            }`}>
+              <div className="col-span-3">Asset</div>
+              <div className="col-span-3">Technical Breakout Indicator</div>
+              <div className="col-span-2">Simulated Live Price</div>
+              <div className="col-span-2 text-center">AI Signal & Confidence</div>
+              <div className="col-span-1.5 text-right pl-2">R:R Ratio</div>
+              <div className="col-span-0.5"></div>
+            </div>
 
-        {/* Signals List Layout */}
-        <div className={`flex-1 flex flex-col gap-3 p-4 md:p-0 md:gap-0 md:divide-y md:divide-border/30 transition-all duration-300 ${
-          !userId ? 'blur-sm select-none pointer-events-none' : ''
-        }`}>
-          {signals.map((item) => {
-            const isMf = /^\d+$/.test(item.symbol);
-            const quote = isMf 
-              ? getMutualFundNAV(item.symbol)
-              : getStockQuote(item.symbol, item.defaultPrice);
-            
-            const price = quote.price || item.defaultPrice;
-            const changePercent = quote.changePercent;
+            {/* Signals List Layout */}
+            <div className={`flex-1 flex flex-col gap-3 p-4 md:p-0 md:gap-0 md:divide-y md:divide-border/30 transition-all duration-300 ${
+              !userId ? 'blur-sm select-none pointer-events-none' : ''
+            }`}>
+              {signals.map((item) => {
+                const isMf = /^\d+$/.test(item.symbol);
+                const quote = isMf 
+                  ? getMutualFundNAV(item.symbol)
+                  : getStockQuote(item.symbol, item.defaultPrice);
+                
+                const price = quote.price || item.defaultPrice;
+                const changePercent = quote.changePercent;
+                const isPositive = changePercent >= 0;
 
-            // Determine dynamic signal type and indicator based on the actual live changePercent
-            let signal: SignalItem['signal'] = item.signal;
-            let indicator = item.indicator;
-            let confidence = item.confidence;
-
-            if (!isMf) {
-              if (changePercent > 1.5) {
-                signal = 'STRONG_BUY';
-                indicator = changePercent > 3.0 ? 'Golden Cross (50/200 SMA)' : 'MACD Bullish Crossover';
-                confidence = Math.min(98, 90 + Math.floor(Math.abs(changePercent) * 2));
-              } else if (changePercent > 0) {
-                signal = 'BUY';
-                indicator = 'Trendline Breakout Support';
-                confidence = Math.min(94, 82 + Math.floor(Math.abs(changePercent) * 3));
-              } else if (changePercent < -1.5) {
-                signal = 'STRONG_SELL';
-                indicator = 'EMA Bearish Breakdown';
-                confidence = Math.min(98, 88 + Math.floor(Math.abs(changePercent) * 2));
-              } else {
-                signal = 'SELL';
-                indicator = 'RSI Overbought Fatigue';
-                confidence = Math.min(92, 78 + Math.floor(Math.abs(changePercent) * 4));
-              }
-            } else {
-              // For Mutual Funds, since changePercent is simulated daily, let's keep it steady but aligned
-              if (changePercent > 0.15) {
-                signal = 'STRONG_BUY';
-                indicator = 'NAV Breakout (50 EMA)';
-                confidence = 92;
-              } else if (changePercent > 0) {
-                signal = 'BUY';
-                indicator = 'Volume Breakout Trigger';
-                confidence = 86;
-              } else {
-                signal = 'SELL';
-                indicator = 'Asset Allocation Rebalance';
-                confidence = 81;
-              }
-            }
-
-            // Calculate dynamic targets and stop losses mathematically matching real-world rules
-            let targetPrice = item.targetPrice;
-            let stopLoss = item.stopLoss;
-            let riskReward = item.riskReward;
-
-            if (signal.includes('BUY')) {
-              targetPrice = price * 1.08; // 8% target upside
-              stopLoss = price * 0.95;   // 5% stop loss
-              riskReward = '1:1.6';
-            } else {
-              targetPrice = price * 0.92; // 8% target downside
-              stopLoss = price * 1.03;   // 3% stop loss
-              riskReward = '1:2.6';
-            }
-
-            const sparkPoints = getSignalSparkline(item.symbol);
-            const isPositive = changePercent >= 0 || signal.includes('BUY');
-            
-            return (
-              <div 
-                key={item.symbol} 
-                onClick={() => {
-                  if (!userId) return;
-                  if (isMf) {
-                    router.push(`/mutualfund/${item.symbol}`);
-                  } else {
-                    router.push(`/stock/${item.symbol}`);
-                  }
-                }}
-                className="w-full"
-              >
-                {/* 1. DESKTOP ROW LAYOUT (Hidden on mobile, md:grid) */}
-                <div className="hidden md:grid grid-cols-12 gap-4 items-center px-6 py-3.5 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 active:scale-[0.995] transition-all duration-200 cursor-pointer group">
-                  {/* Asset Info */}
-                  <div className="col-span-3 flex items-center gap-3 min-w-0">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-background border border-border shrink-0 select-none">
-                      {isMf ? (
-                        <Shield className="h-5 w-5 text-emerald-500" />
-                      ) : (
-                        <StockLogo symbol={item.symbol} size="sm" />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="font-extrabold text-sm text-text-primary group-hover:text-profit transition-colors truncate">
-                        {item.symbol.split('.')[0]}
-                      </div>
-                      <div className="text-[10px] text-text-secondary font-semibold truncate">
-                        {item.name}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Technical Trigger Info */}
-                  <div className="col-span-3 flex items-center justify-start gap-1.5">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-text-primary/95 select-none">
-                      <Activity className="h-3.5 w-3.5 text-profit" />
-                      {indicator}
-                    </div>
-                  </div>
-
-                  {/* Live Price */}
-                  <div className="col-span-2 flex items-center justify-start gap-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-extrabold text-text-primary tabular-nums">
-                        ₹{price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </span>
-                      <span className={`text-[9px] font-black tabular-nums ${isPositive ? 'text-profit' : 'text-loss'}`}>
-                        {isPositive ? '▲' : '▼'}{changePercent !== 0 ? `${isPositive ? '+' : ''}${changePercent.toFixed(2)}%` : '0.00%'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* AI Signal & Confidence */}
-                  <div className="col-span-2 flex items-center justify-center">
-                    <div className="flex flex-col items-center">
-                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-md border tracking-wider uppercase select-none ${getSignalBadge(signal)}`}>
-                        {getSignalLabel(signal)}
-                      </span>
-                      
-                      <div className="flex items-center gap-1.5 mt-1.5">
-                        <span className="text-[9px] text-text-secondary font-bold font-mono select-none">{confidence}% Conf</span>
-                        <div className="w-16 bg-slate-100 dark:bg-slate-800/80 h-1 rounded-full overflow-hidden hidden md:block">
-                          <div 
-                            className={`h-full rounded-full ${getSignalColorClass(signal)}`} 
-                            style={{ width: `${confidence}%` }}
-                          />
+                return (
+                  <div 
+                    key={item.symbol} 
+                    className="flex flex-col gap-3.5 p-4 rounded-2xl border border-border/60 bg-background/25 md:grid md:grid-cols-12 md:gap-4 md:px-6 md:py-4 md:items-center md:rounded-none md:border-none md:bg-transparent hover:bg-card-hover/5 transition-colors duration-150"
+                  >
+                    {/* Asset details */}
+                    <div className="col-span-3 flex items-center gap-3">
+                      <StockLogo symbol={item.symbol} size="sm" />
+                      <div className="min-w-0">
+                        <span className="font-black text-xs text-text-primary block truncate">{item.name}</span>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <span className="text-[9px] font-extrabold text-text-secondary uppercase">{item.symbol.replace('.NS', '')}</span>
+                          <span className="text-[8px] font-black bg-background border border-border/80 text-text-secondary px-1 py-0.2 rounded uppercase select-none">
+                            {isMf ? 'Direct MF' : 'CNC'}
+                          </span>
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Risk-Reward */}
-                  <div className="col-span-1.5 flex items-center justify-end">
-                    <div className="text-right">
-                      <span className="block text-xs font-bold text-text-primary select-none font-mono">{riskReward}</span>
-                      <span className="block text-[8px] font-bold text-text-secondary uppercase tracking-widest mt-0.5">T: ₹{targetPrice.toFixed(1)}</span>
+                    {/* Indicator Breakout */}
+                    <div className="col-span-3 flex items-center gap-1.5 text-xs text-text-primary font-bold">
+                      <Activity className="h-3.5 w-3.5 text-profit shrink-0" />
+                      <span className="truncate">{item.indicator}</span>
                     </div>
-                  </div>
 
-                  {/* Sparkline & Arrow */}
-                  <div className="col-span-0.5 flex justify-end">
-                    <div className="h-5 w-10 opacity-70 hidden lg:block shrink-0 select-none">
-                      <MiniSparkline data={sparkPoints} isPositive={isPositive} width={40} height={16} />
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-text-secondary group-hover:text-profit group-hover:translate-x-0.5 transition-all shrink-0 ml-1" />
-                  </div>
-                </div>
-
-                {/* 2. MOBILE CARD LAYOUT (Hidden on desktop, md:hidden) */}
-                <div className="md:hidden flex flex-col p-4.5 gap-3.5 bg-card border border-border/75 rounded-2xl hover:border-profit/30 active:scale-[0.985] transition-all duration-255 cursor-pointer shadow-soft">
-                  
-                  {/* Header Row: Logo, Symbol & Live Price */}
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-background border border-border shrink-0 select-none shadow-sm">
-                        {isMf ? (
-                          <Shield className="h-5 w-5 text-emerald-500" />
-                        ) : (
-                          <StockLogo symbol={item.symbol} size="sm" />
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <span className="font-extrabold text-sm text-text-primary block truncate">
-                          {item.symbol.split('.')[0]}
-                        </span>
-                        <span className="text-[10px] text-text-secondary font-semibold block truncate">
-                          {item.name}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <div className="text-right shrink-0">
+                    {/* Price Ticker */}
+                    <div className="col-span-2">
                       <span className="text-sm font-black text-text-primary block tabular-nums">
                         ₹{price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </span>
-                      <span className={`text-[10px] font-black flex items-center justify-end gap-0.5 tabular-nums ${isPositive ? 'text-profit' : 'text-loss'}`}>
+                      <span className={`text-[10px] font-black flex items-center gap-0.5 mt-0.5 tabular-nums ${isPositive ? 'text-profit' : 'text-loss'}`}>
                         <span>{isPositive ? '▲' : '▼'}</span>
                         <span>{changePercent !== 0 ? `${isPositive ? '+' : ''}${changePercent.toFixed(2)}%` : '0.00%'}</span>
                       </span>
                     </div>
-                  </div>
 
-                  {/* Indicator & Sparkline Row */}
-                  <div className="flex items-center justify-between gap-4 py-1.5 border-y border-border/40 bg-slate-50/50 dark:bg-slate-800/10 px-2.5 rounded-xl">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-text-primary/95 min-w-0">
-                      <Activity className="h-3.5 w-3.5 text-profit shrink-0" />
-                      <span className="truncate">{indicator}</span>
-                    </div>
-
-                    <div className="h-5 w-12 opacity-80 shrink-0 select-none">
-                      <MiniSparkline data={sparkPoints} isPositive={isPositive} width={48} height={18} />
-                    </div>
-                  </div>
-
-                  {/* Enhanced 3-Column Target, Stop Loss & Risk Reward Slabs */}
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-emerald-500/[0.04] dark:bg-emerald-500/[0.08] border border-emerald-500/15 text-center">
-                      <span className="text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Target</span>
-                      <span className="text-[10px] font-black text-text-primary mt-0.5 tabular-nums">₹{targetPrice.toFixed(1)}</span>
-                    </div>
-                    <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-rose-500/[0.04] dark:bg-rose-500/[0.08] border border-rose-500/15 text-center">
-                      <span className="text-[8px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-wider">Stop Loss</span>
-                      <span className="text-[10px] font-black text-text-primary mt-0.5 tabular-nums">₹{stopLoss.toFixed(1)}</span>
-                    </div>
-                    <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-indigo-500/[0.04] dark:bg-indigo-500/[0.08] border border-indigo-500/15 text-center">
-                      <span className="text-[8px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Risk Reward</span>
-                      <span className="text-[10px] font-black text-text-primary mt-0.5 font-mono">{riskReward}</span>
-                    </div>
-                  </div>
-
-                  {/* Footer Row: Signal Strength & Confidence score */}
-                  <div className="flex items-center justify-between gap-2 pt-1">
-                    <div className="shrink-0">
-                      <span className={`text-[9px] font-black px-2.5 py-1 rounded-lg border tracking-wider uppercase flex items-center gap-1.5 ${getSignalBadge(signal)}`}>
+                    {/* Signal Badge & Confidence */}
+                    <div className="col-span-2 flex flex-col md:items-center gap-1.5">
+                      <span className={`text-[9px] font-black px-2.5 py-1 rounded-lg border tracking-wider uppercase inline-flex items-center gap-1.5 ${getSignalBadge(item.signal)}`}>
                         <span className={`h-1.5 w-1.5 rounded-full animate-pulse ${
-                          signal.includes('BUY') ? 'bg-emerald-500' : 'bg-rose-500'
+                          item.signal.includes('BUY') ? 'bg-emerald-500' : 'bg-rose-500'
                         }`} />
-                        {getSignalLabel(signal)}
+                        {item.signal.replace('_', ' ')}
                       </span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 shrink-0 bg-background border border-border/80 px-2 py-1 rounded-lg shadow-inner">
-                      <span className="text-[9px] text-text-secondary font-black font-mono">{confidence}% Conf</span>
-                      <div className="w-12 bg-slate-100 dark:bg-slate-800/80 h-1 rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full rounded-full ${getSignalColorClass(signal)}`} 
-                          style={{ width: `${confidence}%` }}
-                        />
+                      <div className="flex items-center gap-1.5 text-[9px] text-text-secondary font-black select-none">
+                        <span>{item.confidence}% Conf</span>
+                        <div className="w-12 bg-slate-100 dark:bg-slate-800/80 h-1 rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full ${getSignalColorClass(item.signal)}`} style={{ width: `${item.confidence}%` }} />
+                        </div>
                       </div>
                     </div>
+
+                    {/* R:R target Slabs */}
+                    <div className="col-span-1.5 text-right pl-2 hidden md:block">
+                      <span className="text-xs font-black text-text-primary font-mono block">{item.riskReward}</span>
+                      <span className="text-[9px] text-text-secondary font-medium">Tgt: ₹{item.targetPrice.toFixed(0)}</span>
+                    </div>
+
+                    {/* Explore route */}
+                    <div className="col-span-0.5 text-right hidden md:block">
+                      <button 
+                        onClick={() => router.push(isMf ? `/mutualfund/${item.symbol}` : `/stock/${item.symbol}`)}
+                        className="p-1 rounded-lg hover:bg-background border border-transparent hover:border-border text-text-secondary hover:text-text-primary transition-all cursor-pointer"
+                        title="Analyze details sheet"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: INTERACTIVE AI COPILOT CHAT */}
+        {activeTab === 'copilot' && (
+          <div className="flex flex-col flex-grow h-[450px]">
+            {/* Scrollable messages container */}
+            <div className="flex-grow overflow-y-auto p-4 space-y-4 scrollbar-none">
+              {chatHistory.map((msg, idx) => (
+                <div 
+                  key={idx}
+                  className={`flex gap-3 max-w-[85%] ${
+                    msg.role === 'user' ? 'ml-auto flex-row-reverse' : 'mr-auto'
+                  }`}
+                >
+                  <div className={`h-8 w-8 rounded-xl flex items-center justify-center shrink-0 border select-none ${
+                    msg.role === 'user'
+                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                      : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400'
+                  }`}>
+                    {msg.role === 'user' ? <User className="h-4.5 w-4.5" /> : <Bot className="h-4.5 w-4.5" />}
                   </div>
 
+                  <div className={`p-3.5 rounded-2xl border text-xs leading-relaxed space-y-2 w-full ${
+                    msg.role === 'user'
+                      ? 'bg-emerald-500/5 border-emerald-500/15 text-text-primary rounded-tr-none'
+                      : 'bg-background border-border/80 text-text-primary rounded-tl-none markdown-container'
+                  }`}>
+                    {renderMarkdown(msg.content)}
+                  </div>
                 </div>
+              ))}
 
-              </div>
-            );
-          })}
-        </div>
+              {/* Bot typing state indicator */}
+              {chatLoading && (
+                <div className="flex gap-3 mr-auto items-center max-w-[80%]">
+                  <div className="h-8 w-8 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 animate-pulse">
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                  </div>
+                  <span className="text-[10px] text-text-secondary font-black animate-pulse">OnlyProfit Agent scanning markets...</span>
+                </div>
+              )}
+
+              <div ref={chatBottomRef} />
+            </div>
+
+            {/* suggestion quick pills */}
+            <div className="px-4 py-2 border-t border-border/40 flex items-center gap-1.5 overflow-x-auto scrollbar-none bg-background/25">
+              {[
+                { label: 'Analyze RELIANCE', query: 'Analyze Reliance Industries' },
+                { label: 'Top buy signals', query: 'What are the top buy signals today?' },
+                { label: 'Check HDFCBANK', query: 'Should I buy HDFC bank?' }
+              ].map((p, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleSendMessage(p.query)}
+                  className="px-3 py-1 border border-border hover:border-profit/35 bg-background hover:bg-profit/5 rounded-xl text-[9px] font-black uppercase text-text-secondary hover:text-profit shrink-0 transition-all cursor-pointer"
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Message input bar */}
+            <div className="p-3 border-t border-border/40 bg-slate-50/20 dark:bg-slate-800/10 flex items-center gap-2">
+              <input
+                type="text"
+                value={inputVal}
+                onChange={(e) => setInputVal(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                placeholder="Ask AI Copilot (e.g. 'Should I buy Reliance?')..."
+                className="flex-1 bg-background border border-border rounded-xl px-3 py-2 text-xs text-text-primary outline-none focus:border-profit transition-colors"
+                disabled={chatLoading}
+              />
+              <button
+                onClick={() => handleSendMessage()}
+                className="h-8 w-8 rounded-xl bg-profit hover:brightness-105 text-white flex items-center justify-center shadow-md shadow-profit/15 transition-all cursor-pointer shrink-0 disabled:opacity-50"
+                disabled={chatLoading}
+              >
+                <Send className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Lock Overlay for non-Pro users */}
         {!userId && (
@@ -775,7 +605,7 @@ export default function AISignalsWidget() {
             
             <h3 className="font-black text-sm text-text-primary tracking-tight flex items-center gap-1.5">
               <Sparkles className="h-4.5 w-4.5 text-profit" />
-              Unlock Professional AI Breakout Signals
+              Unlock Professional AI Copilot Scanners
             </h3>
             
             <p className="text-[10px] text-text-secondary leading-relaxed font-semibold mt-1.5 max-w-sm px-4">
@@ -787,7 +617,7 @@ export default function AISignalsWidget() {
               className="mt-4 h-9 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:brightness-105 text-white font-extrabold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-emerald-500/10 cursor-pointer border border-emerald-500/20"
             >
               <Lock className="h-3.5 w-3.5" />
-              Sign In to Unlock Signals
+              Sign In to Unlock Copilot
             </button>
           </div>
         )}

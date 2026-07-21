@@ -13,6 +13,7 @@ import SimulatorHero from '@/features/simulator/components/SimulatorHero';
 import SimulatorHoldingsTab from '@/features/simulator/components/SimulatorHoldingsTab';
 import SimulatorHistoryTab from '@/features/simulator/components/SimulatorHistoryTab';
 import SimulatorAnalytics from '@/features/simulator/components/SimulatorAnalytics';
+import OrderPlacementModal from '@/components/OrderPlacementModal';
 
 // Reusable Custom Hook
 import { useSimulatorDetails } from '@/hooks/useSimulatorDetails';
@@ -22,6 +23,9 @@ export default function SimulatorPage() {
   const [activeTab, setActiveTab] = useState<'holdings' | 'history'>('holdings');
   const [isMasked, setIsMasked] = useState(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
+  
+  // Trade Modal State
+  const [selectedTrade, setSelectedTrade] = useState<{ symbol: string; livePrice: number } | null>(null);
 
   // Load simulator data utilizing custom hook
   const {
@@ -216,6 +220,7 @@ export default function SimulatorPage() {
                   livePrices={livePrices}
                   history={state.history}
                   isMasked={isMasked}
+                  onOpenTradeModal={(symbol, side, livePrice) => setSelectedTrade({ symbol, livePrice })}
                 />
               )}
 
@@ -223,6 +228,18 @@ export default function SimulatorPage() {
                 <SimulatorHistoryTab history={state.history} />
               )}
             </div>
+
+            {/* Order Placement Modal for Buy More or Redeem Holdings */}
+            {selectedTrade && (
+              <OrderPlacementModal
+                isOpen={!!selectedTrade}
+                onClose={() => setSelectedTrade(null)}
+                symbol={selectedTrade.symbol}
+                stockName={selectedTrade.symbol.replace('MF_', '').replace('.NS', '')}
+                livePrice={selectedTrade.livePrice}
+                onOrderExecuted={() => setSelectedTrade(null)}
+              />
+            )}
 
           </div>
 

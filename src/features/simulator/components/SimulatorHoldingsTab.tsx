@@ -25,6 +25,7 @@ interface SimulatorHoldingsTabProps {
   livePrices: Record<string, { price: number; change: number; pct: number }>;
   history: HistoryItem[];
   isMasked: boolean;
+  onOpenTradeModal?: (symbol: string, side: 'BUY' | 'SELL', livePrice: number) => void;
 }
 
 export default function SimulatorHoldingsTab({
@@ -32,14 +33,28 @@ export default function SimulatorHoldingsTab({
   livePrices,
   history,
   isMasked,
+  onOpenTradeModal,
 }: SimulatorHoldingsTabProps) {
 
   const renderSymbolName = (symbol: string) => {
-    const cleanSym = symbol.replace('.NS', '');
+    const isMF = symbol.startsWith('MF_') || !isNaN(Number(symbol));
+    const cleanSym = symbol.replace('MF_', '').replace('.NS', '');
     return (
       <div className="flex items-center gap-2">
         <StockLogo symbol={symbol} size="xs" />
-        <span className="font-black text-text-primary tracking-tight">{cleanSym}</span>
+        <div className="flex flex-col">
+          <div className="flex items-center gap-1.5">
+            <span className="font-black text-text-primary tracking-tight">{cleanSym}</span>
+            {isMF && (
+              <span className="text-[8px] font-black uppercase px-1.5 py-0.5 bg-profit/15 text-profit rounded border border-profit/30">
+                Mutual Fund
+              </span>
+            )}
+          </div>
+          <span className="text-[10px] text-text-secondary font-semibold">
+            {isMF ? 'AMFI Direct Growth' : 'NSE Equity'}
+          </span>
+        </div>
       </div>
     );
   };
@@ -147,13 +162,22 @@ export default function SimulatorHoldingsTab({
 
                     {/* Action Row */}
                     <td className="p-4 sm:p-5 text-right">
-                      <Link 
-                        href={`/stock/${h.symbol}`}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 border border-border hover:border-emerald-500/20 bg-background hover:bg-emerald-500/5 text-text-secondary hover:text-emerald-400 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
-                      >
-                        Trade
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </Link>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => onOpenTradeModal ? onOpenTradeModal(h.symbol, 'BUY', ltp) : null}
+                          className="px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-black border border-emerald-500/20 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                        >
+                          Buy
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onOpenTradeModal ? onOpenTradeModal(h.symbol, 'SELL', ltp) : null}
+                          className="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white border border-rose-500/20 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                        >
+                          Sell / Redeem
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -258,13 +282,22 @@ export default function SimulatorHoldingsTab({
 
                 <div className="flex items-center justify-between pt-2.5 border-t border-border/40 text-[9px] text-text-secondary font-semibold">
                   <span>Bought: {purchaseDate}</span>
-                  <Link 
-                    href={`/stock/${h.symbol}`}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-profit text-black rounded-xl font-black uppercase tracking-wider transition-all duration-150 active:scale-95 shadow-sm shadow-profit/10"
-                  >
-                    Trade
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </Link>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => onOpenTradeModal ? onOpenTradeModal(h.symbol, 'BUY', ltp) : null}
+                      className="px-2.5 py-1 bg-emerald-500 text-black rounded-lg font-black uppercase tracking-wider active:scale-95 transition-all"
+                    >
+                      Buy
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onOpenTradeModal ? onOpenTradeModal(h.symbol, 'SELL', ltp) : null}
+                      className="px-2.5 py-1 bg-rose-500 text-white rounded-lg font-black uppercase tracking-wider active:scale-95 transition-all"
+                    >
+                      Redeem
+                    </button>
+                  </div>
                 </div>
               </div>
             );

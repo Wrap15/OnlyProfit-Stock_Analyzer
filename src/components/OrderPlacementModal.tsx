@@ -29,18 +29,34 @@ export default function OrderPlacementModal({
   const [priceInput, setPriceInput] = useState<string>(livePrice.toFixed(2));
   const [stopPriceInput, setStopPriceInput] = useState<string>((livePrice * 0.95).toFixed(2));
   const [side, setSide] = useState<'BUY' | 'SELL'>('BUY');
+  const [availableHoldingQty, setAvailableHoldingQty] = useState<number>(0);
   const [isConfirmScreen, setIsConfirmScreen] = useState(false);
   
   const [loading, setLoading] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
   const [successText, setSuccessText] = useState<string | null>(null);
 
-  // Sync price input on mount / live price updates if market order
+  // Sync price input on mount & fetch available holdings
   useEffect(() => {
     if (orderType === 'MARKET') {
       setPriceInput(livePrice.toFixed(2));
     }
   }, [livePrice, orderType]);
+
+  useEffect(() => {
+    if (isOpen && userId) {
+      import('@/lib/simulatorService').then(({ getSimulatorState }) => {
+        getSimulatorState(userId).then((st) => {
+          const holding = st.holdings.find(h => h.symbol === symbol);
+          if (holding) {
+            setAvailableHoldingQty(holding.quantity);
+          } else {
+            setAvailableHoldingQty(0);
+          }
+        });
+      });
+    }
+  }, [isOpen, userId, symbol]);
 
   if (!isOpen) return null;
 
@@ -196,102 +212,154 @@ export default function OrderPlacementModal({
           {!isConfirmScreen ? (
             <form onSubmit={handleSubmitInit} className="space-y-5">
               
-              {/* Mutual Fund Specific SIP vs Lumpsum Selector */}
-              {(symbol.startsWith('MF_') || !isNaN(Number(symbol))) ? (
-                <div className="space-y-4 p-4 rounded-2xl bg-profit/5 border border-profit/20">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-black text-profit uppercase tracking-wider">Mutual Fund Investment Mode</span>
-                    <span className="text-[10px] font-bold text-text-secondary">NAV: ₹{livePrice.toFixed(2)}</span>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-2 p-1 bg-background border border-border/80 rounded-xl">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setProductType('CNC');
-                        setQuantity(Math.max(1, Math.round(5000 / livePrice)));
-                      }}
-                      className={`py-2 rounded-lg text-xs font-black tracking-wider uppercase transition-all cursor-pointer ${
-                        productType === 'CNC'
-                          ? 'bg-profit text-black shadow-sm'
-                          : 'text-text-secondary hover:text-text-primary'
-                      }`}
-                    >
-                      Monthly SIP
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setProductType('MIS');
-                        setQuantity(Math.max(1, Math.round(25000 / livePrice)));
-                      }}
-                      className={`py-2 rounded-lg text-xs font-black tracking-wider uppercase transition-all cursor-pointer ${
-                        productType === 'MIS'
-                          ? 'bg-profit text-black shadow-sm'
-                          : 'text-text-secondary hover:text-text-primary'
-                      }`}
-                    >
-                      One-Time Lumpsum
-                    </button>
-                  </div>
+              {/* Universal BUY / SELL Switcher Pill for All Assets */}
+              <div className="grid grid-cols-2 gap-1 p-1 bg-background border border-border/80 rounded-2xl">
+                <button
+                  type="button"
+                  onClick={() => setSide('BUY')}
+                  className={`py-2 rounded-xl text-xs font-black tracking-wider uppercase transition-all duration-200 cursor-pointer ${
+                    side === 'BUY'
+                      ? 'bg-emerald-500 text-black shadow-md shadow-emerald-500/10'
+                      : 'text-text-secondary hover:text-text-primary'
+                  }`}
+                >
+                  {(symbol.startsWith('MF_') || !isNaN(Number(symbol))) ? 'Invest / Buy' : 'Buy'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSide('SELL')}
+                  className={`py-2 rounded-xl text-xs font-black tracking-wider uppercase transition-all duration-200 cursor-pointer ${
+                    side === 'SELL'
+                      ? 'bg-red-500 text-black shadow-md shadow-red-500/10'
+                      : 'text-text-secondary hover:text-text-primary'
+                  }`}
+                >
+                  {(symbol.startsWith('MF_') || !isNaN(Number(symbol))) ? 'Redeem / Sell' : 'Sell'}
+                </button>
+              </div>
 
-                  {/* Preset Amount Chips for Mutual Funds */}
-                  <div className="space-y-1.5">
-                    <label className="text-[9px] font-black text-text-secondary uppercase tracking-widest block">
-                      Select Investment Amount
-                    </label>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      {(productType === 'CNC' ? [500, 1000, 2500, 5000, 10000] : [5000, 10000, 25000, 50000, 100000]).map((amt) => {
-                        const calculatedQty = Math.max(1, Math.round(amt / livePrice));
-                        const isSelected = activeQuantity === calculatedQty;
-                        return (
-                          <button
-                            key={amt}
-                            type="button"
-                            onClick={() => setQuantity(calculatedQty)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
-                              isSelected
-                                ? 'bg-profit text-black border border-profit shadow-sm'
-                                : 'bg-background border border-border/70 text-text-secondary hover:text-text-primary'
-                            }`}
-                          >
-                            ₹{amt.toLocaleString('en-IN')}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                /* BUY / SELL Switcher Pill for Equities */
-                <div className="grid grid-cols-2 gap-1 p-1 bg-background border border-border/80 rounded-2xl">
-                  <button
-                    type="button"
-                    onClick={() => setSide('BUY')}
-                    className={`py-2 rounded-xl text-xs font-black tracking-wider uppercase transition-all duration-200 cursor-pointer ${
-                      side === 'BUY'
-                        ? 'bg-emerald-500 text-black shadow-md shadow-emerald-500/10'
-                        : 'text-text-secondary hover:text-text-primary'
-                    }`}
-                  >
-                    Buy
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSide('SELL')}
-                    className={`py-2 rounded-xl text-xs font-black tracking-wider uppercase transition-all duration-200 cursor-pointer ${
-                      side === 'SELL'
-                        ? 'bg-red-500 text-black shadow-md shadow-red-500/10'
-                        : 'text-text-secondary hover:text-text-primary'
-                    }`}
-                  >
-                    Sell
-                  </button>
+              {/* Available Holdings Banner */}
+              {availableHoldingQty > 0 && (
+                <div className="flex items-center justify-between p-3 rounded-xl bg-background/60 border border-border/60 text-xs">
+                  <span className="font-bold text-text-secondary">Available Holdings:</span>
+                  <span className="font-black text-text-primary font-mono">
+                    {availableHoldingQty} {(symbol.startsWith('MF_') || !isNaN(Number(symbol))) ? 'Units' : 'Shares'}
+                  </span>
                 </div>
               )}
 
-              {/* Product Type Buttons for Non-MF symbols */}
-              {(!symbol.startsWith('MF_') && isNaN(Number(symbol))) && (
+              {/* Mutual Fund Specific Form Controls */}
+              {(symbol.startsWith('MF_') || !isNaN(Number(symbol))) ? (
+                side === 'BUY' ? (
+                  <div className="space-y-4 p-4 rounded-2xl bg-profit/5 border border-profit/20">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-profit uppercase tracking-wider">Mutual Fund Investment Mode</span>
+                      <span className="text-[10px] font-bold text-text-secondary">NAV: ₹{livePrice.toFixed(2)}</span>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2 p-1 bg-background border border-border/80 rounded-xl">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProductType('CNC');
+                          setQuantity(Math.max(1, Math.round(5000 / livePrice)));
+                        }}
+                        className={`py-2 rounded-lg text-xs font-black tracking-wider uppercase transition-all cursor-pointer ${
+                          productType === 'CNC'
+                            ? 'bg-profit text-black shadow-sm'
+                            : 'text-text-secondary hover:text-text-primary'
+                        }`}
+                      >
+                        Monthly SIP
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProductType('MIS');
+                          setQuantity(Math.max(1, Math.round(25000 / livePrice)));
+                        }}
+                        className={`py-2 rounded-lg text-xs font-black tracking-wider uppercase transition-all cursor-pointer ${
+                          productType === 'MIS'
+                            ? 'bg-profit text-black shadow-sm'
+                            : 'text-text-secondary hover:text-text-primary'
+                        }`}
+                      >
+                        One-Time Lumpsum
+                      </button>
+                    </div>
+
+                    {/* Preset Amount Chips for Mutual Funds */}
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black text-text-secondary uppercase tracking-widest block">
+                        Select Investment Amount
+                      </label>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {(productType === 'CNC' ? [500, 1000, 2500, 5000, 10000] : [5000, 10000, 25000, 50000, 100000]).map((amt) => {
+                          const calculatedQty = Math.max(1, Math.round(amt / livePrice));
+                          const isSelected = activeQuantity === calculatedQty;
+                          return (
+                            <button
+                              key={amt}
+                              type="button"
+                              onClick={() => setQuantity(calculatedQty)}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-profit text-black border border-profit shadow-sm'
+                                  : 'bg-background border border-border/70 text-text-secondary hover:text-text-primary'
+                              }`}
+                            >
+                              ₹{amt.toLocaleString('en-IN')}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* SELL / REDEEM Mode for Mutual Funds */
+                  <div className="space-y-4 p-4 rounded-2xl bg-rose-500/5 border border-rose-500/20">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-rose-400 uppercase tracking-wider">Redeem Mutual Fund Units</span>
+                      <span className="text-[10px] font-bold text-text-secondary">NAV: ₹{livePrice.toFixed(2)}</span>
+                    </div>
+
+                    {/* Quick Redemption % Chips */}
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black text-text-secondary uppercase tracking-widest block">
+                        Quick Redemption Percentage
+                      </label>
+                      <div className="grid grid-cols-4 gap-2">
+                        {[0.25, 0.50, 0.75, 1.0].map((ratio) => {
+                          const targetQty = Math.max(1, Math.round((availableHoldingQty || 1) * ratio));
+                          const isSelected = activeQuantity === targetQty;
+                          return (
+                            <button
+                              key={ratio}
+                              type="button"
+                              onClick={() => setQuantity(targetQty)}
+                              className={`py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-rose-500 text-white shadow-sm'
+                                  : 'bg-background border border-border/70 text-text-secondary hover:text-text-primary'
+                              }`}
+                            >
+                              {ratio === 1.0 ? '100% All' : `${ratio * 100}%`}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="p-3 bg-background border border-border/60 rounded-xl flex justify-between items-center text-xs">
+                      <span className="font-bold text-text-secondary">Estimated Redemption Payout:</span>
+                      <span className="font-black text-profit font-mono text-sm">
+                        ₹{(activeQuantity * livePrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+                )
+              ) : (
+                /* Product Type Buttons for Non-MF symbols */
                 <div className="space-y-2">
                   <label className="text-[9px] font-black text-text-secondary uppercase tracking-widest block">
                     Product Type

@@ -22,11 +22,13 @@ Built on Next.js 14, OnlyProfit incorporates hardware-accelerated 60 FPS animati
 - **Exact 3:30:00 PM IST Market Close Enforcement**: Evaluates market hours with second precision (`09:15:00 AM` to `15:30:00 PM IST`). At 3:30 PM sharp, live tick updates freeze instantly, and market badges flip to "Market Closed".
 - **Color-Coded Dynamic Prices**: Green font color highlight on price increases and red on price decreases with smooth CSS transitions.
 
-### 2. 💼 Virtual Paper Trading Simulator Engine
+### 2. 💼 Virtual Paper Trading & Redemption Engine
 - **₹10,00,000 Starting Virtual Capital**: Trade Indian equities and mutual funds risk-free in a virtual trading environment.
-- **Order Placement Modal**: Supports Market, Limit, and Stop-Loss (SL) orders for stocks, as well as **Monthly SIP** and **One-Time Lumpsum** orders for Mutual Funds.
-- **Product Types**: Toggle between **CNC (Delivery)** and **MIS (Intraday)** with auto square-off indicators and fee breakdowns (brokerage, STT, exchange charges).
-- **Portfolio & P&L Tracker**: Calculates real-time 1D Returns, Total P&L, holdings, executed order history, and net portfolio value.
+- **Universal Buy & Sell / Redeem Switcher**:
+  - **Equity Trading**: Market, Limit, and Stop-Loss (SL) orders for CNC Delivery and MIS Intraday product types.
+  - **Mutual Fund Buying**: Select **Monthly SIP** (with preset chips) or **One-Time Lumpsum** orders.
+  - **Mutual Fund Selling / Redemption**: View available units held, select quick redemption chips (`25%`, `50%`, `75%`, `100% Redeem All`), and view real-time estimated payout calculations (`Payout = Units × NAV`).
+- **Portfolio & P&L Tracker**: Displays real-time 1D Returns, Total P&L, holdings, executed order history, and net portfolio value with direct **Buy More** and **Sell / Redeem** action buttons on every holding.
 
 ### 3. 🎯 Mutual Fund Hub & Interactive SIP Calculator
 - **AMFI Integration**: Direct-growth mutual funds (Small-Cap, Mid-Cap, Flexi-Cap, Index Funds) fetched with live NAV rates.
@@ -35,7 +37,7 @@ Built on Next.js 14, OnlyProfit incorporates hardware-accelerated 60 FPS animati
   - **Timeframe Presets**: 1-tap duration pills (`1Y`, `3Y`, `5Y`, `10Y`, `15Y`, `20Y`, `30Y`).
   - **Reactive Visualizations**: SVG Doughnut chart and dual-color progress breakdown bars separating Invested Amount vs Est. Returns.
   - **Wealth Growth Badge**: Dynamic multiplier display (e.g., `2.4x Growth`).
-- **Pixel-Perfect Bottom Sticky CTA Bar**: Responsive floating bottom bar featuring a green `₹` badge icon, fund code & full name, NAV price with 1-day percentage change, and a solid green **PAPER TRADE** pill button.
+- **Pixel-Perfect Bottom Sticky CTA Bar**: Responsive floating bottom bar featuring a green `₹` badge icon, fund code & full name, NAV price with 1-day percentage change, and a solid green **PAPER TRADE** pill button matching top financial apps.
 
 ### 4. 🔥 Today's Market Drivers
 - **Crash-Proof Responsive Sidebar**: Displays Top Gainers, Top Losers, and Most Active stocks in a 60 FPS hardware-accelerated card list format optimized for narrow sidebar columns (~340px) as well as full-width mobile viewports.
@@ -72,12 +74,12 @@ OnlyProfit/
 │   │   │   │   ├── quote/      # Live NSE quotes handler with 400ms micro-ticks
 │   │   │   │   └── search/     # Autocomplete search endpoint
 │   │   ├── mutualfund/[code]/ # Mutual Fund detail page with sticky paper trading bar
-│   │   ├── simulator/          # Paper Trading Portfolio & P&L dashboard
+│   │   ├── simulator/          # Paper Trading Portfolio & P&L dashboard with Buy/Redeem
 │   │   ├── stock/[symbol]/     # Equity detail view, option chain, and technicals
 │   │   ├── layout.tsx          # Root shell layout
 │   │   └── page.tsx            # Main market dashboard
 │   ├── components/             # Reusable UI Components
-│   │   ├── OrderPlacementModal.tsx # Order execution modal (Equity & MF SIP/Lumpsum)
+│   │   ├── OrderPlacementModal.tsx # Universal Order execution modal (Equity & MF Buy/Redeem)
 │   │   ├── SipCalculator.tsx   # Responsive SIP & Lumpsum returns calculator
 │   │   ├── TopIndexStrip.tsx   # Live Nifty/Sensex ticker strip with 400ms tick updates
 │   │   └── AISignalsWidget.tsx # AI Copilot assistant drawer
@@ -86,6 +88,8 @@ OnlyProfit/
 │   │   │   └── TodaysStocksSection.tsx # Today's Market Drivers (Gainers/Losers/Active)
 │   │   ├── mutualfunds/components/
 │   │   │   └── MutualFundHero.tsx # Mutual Fund header section
+│   │   ├── simulator/components/
+│   │   │   └── SimulatorHoldingsTab.tsx # Portfolio Holdings with Buy More & Sell/Redeem CTAs
 │   │   └── stocks/components/
 │   │       ├── StockHeroSection.tsx # Equity hero header with 3:30 PM close enforcement
 │   │       └── StockRightSidebar.tsx # Stock page right sidebar & recommendations
@@ -96,7 +100,7 @@ OnlyProfit/
 │   │   └── useSimulatorDetails.ts # Simulator holding & P&L calculator hook
 │   ├── lib/
 │   │   ├── marketHours.ts       # 3:30:00 PM IST sharp market close checking utility
-│   │   ├── simulatorService.ts  # Core paper trading execution logic
+│   │   ├── simulatorService.ts  # Core paper trading & redemption execution logic
 │   │   └── yahooFinance.ts      # Live Yahoo Finance fetch wrappers
 │   └── store/
 │       └── useStockStore.ts     # Global Zustand store (watchlists, alerts, user ID)

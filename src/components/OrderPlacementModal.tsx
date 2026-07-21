@@ -196,64 +196,134 @@ export default function OrderPlacementModal({
           {!isConfirmScreen ? (
             <form onSubmit={handleSubmitInit} className="space-y-5">
               
-              {/* BUY / SELL Switcher Pill */}
-              <div className="grid grid-cols-2 gap-1 p-1 bg-background border border-border/80 rounded-2xl">
-                <button
-                  type="button"
-                  onClick={() => setSide('BUY')}
-                  className={`py-2 rounded-xl text-xs font-black tracking-wider uppercase transition-all duration-200 cursor-pointer ${
-                    side === 'BUY'
-                      ? 'bg-emerald-500 text-black shadow-md shadow-emerald-500/10'
-                      : 'text-text-secondary hover:text-text-primary'
-                  }`}
-                >
-                  Buy
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSide('SELL')}
-                  className={`py-2 rounded-xl text-xs font-black tracking-wider uppercase transition-all duration-200 cursor-pointer ${
-                    side === 'SELL'
-                      ? 'bg-red-500 text-black shadow-md shadow-red-500/10'
-                      : 'text-text-secondary hover:text-text-primary'
-                  }`}
-                >
-                  Sell
-                </button>
-              </div>
+              {/* Mutual Fund Specific SIP vs Lumpsum Selector */}
+              {(symbol.startsWith('MF_') || !isNaN(Number(symbol))) ? (
+                <div className="space-y-4 p-4 rounded-2xl bg-profit/5 border border-profit/20">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-profit uppercase tracking-wider">Mutual Fund Investment Mode</span>
+                    <span className="text-[10px] font-bold text-text-secondary">NAV: ₹{livePrice.toFixed(2)}</span>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2 p-1 bg-background border border-border/80 rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProductType('CNC');
+                        setQuantity(Math.max(1, Math.round(5000 / livePrice)));
+                      }}
+                      className={`py-2 rounded-lg text-xs font-black tracking-wider uppercase transition-all cursor-pointer ${
+                        productType === 'CNC'
+                          ? 'bg-profit text-black shadow-sm'
+                          : 'text-text-secondary hover:text-text-primary'
+                      }`}
+                    >
+                      Monthly SIP
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProductType('MIS');
+                        setQuantity(Math.max(1, Math.round(25000 / livePrice)));
+                      }}
+                      className={`py-2 rounded-lg text-xs font-black tracking-wider uppercase transition-all cursor-pointer ${
+                        productType === 'MIS'
+                          ? 'bg-profit text-black shadow-sm'
+                          : 'text-text-secondary hover:text-text-primary'
+                      }`}
+                    >
+                      One-Time Lumpsum
+                    </button>
+                  </div>
 
-              {/* Product Type Buttons */}
-              <div className="space-y-2">
-                <label className="text-[9px] font-black text-text-secondary uppercase tracking-widest block">
-                  Product Type
-                </label>
-                <div className="grid grid-cols-2 gap-3">
+                  {/* Preset Amount Chips for Mutual Funds */}
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black text-text-secondary uppercase tracking-widest block">
+                      Select Investment Amount
+                    </label>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {(productType === 'CNC' ? [500, 1000, 2500, 5000, 10000] : [5000, 10000, 25000, 50000, 100000]).map((amt) => {
+                        const calculatedQty = Math.max(1, Math.round(amt / livePrice));
+                        const isSelected = activeQuantity === calculatedQty;
+                        return (
+                          <button
+                            key={amt}
+                            type="button"
+                            onClick={() => setQuantity(calculatedQty)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-profit text-black border border-profit shadow-sm'
+                                : 'bg-background border border-border/70 text-text-secondary hover:text-text-primary'
+                            }`}
+                          >
+                            ₹{amt.toLocaleString('en-IN')}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* BUY / SELL Switcher Pill for Equities */
+                <div className="grid grid-cols-2 gap-1 p-1 bg-background border border-border/80 rounded-2xl">
                   <button
                     type="button"
-                    onClick={() => setProductType('CNC')}
-                    className={`flex flex-col items-center justify-center p-3.5 border rounded-2xl text-center transition-all cursor-pointer ${
-                      productType === 'CNC'
-                        ? (side === 'BUY' ? 'border-emerald-500 bg-emerald-500/5 text-emerald-455 shadow-sm' : 'border-rose-500 bg-rose-500/5 text-rose-455 shadow-sm')
-                        : 'border-border bg-background text-text-secondary hover:text-text-primary'
+                    onClick={() => setSide('BUY')}
+                    className={`py-2 rounded-xl text-xs font-black tracking-wider uppercase transition-all duration-200 cursor-pointer ${
+                      side === 'BUY'
+                        ? 'bg-emerald-500 text-black shadow-md shadow-emerald-500/10'
+                        : 'text-text-secondary hover:text-text-primary'
                     }`}
                   >
-                    <span className="text-xs font-extrabold uppercase">CNC (Delivery)</span>
-                    <span className="text-[8px] font-medium mt-0.5 opacity-80">Full cash required • Keep overnight</span>
+                    Buy
                   </button>
                   <button
                     type="button"
-                    onClick={() => setProductType('MIS')}
-                    className={`flex flex-col items-center justify-center p-3.5 border rounded-2xl text-center transition-all cursor-pointer ${
-                      productType === 'MIS'
-                        ? (side === 'BUY' ? 'border-emerald-500 bg-emerald-500/5 text-emerald-455 shadow-sm' : 'border-rose-500 bg-rose-500/5 text-rose-455 shadow-sm')
-                        : 'border-border bg-background text-text-secondary hover:text-text-primary'
+                    onClick={() => setSide('SELL')}
+                    className={`py-2 rounded-xl text-xs font-black tracking-wider uppercase transition-all duration-200 cursor-pointer ${
+                      side === 'SELL'
+                        ? 'bg-red-500 text-black shadow-md shadow-red-500/10'
+                        : 'text-text-secondary hover:text-text-primary'
                     }`}
                   >
-                    <span className="text-xs font-extrabold uppercase">MIS (Intraday)</span>
-                    <span className="text-[8px] font-medium mt-0.5 opacity-80">Auto square-off at 3:15 PM</span>
+                    Sell
                   </button>
                 </div>
-              </div>
+              )}
+
+              {/* Product Type Buttons for Non-MF symbols */}
+              {(!symbol.startsWith('MF_') && isNaN(Number(symbol))) && (
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black text-text-secondary uppercase tracking-widest block">
+                    Product Type
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setProductType('CNC')}
+                      className={`flex flex-col items-center justify-center p-3.5 border rounded-2xl text-center transition-all cursor-pointer ${
+                        productType === 'CNC'
+                          ? (side === 'BUY' ? 'border-emerald-500 bg-emerald-500/5 text-emerald-455 shadow-sm' : 'border-rose-500 bg-rose-500/5 text-rose-455 shadow-sm')
+                          : 'border-border bg-background text-text-secondary hover:text-text-primary'
+                      }`}
+                    >
+                      <span className="text-xs font-extrabold uppercase">CNC (Delivery)</span>
+                      <span className="text-[8px] font-medium mt-0.5 opacity-80">Full cash required • Keep overnight</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setProductType('MIS')}
+                      className={`flex flex-col items-center justify-center p-3.5 border rounded-2xl text-center transition-all cursor-pointer ${
+                        productType === 'MIS'
+                          ? (side === 'BUY' ? 'border-emerald-500 bg-emerald-500/5 text-emerald-455 shadow-sm' : 'border-rose-500 bg-rose-500/5 text-rose-455 shadow-sm')
+                          : 'border-border bg-background text-text-secondary hover:text-text-primary'
+                      }`}
+                    >
+                      <span className="text-xs font-extrabold uppercase">MIS (Intraday)</span>
+                      <span className="text-[8px] font-medium mt-0.5 opacity-80">Auto square-off at 3:15 PM</span>
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Order Type Tabs */}
               <div className="space-y-2">

@@ -5,6 +5,7 @@ import {
   Star, ChevronLeft, GitCompare, Share2, TrendingUp, CheckCircle, Copy, Send, X 
 } from 'lucide-react';
 import StockLogo from '@/components/StockLogo';
+import { isIndianMarketOpen } from '@/lib/marketHours';
 
 interface StockHeroSectionProps {
   symbol: string;
@@ -92,16 +93,8 @@ export default function StockHeroSection({
   };
 
   const getMarketStatus = () => {
-    const now = new Date();
-    const day = now.getDay();
-    const hours = now.getHours();
-    const minutes = now.getMinutes();
-    const timeInMinutes = hours * 60 + minutes;
-    
-    const isOpenDay = day >= 1 && day <= 5; // Monday to Friday
-    const isOpenTime = timeInMinutes >= 9 * 60 + 15 && timeInMinutes <= 15 * 60 + 30; // 9:15 AM to 3:30 PM
-    
-    if (isOpenDay && isOpenTime) {
+    const isOpen = isIndianMarketOpen();
+    if (isOpen) {
       return { desc: 'Market Open', color: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' };
     } else {
       return { desc: 'Market Closed', color: 'bg-slate-500/10 text-slate-500 dark:text-slate-400 border-slate-500/20' };

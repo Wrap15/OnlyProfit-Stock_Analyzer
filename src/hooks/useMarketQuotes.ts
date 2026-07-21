@@ -70,7 +70,7 @@ export function useMarketQuotes(symbols: string[]) {
     return () => clearInterval(pollInterval);
   }, [symbols]); // Reload whenever active symbols array changes
 
-  // 2. Client-side micro-fluctuations (every 1 second) during market hours
+  // 2. Client-side micro-fluctuations (every 400ms) during market hours
   useEffect(() => {
     const fluctuationInterval = setInterval(() => {
       if (!isIndianMarketOpen()) return;
@@ -81,8 +81,7 @@ export function useMarketQuotes(symbols: string[]) {
           if (q.symbol.startsWith('^')) return q; // Skip indices
 
           const prevClose = q.regularMarketPrice - q.regularMarketChange;
-          // Smaller change percentage per second (between -0.015% and +0.015%)
-          const pct = (Math.random() - 0.495) * 0.0003;
+          const pct = (Math.random() - 0.495) * 0.00015;
           const newPrice = q.regularMarketPrice * (1 + pct);
           const newChange = newPrice - prevClose;
           const newChangePercent = prevClose > 0 ? (newChange / prevClose) * 100 : 0;
@@ -96,7 +95,7 @@ export function useMarketQuotes(symbols: string[]) {
           };
         });
       });
-    }, 1000);
+    }, 400);
 
     return () => clearInterval(fluctuationInterval);
   }, []);

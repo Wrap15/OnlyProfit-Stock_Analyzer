@@ -185,9 +185,21 @@ export default function SipCalculator({ expectedReturn, fundName, isSidebar = fa
               onChange={(e) => setInvestment(parseInt(e.target.value))}
               className="w-full h-1 bg-border rounded-lg appearance-none cursor-pointer accent-profit"
             />
-            <div className="flex justify-between text-[9px] font-black text-text-secondary uppercase">
-              <span>{calculatorMode === 'sip' ? '₹500' : '₹5,000'}</span>
-              <span>{calculatorMode === 'sip' ? '₹1 Lakh' : '₹50 Lakhs'}</span>
+            <div className="flex items-center justify-between gap-1 pt-1">
+              {(calculatorMode === 'sip' ? [1000, 2500, 5000, 10000, 25000, 50000] : [10000, 25000, 50000, 100000, 500000, 1000000]).map((amt) => (
+                <button
+                  key={amt}
+                  type="button"
+                  onClick={() => setInvestment(amt)}
+                  className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase transition-all cursor-pointer ${
+                    investment === amt
+                      ? 'bg-profit text-black shadow-xs'
+                      : 'bg-background border border-border/60 text-text-secondary hover:text-text-primary'
+                  }`}
+                >
+                  {amt >= 100000 ? `₹${amt / 100000}L` : `₹${amt / 1000}k`}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -247,9 +259,23 @@ export default function SipCalculator({ expectedReturn, fundName, isSidebar = fa
               onChange={(e) => setYears(parseInt(e.target.value))}
               className="w-full h-1 bg-border rounded-lg appearance-none cursor-pointer accent-profit"
             />
-            <div className="flex justify-between text-[9px] font-black text-text-secondary uppercase">
-              <span>1 Yr</span>
-              <span>40 Yrs</span>
+            
+            {/* Quick Duration Preset Pills */}
+            <div className="flex items-center justify-between gap-1 pt-1">
+              {[1, 3, 5, 10, 15, 20, 30].map((yr) => (
+                <button
+                  key={yr}
+                  type="button"
+                  onClick={() => setYears(yr)}
+                  className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase transition-all cursor-pointer ${
+                    years === yr
+                      ? 'bg-profit text-black shadow-xs'
+                      : 'bg-background border border-border/60 text-text-secondary hover:text-text-primary'
+                  }`}
+                >
+                  {yr}Y
+                </button>
+              ))}
             </div>
           </div>
 
@@ -320,10 +346,15 @@ export default function SipCalculator({ expectedReturn, fundName, isSidebar = fa
               </span>
             </div>
 
-            <div className="pt-2 border-t border-border/80">
-              <span className="text-[10px] font-extrabold text-text-secondary uppercase tracking-wider">Total Value</span>
-              <span className="block text-lg font-black text-text-primary tracking-tight">
-                {formatValue(totalValue)}
+            <div className="pt-2 border-t border-border/80 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-extrabold text-text-secondary uppercase tracking-wider">Total Value</span>
+                <span className="block text-lg font-black text-text-primary tracking-tight">
+                  {formatValue(totalValue)}
+                </span>
+              </div>
+              <span className="px-2.5 py-1 rounded-lg bg-profit/15 border border-profit/25 text-profit text-[10px] font-black uppercase tracking-wider">
+                {(totalValue / (investedAmount || 1)).toFixed(1)}x Growth
               </span>
             </div>
           </div>

@@ -241,104 +241,94 @@ export default function TodaysStocksSection({ marketQuotes, onTrade }: TodaysSto
         })}
       </div>
 
-      {/* Drivers List & Table Headers */}
+      {/* Drivers List */}
       <div className="space-y-3">
-        {/* Desktop Headers */}
-        <div className="hidden sm:grid grid-cols-12 gap-4 px-4 py-2 border-b border-border/40 text-[9px] font-black text-text-secondary uppercase tracking-widest select-none">
-          <div className="col-span-3">Asset Name</div>
-          <div className="col-span-2 text-center">Simulated Trend</div>
-          <div className="col-span-2 text-right">LTP Price</div>
-          <div className="col-span-2 text-right">Daily Change</div>
-          <div className="col-span-1 text-right">Metric</div>
-          <div className="col-span-2 text-right">Action</div>
-        </div>
-
         {processedList.length > 0 ? (
           processedList.map((stock) => {
-            const isPositive = stock.changePercent >= 0;
-            const isBookmarked = watchlist.includes(stock.symbol);
+            const isBookmarked = Array.isArray(watchlist) && stock && stock.symbol ? watchlist.includes(stock.symbol) : false;
+            const cleanSym = stock && stock.symbol ? stock.symbol.toUpperCase() : 'RELIANCE.NS';
+            const isPositive = (stock?.changePercent ?? 0) >= 0;
+            const priceVal = stock?.price ?? 0;
+            const pctVal = stock?.changePercent ?? 0;
             
-            let contextLabel = `₹${stock.change.toFixed(1)}`;
+            let contextLabel = `₹${(stock?.change || 0).toFixed(1)}`;
             if (activeTab === 'mostactive') {
-              contextLabel = formatIndianVolume(stock.volume);
+              contextLabel = formatIndianVolume(stock.volume || 0);
             } else if (activeTab === 'high52w') {
-              const diffPct = ((stock.fiftyTwoWeekHigh - stock.price) / stock.fiftyTwoWeekHigh) * 100;
+              const high = stock.fiftyTwoWeekHigh || priceVal || 1;
+              const diffPct = ((high - priceVal) / high) * 100;
               contextLabel = diffPct <= 0.05 ? 'At High' : `${diffPct.toFixed(1)}% off`;
             } else if (activeTab === 'low52w') {
-              const diffPct = ((stock.price - stock.fiftyTwoWeekLow) / stock.fiftyTwoWeekLow) * 100;
+              const low = stock.fiftyTwoWeekLow || priceVal || 1;
+              const diffPct = ((priceVal - low) / low) * 100;
               contextLabel = diffPct <= 0.05 ? 'At Low' : `${diffPct.toFixed(1)}% over`;
             }
 
             return (
-              <div key={stock.symbol} className="w-full">
-                
-                {/* 1. DESKTOP/TABLET GRID VIEW (sm and above) */}
-                <div className="hidden sm:grid grid-cols-12 gap-4 items-center p-3 border-b border-border/30 hover:border-b-profit/40 hover:bg-background/15 transition-all duration-200 group relative">
-                  
-                  {/* Col 1: Logo & Name */}
-                  <div className="col-span-3 flex items-center gap-3 min-w-0">
-                    <StockLogo symbol={stock.symbol} size="sm" name={stock.name} />
-                    <Link href={`/stock/${stock.symbol}`} className="min-w-0 flex-1 hover:underline">
+              <div 
+                key={cleanSym} 
+                className="p-3.5 rounded-2xl border border-border/60 bg-card/60 backdrop-blur-sm hover:bg-card hover:border-profit/40 hover:-translate-y-0.5 will-change-transform transform-gpu transition-all duration-300 shadow-sm hover:shadow-md hover:shadow-profit/5 group"
+              >
+                {/* Top Row: Logo, Symbol & Name (left), Price & Change % (right) */}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <StockLogo symbol={cleanSym} size="sm" name={stock.name} />
+                    <Link href={`/stock/${cleanSym}`} className="min-w-0 hover:underline">
                       <span className="text-xs font-black text-text-primary group-hover:text-profit transition-colors block truncate">
-                        {stock.symbol.split('.')[0]}
+                        {cleanSym.split('.')[0]}
                       </span>
-                      <span className="text-[10px] text-text-secondary font-black uppercase tracking-wider block truncate">
+                      <span className="text-[10px] text-text-secondary font-bold uppercase tracking-wider block truncate max-w-[140px]">
                         {stock.name}
                       </span>
                     </Link>
                   </div>
 
-                  {/* Col 2: Sparkline */}
-                  <div className="col-span-2 flex justify-center">
-                    <MiniSparkline data={stock.chartData} isPositive={isPositive} width={88} height={22} />
-                  </div>
-
-                  {/* Col 3: Price */}
-                  <div className="col-span-2 text-right">
+                  <div className="text-right shrink-0">
                     <span className={`text-xs font-black font-mono block ${isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
-                      ₹{stock.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      ₹{priceVal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </span>
-                  </div>
-
-                  {/* Col 4: Daily Change */}
-                  <div className="col-span-2 text-right">
-                    <span className={`inline-flex items-center gap-0.5 text-xs font-black font-mono ${
+                    <span className={`inline-flex items-center gap-0.5 text-[10px] font-black font-mono mt-0.5 ${
                       isPositive ? 'text-emerald-500' : 'text-rose-500'
                     }`}>
-                      {isPositive ? '▲' : '▼'} {isPositive ? '+' : ''}{stock.changePercent.toFixed(2)}%
+                      {isPositive ? '▲' : '▼'} {isPositive ? '+' : ''}{pctVal.toFixed(2)}%
                     </span>
                   </div>
+                </div>
 
-                  {/* Col 5: Custom context label */}
-                  <div className="col-span-1 text-right">
-                    <span className={`px-2 py-0.5 rounded-lg border text-[9px] font-black font-mono tracking-wider uppercase select-none ${
+                {/* Bottom Row: Sparkline (left), Metric Badge, Trade Button & Watchlist Bookmark (right) */}
+                <div className="flex items-center justify-between gap-2 mt-3 pt-2.5 border-t border-border/30">
+                  <div className="h-6 w-24 shrink-0 opacity-90 group-hover:opacity-100 transition-opacity">
+                    <MiniSparkline data={stock.chartData} isPositive={isPositive} width={96} height={24} />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-0.5 rounded-md border text-[9px] font-black font-mono tracking-wider uppercase select-none ${
                       activeTab === 'mostactive' 
-                        ? 'bg-sky-500/5 border-sky-500/10 text-sky-400'
+                        ? 'bg-sky-500/10 border-sky-500/20 text-sky-400'
                         : activeTab.includes('52w')
-                        ? 'bg-amber-500/5 border-amber-500/10 text-amber-500'
+                        ? 'bg-amber-500/10 border-amber-500/20 text-amber-500'
                         : isPositive
-                        ? 'bg-emerald-500/5 border-emerald-500/10 text-emerald-500'
-                        : 'bg-rose-500/5 border-rose-500/10 text-rose-500'
+                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'
+                        : 'bg-rose-500/10 border-rose-500/20 text-rose-500'
                     }`}>
                       {contextLabel}
                     </span>
-                  </div>
-
-                  {/* Col 6: Actions */}
-                  <div className="col-span-2 flex items-center justify-end gap-2">
+                    
                     <button
-                      onClick={() => onTrade(stock.symbol, stock.name, stock.price)}
-                      className="p-1 px-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500 hover:text-black text-emerald-500 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer active:scale-95"
+                      onClick={() => onTrade(cleanSym, stock.name, priceVal)}
+                      className="px-2.5 py-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500 hover:text-black text-emerald-500 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer active:scale-95 shadow-xs"
                     >
                       Trade
                     </button>
+
                     <button
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        toggleWatchlist(stock.symbol);
+                        toggleWatchlist(cleanSym);
                       }}
-                      className="p-1 rounded-lg hover:bg-card-hover transition-colors shrink-0 cursor-pointer"
+                      className="p-1.5 rounded-lg hover:bg-background border border-transparent hover:border-border transition-colors shrink-0 cursor-pointer"
+                      title={isBookmarked ? "Remove from Watchlist" : "Add to Watchlist"}
                     >
                       <Bookmark 
                         className={`h-3.5 w-3.5 transition-all duration-200 ${
@@ -350,82 +340,6 @@ export default function TodaysStocksSection({ marketQuotes, onTrade }: TodaysSto
                     </button>
                   </div>
                 </div>
-
-                {/* 2. MOBILE RESPONSIVE STACKED ROW (below sm) */}
-                <div className="flex flex-col gap-2.5 p-3.5 border-b border-border/30 hover:bg-background/15 transition-all duration-200 sm:hidden">
-                  
-                  {/* Row 1: Logo & Name (left), Price & Change % (right) */}
-                  <div className="flex justify-between items-start gap-2">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <StockLogo symbol={stock.symbol} size="sm" name={stock.name} />
-                      <Link href={`/stock/${stock.symbol}`} className="min-w-0 hover:underline">
-                        <span className="text-xs font-black text-text-primary block truncate">
-                          {stock.symbol.split('.')[0]}
-                        </span>
-                        <span className="text-[9px] text-text-secondary font-black uppercase tracking-wider truncate block max-w-[130px]">
-                          {stock.name}
-                        </span>
-                      </Link>
-                    </div>
-
-                    <div className="text-right shrink-0">
-                      <span className={`text-xs font-black font-mono block ${isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
-                        ₹{stock.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </span>
-                      <span className={`inline-flex items-center gap-0.5 text-[9px] font-black font-mono leading-none mt-0.5 ${
-                        isPositive ? 'text-emerald-500' : 'text-rose-500'
-                      }`}>
-                        {isPositive ? '▲' : '▼'}{isPositive ? '+' : ''}{stock.changePercent.toFixed(2)}%
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Row 2: Sparkline (left), Metric Badge & Trade button & Bookmark icon (right) */}
-                  <div className="flex justify-between items-center gap-2 pt-2 border-t border-border/10">
-                    <div className="h-6 w-20 shrink-0">
-                      <MiniSparkline data={stock.chartData} isPositive={isPositive} width={80} height={20} />
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <span className={`px-2 py-0.5 rounded-lg border text-[8px] font-black font-mono tracking-wider uppercase select-none ${
-                        activeTab === 'mostactive' 
-                          ? 'bg-sky-500/5 border-sky-500/10 text-sky-400'
-                          : activeTab.includes('52w')
-                          ? 'bg-amber-500/5 border-amber-500/10 text-amber-500'
-                          : isPositive
-                          ? 'bg-emerald-500/5 border-emerald-500/10 text-emerald-500'
-                          : 'bg-rose-500/5 border-rose-500/10 text-rose-500'
-                      }`}>
-                        {contextLabel}
-                      </span>
-                      
-                      <button
-                        onClick={() => onTrade(stock.symbol, stock.name, stock.price)}
-                        className="p-1 px-2.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500 hover:text-black text-emerald-500 text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
-                      >
-                        Trade
-                      </button>
-
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          toggleWatchlist(stock.symbol);
-                        }}
-                        className="p-1 rounded-lg hover:bg-card-hover transition-colors shrink-0 cursor-pointer"
-                      >
-                        <Bookmark 
-                          className={`h-3.5 w-3.5 ${
-                            isBookmarked 
-                              ? 'text-profit fill-profit' 
-                              : 'text-slate-400 dark:text-slate-500'
-                          }`} 
-                        />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
               </div>
             );
           })

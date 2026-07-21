@@ -8,15 +8,18 @@ interface MiniSparklineProps {
 }
 
 export default function MiniSparkline({ data, isPositive, width = 100, height = 30 }: MiniSparklineProps) {
-  if (!data || data.length === 0) return null;
+  if (!data || !Array.isArray(data) || data.length === 0) return null;
 
-  const min = Math.min(...data);
-  const max = Math.max(...data);
+  const cleanData = data.filter(val => typeof val === 'number' && !isNaN(val));
+  if (cleanData.length === 0) return null;
+
+  const min = Math.min(...cleanData);
+  const max = Math.max(...cleanData);
   const range = max - min === 0 ? 1 : max - min;
 
   // Map coordinates to SVG viewbox
-  const points = data.map((val, index) => {
-    const x = (index / (data.length - 1)) * width;
+  const points = cleanData.map((val, index) => {
+    const x = (index / (cleanData.length - 1)) * width;
     // In SVG, y=0 is top, so we subtract scaled height from height
     const y = height - ((val - min) / range) * (height - 4) - 2;
     return `${x},${y}`;

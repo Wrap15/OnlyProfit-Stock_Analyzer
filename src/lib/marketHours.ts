@@ -13,6 +13,7 @@ export function isIndianMarketOpen(): boolean {
       weekday: 'short',
       hour: '2-digit',
       minute: '2-digit',
+      second: '2-digit',
     });
     
     const formattedParts = formatter.formatToParts(now);
@@ -21,25 +22,27 @@ export function isIndianMarketOpen(): boolean {
     const weekday = getVal('weekday'); // "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"
     const hourStr = getVal('hour');
     const minuteStr = getVal('minute');
+    const secondStr = getVal('second');
     
     const hour = parseInt(hourStr, 10);
     const minute = parseInt(minuteStr, 10);
+    const second = parseInt(secondStr || '0', 10);
     
     // 1. Weekend check
     if (weekday === 'Sat' || weekday === 'Sun') {
       return false;
     }
     
-    // 2. Time check: 9:15 AM to 3:30 PM IST
-    // Represent time as minutes from midnight
-    const timeInMinutes = hour * 60 + minute;
-    const marketOpenMinutes = 9 * 60 + 15;   // 9:15 AM -> 555 mins
-    const marketCloseMinutes = 15 * 60 + 30; // 3:30 PM -> 930 mins
+    // 2. Time check: 9:15:00 AM to 3:30:00 PM IST (15:30:00 sharp)
+    // 9:15:00 AM -> 9 * 3600 + 15 * 60 = 33300 seconds
+    // 3:30:00 PM -> 15 * 3600 + 30 * 60 = 55800 seconds
+    const totalSeconds = hour * 3600 + minute * 60 + second;
+    const openSeconds = 9 * 3600 + 15 * 60;   // 9:15 AM (33300s)
+    const closeSeconds = 15 * 3600 + 30 * 60; // 3:30 PM sharp (55800s)
     
-    return timeInMinutes >= marketOpenMinutes && timeInMinutes <= marketCloseMinutes;
+    return totalSeconds >= openSeconds && totalSeconds < closeSeconds;
   } catch (error) {
     console.error('Error checking market hours:', error);
-    // Fallback: Default to true during common daytime hours on weekdays if formatter fails
     const day = new Date().getDay();
     const isWeekday = day >= 1 && day <= 5;
     return isWeekday;

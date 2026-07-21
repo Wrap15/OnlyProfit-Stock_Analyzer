@@ -179,7 +179,7 @@ export function useDashboardQuotes(activeTab: string, foUnderlying: string) {
     };
   }, []);
 
-  // 3. Client-side price micro-fluctuations (every 1s)
+  // 3. Client-side price micro-fluctuations (every 400ms for ultra-fast 60 FPS updates)
   useEffect(() => {
     const interval = setInterval(() => {
       if (!isIndianMarketOpen()) return;
@@ -190,7 +190,7 @@ export function useDashboardQuotes(activeTab: string, foUnderlying: string) {
           if (q.symbol.startsWith('^')) return q; // Skip indices
 
           const prevClose = q.regularMarketPrice - q.regularMarketChange;
-          const pct = (Math.random() - 0.495) * 0.0003;
+          const pct = (Math.random() - 0.495) * 0.00015;
           const newPrice = q.regularMarketPrice * (1 + pct);
           const newChange = newPrice - prevClose;
           const newChangePercent = prevClose > 0 ? (newChange / prevClose) * 100 : 0;
@@ -204,7 +204,7 @@ export function useDashboardQuotes(activeTab: string, foUnderlying: string) {
           };
         });
       });
-    }, 1000);
+    }, 400);
 
     return () => clearInterval(interval);
   }, []);

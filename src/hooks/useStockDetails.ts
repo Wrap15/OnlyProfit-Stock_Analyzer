@@ -139,7 +139,7 @@ export function useStockDetails(symbol: string) {
     fetchFinancials();
   }, [symbol]);
 
-  // 4. Real-time stock price micro-fluctuations (every 1s)
+  // 4. Real-time stock price micro-fluctuations (every 400ms)
   useEffect(() => {
     if (loading || !quote) return;
     
@@ -149,7 +149,7 @@ export function useStockDetails(symbol: string) {
       setQuote((prev) => {
         if (!prev) return null;
         const prevClose = prev.regularMarketPrice - prev.regularMarketChange;
-        const pct = (Math.random() - 0.495) * 0.0003; 
+        const pct = (Math.random() - 0.495) * 0.00015; 
         const newPrice = prev.regularMarketPrice * (1 + pct);
         const newChange = newPrice - prevClose;
         const newChangePercent = prevClose > 0 ? (newChange / prevClose) * 100 : 0;
@@ -162,7 +162,7 @@ export function useStockDetails(symbol: string) {
           isRealUpdate: false,
         };
       });
-    }, 1000);
+    }, 400);
 
     return () => clearInterval(interval);
   }, [loading, quote]);

@@ -72,8 +72,8 @@ export default function MutualFundHero({
 
   return (
     <div className="space-y-4">
-      {/* Back navigation & Watchlist Button */}
-      <div className="flex items-center justify-between">
+      {/* Back navigation & Watchlist / Invest Buttons */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <button
           onClick={onBack}
           className="inline-flex items-center gap-1.5 text-xs font-bold text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
@@ -81,17 +81,19 @@ export default function MutualFundHero({
           <ChevronLeft className="h-4 w-4" /> Back to Mutual Funds
         </button>
         
-        <button
-          onClick={onToggleWatchlist}
-          className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-bold transition-all duration-200 cursor-pointer ${
-            isFavorited
-              ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/50 text-amber-500 shadow-sm'
-              : 'border-border text-text-secondary bg-card hover:text-text-primary hover:bg-background'
-          }`}
-        >
-          <Star className={`h-4 w-4 ${isFavorited ? 'fill-current' : ''}`} />
-          {isFavorited ? 'Watchlisted' : 'Add to Watchlist'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onToggleWatchlist}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-bold transition-all duration-200 cursor-pointer ${
+              isFavorited
+                ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/50 text-amber-500 shadow-sm'
+                : 'border-border text-text-secondary bg-card hover:text-text-primary hover:bg-background'
+            }`}
+          >
+            <Star className={`h-4 w-4 ${isFavorited ? 'fill-current' : ''}`} />
+            {isFavorited ? 'Watchlisted' : 'Add to Watchlist'}
+          </button>
+        </div>
       </div>
 
       {/* Fund Header Section (Groww-Style UI) */}

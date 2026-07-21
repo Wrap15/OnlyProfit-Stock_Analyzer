@@ -15,8 +15,6 @@ import MutualFundExpenseTab from '@/features/mutualfunds/components/MutualFundEx
 import MutualFundPeersTab from '@/features/mutualfunds/components/MutualFundPeersTab';
 import MutualFundAmcTab from '@/features/mutualfunds/components/MutualFundAmcTab';
 
-import OrderPlacementModal from '@/components/OrderPlacementModal';
-
 // Reusable Custom Hook
 import { useMutualFundDetails } from '@/hooks/useMutualFundDetails';
 
@@ -50,8 +48,6 @@ export default function MutualFundDetailPage() {
 
   const { watchlist, toggleWatchlist } = useStockStore();
   const isFavorited = watchlist.includes(code);
-
-  const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
 
   const [activeRange, setActiveRange] = useState('1y');
   const [activeTab, setActiveTab] = useState<ActiveTabType>('overview');
@@ -271,56 +267,6 @@ export default function MutualFundDetailPage() {
         </div>
 
       </div>
-
-      {/* Sticky Bottom Paper Trading Action Bar (Pixel-Perfect Matching Image) */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-card/90 backdrop-blur-md border-t border-border px-4 py-2.5 sm:py-3 shadow-[0_-8px_32px_rgba(0,0,0,0.12)] animate-slide-up flex items-center justify-between">
-        <div className="max-w-7xl mx-auto w-full flex items-center justify-between gap-4">
-          
-          {/* Left: Green ₹ Icon + Fund Short Code & Name + Latest NAV Price & % Change */}
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="hidden sm:inline-flex h-8 w-8 items-center justify-center rounded-xl bg-profit/10 text-profit font-black text-xs shrink-0 select-none">
-              ₹
-            </span>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className="text-xs font-black text-text-primary uppercase tracking-wider shrink-0">
-                  {code.toUpperCase()}
-                </span>
-                <span className="text-[10px] text-text-secondary font-bold truncate max-w-[130px] sm:max-w-[280px]">
-                  {fund.name}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-xs font-black font-mono text-text-primary">
-                  ₹{fund.latestNav.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                </span>
-                <span className={`text-[10px] font-black font-mono flex items-center gap-0.5 ${isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
-                  {isPositive ? '▲' : '▼'}{isPositive ? '+' : ''}{fund.navChangePercent.toFixed(2)}%
-                </span>
-              </div>
-            </div>
-          </div>
-          
-          {/* Right: Solid Green PAPER TRADE Pill Button */}
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => setIsOrderModalOpen(true)}
-              className="px-6 py-2.5 sm:px-8 sm:py-3 bg-profit hover:bg-profit/90 text-black text-xs sm:text-sm font-black uppercase tracking-wider rounded-xl sm:rounded-2xl shadow-lg shadow-profit/20 hover:shadow-profit/35 active:scale-95 transition-all cursor-pointer shrink-0"
-            >
-              PAPER TRADE
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Order Execution Modal for Paper Trading Mutual Fund */}
-      <OrderPlacementModal 
-        isOpen={isOrderModalOpen}
-        onClose={() => setIsOrderModalOpen(false)}
-        symbol={`MF_${code}`}
-        stockName={fund.name}
-        livePrice={fund.latestNav}
-      />
 
       {/* Structured Schema.org Metadata */}
       <script

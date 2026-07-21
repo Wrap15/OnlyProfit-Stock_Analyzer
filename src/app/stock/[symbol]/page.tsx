@@ -227,7 +227,7 @@ export default function StockDetailPage() {
   const router = useRouter();
   const symbol = decodeURIComponent(params.symbol as string);
 
-  const { watchlist, toggleWatchlist, alerts, addAlert, removeAlert } = useStockStore();
+  const { userId, toggleAuthModal, watchlist, toggleWatchlist, alerts, addAlert, removeAlert } = useStockStore();
   const {
     quote,
     loading,
@@ -347,6 +347,10 @@ export default function StockDetailPage() {
   const eventsList = getMockEvents();
 
   const handleOpenTradeModal = (tradeSym: string, tradeNm: string, tradePr: number) => {
+    if (!userId) {
+      toggleAuthModal(true);
+      return;
+    }
     setTradeSymbol(tradeSym);
     setTradeName(tradeNm);
     setTradePrice(tradePr);

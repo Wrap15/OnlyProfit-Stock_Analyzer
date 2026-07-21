@@ -1,5 +1,8 @@
 # OnlyProfit — Smart Investing, Real-Time Market Intelligence & Paper Trading Simulator
 
+**Designed and built with ❤️ by DHAVAL PANCHAL**  
+*In collaboration with Antigravity AI (Google DeepMind)*
+
 ---
 
 **OnlyProfit** is a state-of-the-art, high-performance stock market tracking and paper trading simulation platform built for Indian equities and mutual funds. It provides sub-second live price updates, interactive charting, fundamental analysis, AI-powered stock copilot intelligence, and a full-featured virtual paper trading engine with ₹10,00,000 starting capital.
@@ -22,22 +25,18 @@ Built on Next.js 14, OnlyProfit incorporates hardware-accelerated 60 FPS animati
 - **Exact 3:30:00 PM IST Market Close Enforcement**: Evaluates market hours with second precision (`09:15:00 AM` to `15:30:00 PM IST`). At 3:30 PM sharp, live tick updates freeze instantly, and market badges flip to "Market Closed".
 - **Color-Coded Dynamic Prices**: Green font color highlight on price increases and red on price decreases with smooth CSS transitions.
 
-### 2. 💼 Virtual Paper Trading & Redemption Engine
-- **₹10,00,000 Starting Virtual Capital**: Trade Indian equities and mutual funds risk-free in a virtual trading environment.
-- **Universal Buy & Sell / Redeem Switcher**:
-  - **Equity Trading**: Market, Limit, and Stop-Loss (SL) orders for CNC Delivery and MIS Intraday product types.
-  - **Mutual Fund Buying**: Select **Monthly SIP** (with preset chips) or **One-Time Lumpsum** orders.
-  - **Mutual Fund Selling / Redemption**: View available units held, select quick redemption chips (`25%`, `50%`, `75%`, `100% Redeem All`), and view real-time estimated payout calculations (`Payout = Units × NAV`).
-- **Portfolio & P&L Tracker**: Displays real-time 1D Returns, Total P&L, holdings, executed order history, and net portfolio value with direct **Buy More** and **Sell / Redeem** action buttons on every holding.
+### 2. 💼 Virtual Equity Paper Trading Simulator
+- **₹10,00,000 Starting Virtual Capital**: Trade 30+ top Indian equities risk-free in a virtual paper trading environment.
+- **Order Placement Modal**: Supports Market, Limit, and Stop-Loss (SL) orders for CNC (Delivery) and MIS (Intraday) product types with auto square-off indicators and fee breakdowns (brokerage, STT, exchange charges).
+- **Portfolio & P&L Tracker**: Calculates real-time 1D Returns, Total P&L, holdings, executed order history, and net portfolio value with direct **Buy** and **Sell** action buttons.
 
-### 3. 🎯 Mutual Fund Hub & Interactive SIP Calculator
+### 3. 🎯 Mutual Fund Hub & Interactive Returns Calculator
 - **AMFI Integration**: Direct-growth mutual funds (Small-Cap, Mid-Cap, Flexi-Cap, Index Funds) fetched with live NAV rates.
 - **Interactive Returns Calculator**: Toggle between **Monthly SIP** and **Lumpsum** modes with:
   - **Quick Amount Chips**: Instant selection (`₹1k`, `₹2.5k`, `₹5k`, `₹10k`, `₹25k`, `₹50k` for SIP; `₹10k`, `₹25k`, `₹50k`, `₹1L`, `₹5L`, `₹10L` for Lumpsum).
   - **Timeframe Presets**: 1-tap duration pills (`1Y`, `3Y`, `5Y`, `10Y`, `15Y`, `20Y`, `30Y`).
   - **Reactive Visualizations**: SVG Doughnut chart and dual-color progress breakdown bars separating Invested Amount vs Est. Returns.
   - **Wealth Growth Badge**: Dynamic multiplier display (e.g., `2.4x Growth`).
-- **Pixel-Perfect Bottom Sticky CTA Bar**: Responsive floating bottom bar featuring a green `₹` badge icon, fund code & full name, NAV price with 1-day percentage change, and a solid green **PAPER TRADE** pill button matching top financial apps.
 
 ### 4. 🔥 Today's Market Drivers
 - **Crash-Proof Responsive Sidebar**: Displays Top Gainers, Top Losers, and Most Active stocks in a 60 FPS hardware-accelerated card list format optimized for narrow sidebar columns (~340px) as well as full-width mobile viewports.
@@ -73,13 +72,13 @@ OnlyProfit/
 │   │   │   │   ├── mutualfund/ # AMFI mutual funds NAV resolver
 │   │   │   │   ├── quote/      # Live NSE quotes handler with 400ms micro-ticks
 │   │   │   │   └── search/     # Autocomplete search endpoint
-│   │   ├── mutualfund/[code]/ # Mutual Fund detail page with sticky paper trading bar
-│   │   ├── simulator/          # Paper Trading Portfolio & P&L dashboard with Buy/Redeem
+│   │   ├── mutualfund/[code]/ # Mutual Fund detail page with NAV analytics & calculator
+│   │   ├── simulator/          # Equity Paper Trading Portfolio & P&L dashboard
 │   │   ├── stock/[symbol]/     # Equity detail view, option chain, and technicals
 │   │   ├── layout.tsx          # Root shell layout
 │   │   └── page.tsx            # Main market dashboard
 │   ├── components/             # Reusable UI Components
-│   │   ├── OrderPlacementModal.tsx # Universal Order execution modal (Equity & MF Buy/Redeem)
+│   │   ├── OrderPlacementModal.tsx # Equity Order placement modal (CNC & MIS Intraday)
 │   │   ├── SipCalculator.tsx   # Responsive SIP & Lumpsum returns calculator
 │   │   ├── TopIndexStrip.tsx   # Live Nifty/Sensex ticker strip with 400ms tick updates
 │   │   └── AISignalsWidget.tsx # AI Copilot assistant drawer
@@ -89,7 +88,7 @@ OnlyProfit/
 │   │   ├── mutualfunds/components/
 │   │   │   └── MutualFundHero.tsx # Mutual Fund header section
 │   │   ├── simulator/components/
-│   │   │   └── SimulatorHoldingsTab.tsx # Portfolio Holdings with Buy More & Sell/Redeem CTAs
+│   │   │   └── SimulatorHoldingsTab.tsx # Portfolio Holdings with Buy & Sell CTAs
 │   │   └── stocks/components/
 │   │       ├── StockHeroSection.tsx # Equity hero header with 3:30 PM close enforcement
 │   │       └── StockRightSidebar.tsx # Stock page right sidebar & recommendations
@@ -100,7 +99,7 @@ OnlyProfit/
 │   │   └── useSimulatorDetails.ts # Simulator holding & P&L calculator hook
 │   ├── lib/
 │   │   ├── marketHours.ts       # 3:30:00 PM IST sharp market close checking utility
-│   │   ├── simulatorService.ts  # Core paper trading & redemption execution logic
+│   │   ├── simulatorService.ts  # Core paper trading execution logic
 │   │   └── yahooFinance.ts      # Live Yahoo Finance fetch wrappers
 │   └── store/
 │       └── useStockStore.ts     # Global Zustand store (watchlists, alerts, user ID)

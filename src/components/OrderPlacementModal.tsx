@@ -22,7 +22,7 @@ export default function OrderPlacementModal({
   livePrice,
   onOrderExecuted
 }: OrderPlacementModalProps) {
-  const { userId } = useStockStore();
+  const { userId, toggleAuthModal } = useStockStore();
   const [productType, setProductType] = useState<'CNC' | 'MIS'>('CNC');
   const [orderType, setOrderType] = useState<'MARKET' | 'LIMIT' | 'SL'>('MARKET');
   const [quantity, setQuantity] = useState<number>(1);
@@ -84,6 +84,14 @@ export default function OrderPlacementModal({
   const handleSubmitInit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorText(null);
+
+    // If user is not logged in, trigger Sign-In Modal
+    if (!userId) {
+      onClose();
+      toggleAuthModal(true);
+      return;
+    }
+
     if (quantity < 1) {
       setErrorText('Quantity must be at least 1');
       return;
@@ -195,6 +203,25 @@ export default function OrderPlacementModal({
 
         {/* Modal Body */}
         <div className="p-6 max-h-[75vh] overflow-y-auto space-y-4">
+          {!userId && (
+            <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-between gap-3 text-amber-500 text-xs font-bold animate-fade-in">
+              <div className="flex items-center gap-2">
+                <Info className="w-4 h-4 shrink-0 text-amber-500" />
+                <span>Account required to execute orders</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  toggleAuthModal(true);
+                }}
+                className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-black font-black uppercase text-[10px] tracking-wider rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer shrink-0"
+              >
+                Sign In
+              </button>
+            </div>
+          )}
+
           {errorText && (
             <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 rounded-2xl text-xs font-bold flex items-center gap-2 animate-fade-in">
               <Info className="w-4 h-4 shrink-0" />
@@ -212,7 +239,7 @@ export default function OrderPlacementModal({
           {!isConfirmScreen ? (
             <form onSubmit={handleSubmitInit} className="space-y-5">
               
-              {/* Universal BUY / SELL Switcher Pill for All Assets */}
+              {/* BUY / SELL Switcher Pill for Equities */}
               <div className="grid grid-cols-2 gap-1 p-1 bg-background border border-border/80 rounded-2xl">
                 <button
                   type="button"
@@ -223,7 +250,7 @@ export default function OrderPlacementModal({
                       : 'text-text-secondary hover:text-text-primary'
                   }`}
                 >
-                  {(symbol.startsWith('MF_') || !isNaN(Number(symbol))) ? 'Invest / Buy' : 'Buy'}
+                  Buy
                 </button>
                 <button
                   type="button"
@@ -234,7 +261,7 @@ export default function OrderPlacementModal({
                       : 'text-text-secondary hover:text-text-primary'
                   }`}
                 >
-                  {(symbol.startsWith('MF_') || !isNaN(Number(symbol))) ? 'Redeem / Sell' : 'Sell'}
+                  Sell
                 </button>
               </div>
 
@@ -243,155 +270,43 @@ export default function OrderPlacementModal({
                 <div className="flex items-center justify-between p-3 rounded-xl bg-background/60 border border-border/60 text-xs">
                   <span className="font-bold text-text-secondary">Available Holdings:</span>
                   <span className="font-black text-text-primary font-mono">
-                    {availableHoldingQty} {(symbol.startsWith('MF_') || !isNaN(Number(symbol))) ? 'Units' : 'Shares'}
+                    {availableHoldingQty} Shares
                   </span>
                 </div>
               )}
 
-              {/* Mutual Fund Specific Form Controls */}
-              {(symbol.startsWith('MF_') || !isNaN(Number(symbol))) ? (
-                side === 'BUY' ? (
-                  <div className="space-y-4 p-4 rounded-2xl bg-profit/5 border border-profit/20">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-black text-profit uppercase tracking-wider">Mutual Fund Investment Mode</span>
-                      <span className="text-[10px] font-bold text-text-secondary">NAV: ₹{livePrice.toFixed(2)}</span>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-2 p-1 bg-background border border-border/80 rounded-xl">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setProductType('CNC');
-                          setQuantity(Math.max(1, Math.round(5000 / livePrice)));
-                        }}
-                        className={`py-2 rounded-lg text-xs font-black tracking-wider uppercase transition-all cursor-pointer ${
-                          productType === 'CNC'
-                            ? 'bg-profit text-black shadow-sm'
-                            : 'text-text-secondary hover:text-text-primary'
-                        }`}
-                      >
-                        Monthly SIP
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setProductType('MIS');
-                          setQuantity(Math.max(1, Math.round(25000 / livePrice)));
-                        }}
-                        className={`py-2 rounded-lg text-xs font-black tracking-wider uppercase transition-all cursor-pointer ${
-                          productType === 'MIS'
-                            ? 'bg-profit text-black shadow-sm'
-                            : 'text-text-secondary hover:text-text-primary'
-                        }`}
-                      >
-                        One-Time Lumpsum
-                      </button>
-                    </div>
-
-                    {/* Preset Amount Chips for Mutual Funds */}
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-black text-text-secondary uppercase tracking-widest block">
-                        Select Investment Amount
-                      </label>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {(productType === 'CNC' ? [500, 1000, 2500, 5000, 10000] : [5000, 10000, 25000, 50000, 100000]).map((amt) => {
-                          const calculatedQty = Math.max(1, Math.round(amt / livePrice));
-                          const isSelected = activeQuantity === calculatedQty;
-                          return (
-                            <button
-                              key={amt}
-                              type="button"
-                              onClick={() => setQuantity(calculatedQty)}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
-                                isSelected
-                                  ? 'bg-profit text-black border border-profit shadow-sm'
-                                  : 'bg-background border border-border/70 text-text-secondary hover:text-text-primary'
-                              }`}
-                            >
-                              ₹{amt.toLocaleString('en-IN')}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  /* SELL / REDEEM Mode for Mutual Funds */
-                  <div className="space-y-4 p-4 rounded-2xl bg-rose-500/5 border border-rose-500/20">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-black text-rose-400 uppercase tracking-wider">Redeem Mutual Fund Units</span>
-                      <span className="text-[10px] font-bold text-text-secondary">NAV: ₹{livePrice.toFixed(2)}</span>
-                    </div>
-
-                    {/* Quick Redemption % Chips */}
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-black text-text-secondary uppercase tracking-widest block">
-                        Quick Redemption Percentage
-                      </label>
-                      <div className="grid grid-cols-4 gap-2">
-                        {[0.25, 0.50, 0.75, 1.0].map((ratio) => {
-                          const targetQty = Math.max(1, Math.round((availableHoldingQty || 1) * ratio));
-                          const isSelected = activeQuantity === targetQty;
-                          return (
-                            <button
-                              key={ratio}
-                              type="button"
-                              onClick={() => setQuantity(targetQty)}
-                              className={`py-2 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                                isSelected
-                                  ? 'bg-rose-500 text-white shadow-sm'
-                                  : 'bg-background border border-border/70 text-text-secondary hover:text-text-primary'
-                              }`}
-                            >
-                              {ratio === 1.0 ? '100% All' : `${ratio * 100}%`}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <div className="p-3 bg-background border border-border/60 rounded-xl flex justify-between items-center text-xs">
-                      <span className="font-bold text-text-secondary">Estimated Redemption Payout:</span>
-                      <span className="font-black text-profit font-mono text-sm">
-                        ₹{(activeQuantity * livePrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                  </div>
-                )
-              ) : (
-                /* Product Type Buttons for Non-MF symbols */
-                <div className="space-y-2">
-                  <label className="text-[9px] font-black text-text-secondary uppercase tracking-widest block">
-                    Product Type
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setProductType('CNC')}
-                      className={`flex flex-col items-center justify-center p-3.5 border rounded-2xl text-center transition-all cursor-pointer ${
-                        productType === 'CNC'
-                          ? (side === 'BUY' ? 'border-emerald-500 bg-emerald-500/5 text-emerald-455 shadow-sm' : 'border-rose-500 bg-rose-500/5 text-rose-455 shadow-sm')
-                          : 'border-border bg-background text-text-secondary hover:text-text-primary'
-                      }`}
-                    >
-                      <span className="text-xs font-extrabold uppercase">CNC (Delivery)</span>
-                      <span className="text-[8px] font-medium mt-0.5 opacity-80">Full cash required • Keep overnight</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setProductType('MIS')}
-                      className={`flex flex-col items-center justify-center p-3.5 border rounded-2xl text-center transition-all cursor-pointer ${
-                        productType === 'MIS'
-                          ? (side === 'BUY' ? 'border-emerald-500 bg-emerald-500/5 text-emerald-455 shadow-sm' : 'border-rose-500 bg-rose-500/5 text-rose-455 shadow-sm')
-                          : 'border-border bg-background text-text-secondary hover:text-text-primary'
-                      }`}
-                    >
-                      <span className="text-xs font-extrabold uppercase">MIS (Intraday)</span>
-                      <span className="text-[8px] font-medium mt-0.5 opacity-80">Auto square-off at 3:15 PM</span>
-                    </button>
-                  </div>
+              {/* Product Type Buttons for Equities */}
+              <div className="space-y-2">
+                <label className="text-[9px] font-black text-text-secondary uppercase tracking-widest block">
+                  Product Type
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setProductType('CNC')}
+                    className={`flex flex-col items-center justify-center p-3.5 border rounded-2xl text-center transition-all cursor-pointer ${
+                      productType === 'CNC'
+                        ? (side === 'BUY' ? 'border-emerald-500 bg-emerald-500/5 text-emerald-455 shadow-sm' : 'border-rose-500 bg-rose-500/5 text-rose-455 shadow-sm')
+                        : 'border-border bg-background text-text-secondary hover:text-text-primary'
+                    }`}
+                  >
+                    <span className="text-xs font-extrabold uppercase">CNC (Delivery)</span>
+                    <span className="text-[8px] font-medium mt-0.5 opacity-80">Full cash required • Keep overnight</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setProductType('MIS')}
+                    className={`flex flex-col items-center justify-center p-3.5 border rounded-2xl text-center transition-all cursor-pointer ${
+                      productType === 'MIS'
+                        ? (side === 'BUY' ? 'border-emerald-500 bg-emerald-500/5 text-emerald-455 shadow-sm' : 'border-rose-500 bg-rose-500/5 text-rose-455 shadow-sm')
+                        : 'border-border bg-background text-text-secondary hover:text-text-primary'
+                    }`}
+                  >
+                    <span className="text-xs font-extrabold uppercase">MIS (Intraday)</span>
+                    <span className="text-[8px] font-medium mt-0.5 opacity-80">Auto square-off at 3:15 PM</span>
+                  </button>
                 </div>
-              )}
+              </div>
 
               {/* Order Type Tabs */}
               <div className="space-y-2">

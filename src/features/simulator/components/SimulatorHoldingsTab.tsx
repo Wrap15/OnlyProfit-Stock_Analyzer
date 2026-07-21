@@ -162,22 +162,31 @@ export default function SimulatorHoldingsTab({
 
                     {/* Action Row */}
                     <td className="p-4 sm:p-5 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => onOpenTradeModal ? onOpenTradeModal(h.symbol, 'BUY', ltp) : null}
-                          className="px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-black border border-emerald-500/20 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                      {h.symbol.startsWith('MF_') || !isNaN(Number(h.symbol)) ? (
+                        <Link
+                          href={`/mutualfund/${h.symbol.replace('MF_', '')}`}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 border border-border hover:border-profit/30 bg-background hover:bg-profit/10 text-text-secondary hover:text-profit rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
                         >
-                          Buy
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onOpenTradeModal ? onOpenTradeModal(h.symbol, 'SELL', ltp) : null}
-                          className="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white border border-rose-500/20 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
-                        >
-                          Sell / Redeem
-                        </button>
-                      </div>
+                          View Fund
+                        </Link>
+                      ) : (
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => onOpenTradeModal ? onOpenTradeModal(h.symbol, 'BUY', ltp) : null}
+                            className="px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-black border border-emerald-500/20 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                          >
+                            Buy
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onOpenTradeModal ? onOpenTradeModal(h.symbol, 'SELL', ltp) : null}
+                            className="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white border border-rose-500/20 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                          >
+                            Sell
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );
@@ -282,22 +291,31 @@ export default function SimulatorHoldingsTab({
 
                 <div className="flex items-center justify-between pt-2.5 border-t border-border/40 text-[9px] text-text-secondary font-semibold">
                   <span>Bought: {purchaseDate}</span>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => onOpenTradeModal ? onOpenTradeModal(h.symbol, 'BUY', ltp) : null}
-                      className="px-2.5 py-1 bg-emerald-500 text-black rounded-lg font-black uppercase tracking-wider active:scale-95 transition-all"
+                  {h.symbol.startsWith('MF_') || !isNaN(Number(h.symbol)) ? (
+                    <Link
+                      href={`/mutualfund/${h.symbol.replace('MF_', '')}`}
+                      className="px-2.5 py-1 bg-profit/10 text-profit rounded-lg font-black uppercase tracking-wider active:scale-95 transition-all"
                     >
-                      Buy
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onOpenTradeModal ? onOpenTradeModal(h.symbol, 'SELL', ltp) : null}
-                      className="px-2.5 py-1 bg-rose-500 text-white rounded-lg font-black uppercase tracking-wider active:scale-95 transition-all"
-                    >
-                      Redeem
-                    </button>
-                  </div>
+                      View Fund
+                    </Link>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => onOpenTradeModal ? onOpenTradeModal(h.symbol, 'BUY', ltp) : null}
+                        className="px-2.5 py-1 bg-emerald-500 text-black rounded-lg font-black uppercase tracking-wider active:scale-95 transition-all"
+                      >
+                        Buy
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onOpenTradeModal ? onOpenTradeModal(h.symbol, 'SELL', ltp) : null}
+                        className="px-2.5 py-1 bg-rose-500 text-white rounded-lg font-black uppercase tracking-wider active:scale-95 transition-all"
+                      >
+                        Sell
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             );

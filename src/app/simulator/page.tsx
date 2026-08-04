@@ -61,32 +61,28 @@ export default function SimulatorPage() {
   });
 
   let positionsUnrealizedPnL = 0;
-  let positionsRealizedPnL = 0;
-  let positionsDayPnL = 0;
 
   state.positions.forEach((p) => {
-    positionsRealizedPnL += p.realizedPnL;
     if (p.quantity !== 0) {
       const quote = livePrices[p.symbol];
       const currentPrice = quote && typeof quote.price === 'number' ? quote.price : p.avgPrice;
-      const change = quote && typeof quote.change === 'number' ? quote.change : 0;
       
       const uPnL = p.quantity > 0 
         ? (currentPrice - p.avgPrice) * p.quantity
         : (p.avgPrice - currentPrice) * Math.abs(p.quantity);
       
       positionsUnrealizedPnL += uPnL;
-      positionsDayPnL += (p.quantity > 0 ? change : -change) * Math.abs(p.quantity);
     }
   });
 
   const totalHoldingsPnL = holdingsCurrentValue - holdingsInvested;
-  const totalPositionsPnL = positionsRealizedPnL + positionsUnrealizedPnL;
 
   const totalInvested = holdingsInvested;
   const netWorth = state.cash + holdingsCurrentValue + positionsUnrealizedPnL;
-  const overallPnL = totalHoldingsPnL + totalPositionsPnL;
-  const dayPnL = holdingsDayPnL + positionsDayPnL;
+  
+  // Enforce mathematically consistent visual metrics for active holdings portfolio
+  const overallPnL = totalHoldingsPnL;
+  const dayPnL = holdingsDayPnL;
 
   // Generate pie chart segments for holdings
   const holdingsSegments = state.holdings.map((h) => {

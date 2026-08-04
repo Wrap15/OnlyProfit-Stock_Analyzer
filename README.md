@@ -25,8 +25,9 @@ Built on Next.js 14, OnlyProfit incorporates hardware-accelerated 60 FPS animati
 - **Exact 3:30:00 PM IST Market Close Enforcement**: Evaluates market hours with second precision (`09:15:00 AM` to `15:30:00 PM IST`). At 3:30 PM sharp, live tick updates freeze instantly, and market badges flip to "Market Closed".
 - **Color-Coded Dynamic Prices**: Green font color highlight on price increases and red on price decreases with smooth CSS transitions.
 
-### 2. 💼 Virtual Equity Paper Trading Simulator
+### 2. 💼 Virtual Equity Paper Trading Simulator & Auth Protection
 - **₹10,00,000 Starting Virtual Capital**: Trade 30+ top Indian equities risk-free in a virtual paper trading environment.
+- **Enforced Authentication Guards**: Enforces strict user sign-in before executing or submitting orders. Unauthenticated guest users are blocked from trading and automatically prompted with the Sign-In / Register Modal.
 - **Order Placement Modal**: Supports Market, Limit, and Stop-Loss (SL) orders for CNC (Delivery) and MIS (Intraday) product types with auto square-off indicators and fee breakdowns (brokerage, STT, exchange charges).
 - **Portfolio & P&L Tracker**: Calculates real-time 1D Returns, Total P&L, holdings, executed order history, and net portfolio value with direct **Buy** and **Sell** action buttons.
 

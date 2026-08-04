@@ -29,11 +29,8 @@ export default function SimulatorHero({
   loading,
 }: SimulatorHeroProps) {
   const portfolioValue = holdingsCurrentValue;
-  const totalAccountValue = cash + holdingsCurrentValue;
-  const capitalBase = totalAccountValue - overallPnL;
-  
-  const dayPnLPct = (totalAccountValue - dayPnL) > 0 ? (dayPnL / (totalAccountValue - dayPnL)) * 100 : 0;
-  const overallPnLPct = capitalBase > 0 ? (overallPnL / capitalBase) * 100 : 0;
+  const overallPnLPct = totalInvested > 0 ? (overallPnL / totalInvested) * 100 : 0;
+  const dayPnLPct = (portfolioValue - dayPnL) > 0 ? (dayPnL / (portfolioValue - dayPnL)) * 100 : 0;
 
   return (
     <div className="bg-gradient-to-br from-card via-card to-emerald-500/5 border border-border/80 rounded-3xl p-6 md:p-8 shadow-soft dark:shadow-soft-dark space-y-6 relative overflow-hidden">

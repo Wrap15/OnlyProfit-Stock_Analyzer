@@ -30,8 +30,8 @@ export async function GET(request: NextRequest) {
   const cacheKey = `${cleanSymbol}_${range}`;
   const now = Date.now();
 
-  // Intraday charts expire in 20s, historical charts in 2 hours
-  const cacheDuration = range === '1d' ? 20000 : 7200000;
+  // Intraday charts expire in 15s, historical charts in 2 hours
+  const cacheDuration = range === '1d' ? 15000 : 7200000;
   let data: any = null;
   let triggerUpdate = false;
 
@@ -41,8 +41,13 @@ export async function GET(request: NextRequest) {
     if (age < cacheDuration) {
       data = cached.data;
     } else {
-      data = cached.data;
-      triggerUpdate = true;
+      if (range === '1d') {
+        // For intraday, fetch synchronously to ensure live real-world ticks with zero cache delay
+        data = null;
+      } else {
+        data = cached.data;
+        triggerUpdate = true;
+      }
     }
   }
 

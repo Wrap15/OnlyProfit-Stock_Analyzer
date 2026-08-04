@@ -2390,7 +2390,7 @@ export async function fetchStockChartFromAPI(symbol: string, range: string) {
   let apiRange = range;
   let interval = '1d';
   if (range === '1d') {
-    interval = '5m';
+    interval = '1m';
   } else if (range === '1w') {
     apiRange = '5d';
     interval = '30m';
@@ -2404,7 +2404,7 @@ export async function fetchStockChartFromAPI(symbol: string, range: string) {
   }
 
   try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=${apiRange}&interval=${interval}`;
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=${apiRange}&interval=${interval}&nocache=${Date.now()}`;
     const response = await axios.get(url, { headers: HEADERS, timeout: 5000 });
     
     const chartData = response.data?.chart?.result?.[0];

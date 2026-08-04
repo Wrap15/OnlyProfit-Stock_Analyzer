@@ -1,20 +1,17 @@
 # OnlyProfit — Smart Investing, Real-Time Market Intelligence & Paper Trading Simulator
 
-**Designed and built with ❤️ by DHAVAL PANCHAL**  
-*In collaboration with Antigravity AI (Google DeepMind)*
-
 ---
 
-**OnlyProfit** is a state-of-the-art, high-performance stock market tracking and paper trading simulation platform built for Indian equities and mutual funds. It provides sub-second live price updates, interactive charting, fundamental analysis, AI-powered stock copilot intelligence, and a full-featured virtual paper trading engine with ₹10,00,000 starting capital.
+**OnlyProfit** is a state-of-the-art, high-performance stock market tracking and paper trading simulation platform built for Indian equities and mutual funds. It provides sub-second live price updates, advanced TradingView-style interactive charting, technical indicators, fundamental analysis, AI-powered stock copilot intelligence, and a full-featured virtual paper trading engine with ₹10,00,000 starting capital.
 
-Built on Next.js 14, OnlyProfit incorporates hardware-accelerated 60 FPS animations, strict 3:30 PM market close enforcement, server-side caching, and pixel-perfect responsive design across mobile, tablet, and desktop viewports.
+Built on Next.js 14, OnlyProfit incorporates hardware-accelerated 60 FPS animations, strict 3:30 PM market close enforcement, low-latency server-side caching, and pixel-perfect responsive design across mobile, tablet, and desktop viewports.
 
 ---
 
 ## 👨‍💻 Credits & Author
 
-- **Lead Creator & Designer**: **DHAVAL PANCHAL** — *Conceived, architected, and designed the UI/UX, paper trading workflow, and market simulator experience with passion and precision.*
-- **AI Engineering Partner**: **Antigravity AI** (*Google DeepMind*) — *Co-developed code structure, sub-second ticker optimization, AMFI & Yahoo Finance API integrations, and 60 FPS hardware acceleration.*
+- **Lead Creator & Designer**: **[DHAVAL PANCHAL](https://panchal-portfolio-072.vercel.app/)** — *Conceived, architected, and designed the UI/UX, paper trading workflow, and market simulator experience. Explore the creator's live work at [panchal-portfolio-072.vercel.app](https://panchal-portfolio-072.vercel.app/).*
+- **AI Engineering Partner**: **Antigravity AI** — *Co-developed code structure, sub-second ticker optimization, AMFI & Yahoo Finance API integrations, technical indicators logic, and 60 FPS hardware acceleration.*
 
 ---
 
@@ -25,13 +22,27 @@ Built on Next.js 14, OnlyProfit incorporates hardware-accelerated 60 FPS animati
 - **Exact 3:30:00 PM IST Market Close Enforcement**: Evaluates market hours with second precision (`09:15:00 AM` to `15:30:00 PM IST`). At 3:30 PM sharp, live tick updates freeze instantly, and market badges flip to "Market Closed".
 - **Color-Coded Dynamic Prices**: Green font color highlight on price increases and red on price decreases with smooth CSS transitions.
 
-### 2. 💼 Virtual Equity Paper Trading Simulator & Auth Protection
+### 2. 📊 Advanced Synchronized Trading Charts & Indicators
+- **High-Fidelity Candlestick/Area Views**: Seamless toggle between Line/Area charts and standard Candlestick series.
+- **1-Minute Chart Resolution**: Intraday `1d` chart interval upgraded from `5m` to `1m` (1-minute candles) to match real-world trading configurations.
+- **Technical Overlay Indicators**: Toggle overlay lines on the main price pane:
+  - **SMA-20** (Simple Moving Average)
+  - **Bollinger Bands (20, 2)**: Plots upper, lower, and middle basis lines dynamically.
+  - **SuperTrend (10, 1.5)**: Employs Average True Range (ATR) to draw green/red trend-following step lines.
+- **Synchronized Oscillator Panels**:
+  - **RSI (14)** sub-panel featuring overbought (70) and oversold (30) boundary highlights.
+  - **MACD (12, 26, 9)** sub-panel charting MACD line, Signal line, and colored volume histograms (green/red).
+- **Time-Axis and Scroll Sync**: Zooming or panning on any chart pane automatically synchronizes the scroll timeline across all active indicators.
+- **Cache-Busting Data Feeds**: Chart data updates in real-time every **15 seconds** with background API calls utilizing a custom `&nocache=${Date.now()}` query parameter to bypass CDN caching.
+- **Integrated Floating HTML Tooltip**: Tracks crosshairs dynamically, presenting Open, High, Low, Close, Volume, and active technical indicator values simultaneously.
+
+### 3. 💼 Virtual Equity Paper Trading Simulator & Auth Protection
 - **₹10,00,000 Starting Virtual Capital**: Trade 30+ top Indian equities risk-free in a virtual paper trading environment.
 - **Enforced Authentication Guards**: Enforces strict user sign-in before executing or submitting orders. Unauthenticated guest users are blocked from trading and automatically prompted with the Sign-In / Register Modal.
 - **Order Placement Modal**: Supports Market, Limit, and Stop-Loss (SL) orders for CNC (Delivery) and MIS (Intraday) product types with auto square-off indicators and fee breakdowns (brokerage, STT, exchange charges).
 - **Portfolio & P&L Tracker**: Calculates real-time 1D Returns, Total P&L, holdings, executed order history, and net portfolio value with direct **Buy** and **Sell** action buttons.
 
-### 3. 🎯 Mutual Fund Hub & Interactive Returns Calculator
+### 4. 🎯 Mutual Fund Hub & Interactive Returns Calculator
 - **AMFI Integration**: Direct-growth mutual funds (Small-Cap, Mid-Cap, Flexi-Cap, Index Funds) fetched with live NAV rates.
 - **Interactive Returns Calculator**: Toggle between **Monthly SIP** and **Lumpsum** modes with:
   - **Quick Amount Chips**: Instant selection (`₹1k`, `₹2.5k`, `₹5k`, `₹10k`, `₹25k`, `₹50k` for SIP; `₹10k`, `₹25k`, `₹50k`, `₹1L`, `₹5L`, `₹10L` for Lumpsum).
@@ -39,10 +50,10 @@ Built on Next.js 14, OnlyProfit incorporates hardware-accelerated 60 FPS animati
   - **Reactive Visualizations**: SVG Doughnut chart and dual-color progress breakdown bars separating Invested Amount vs Est. Returns.
   - **Wealth Growth Badge**: Dynamic multiplier display (e.g., `2.4x Growth`).
 
-### 4. 🔥 Today's Market Drivers
+### 5. 🔥 Today's Market Drivers
 - **Crash-Proof Responsive Sidebar**: Displays Top Gainers, Top Losers, and Most Active stocks in a 60 FPS hardware-accelerated card list format optimized for narrow sidebar columns (~340px) as well as full-width mobile viewports.
 
-### 5. 🤖 AI Copilot Stock & Fund Analyst
+### 6. 🤖 AI Copilot Stock & Fund Analyst
 - **Interactive Chat Application**: Instant technical scans, fundamental analysis, target estimations, and performance comparisons across 200+ NSE stocks and AMFI mutual funds.
 
 ---
@@ -64,6 +75,7 @@ Built on Next.js 14, OnlyProfit incorporates hardware-accelerated 60 FPS animati
 OnlyProfit/
 ├── public/                     # Favicons, branding assets & static media
 ├── src/
+├── src/
 │   ├── app/                    # Next.js App Router & API Controllers
 │   │   ├── api/
 │   │   │   ├── ai/chat/        # AI Copilot stock analyst endpoint
@@ -73,7 +85,7 @@ OnlyProfit/
 │   │   │   │   ├── mutualfund/ # AMFI mutual funds NAV resolver
 │   │   │   │   ├── quote/      # Live NSE quotes handler with 400ms micro-ticks
 │   │   │   │   └── search/     # Autocomplete search endpoint
-│   │   ├── mutualfund/[code]/ # Mutual Fund detail page with NAV analytics & calculator
+│   │   ├── mutualfund/[code]/  # Mutual Fund detail page with NAV analytics & calculator
 │   │   ├── simulator/          # Equity Paper Trading Portfolio & P&L dashboard
 │   │   ├── stock/[symbol]/     # Equity detail view, option chain, and technicals
 │   │   ├── layout.tsx          # Root shell layout
@@ -82,6 +94,7 @@ OnlyProfit/
 │   │   ├── OrderPlacementModal.tsx # Equity Order placement modal (CNC & MIS Intraday)
 │   │   ├── SipCalculator.tsx   # Responsive SIP & Lumpsum returns calculator
 │   │   ├── TopIndexStrip.tsx   # Live Nifty/Sensex ticker strip with 400ms tick updates
+│   │   ├── StockChart.tsx      # Synced charting with overlays (SMA, BB, SuperTrend) & oscillators (RSI, MACD)
 │   │   └── AISignalsWidget.tsx # AI Copilot assistant drawer
 │   ├── features/
 │   │   ├── dashboard/components/
@@ -103,7 +116,7 @@ OnlyProfit/
 │   │   ├── simulatorService.ts  # Core paper trading execution logic
 │   │   └── yahooFinance.ts      # Live Yahoo Finance fetch wrappers
 │   └── store/
-│       └── useStockStore.ts     # Global Zustand store (watchlists, alerts, user ID)
+│   │   └── useStockStore.ts     # Global Zustand store (watchlists, alerts, user ID)
 ├── tailwind.config.ts          # Tailwind styling tokens & keyframe animations
 ├── package.json                # Project dependencies and script targets
 └── tsconfig.json               # TypeScript compiler config
@@ -187,8 +200,8 @@ The optimized production server will be running on `http://localhost:3000`.
 
 | Endpoint | Method | Source | Cache Duration | Description |
 | :--- | :--- | :--- | :--- | :--- |
-| `/api/stock/quote` | `GET` | Yahoo Finance | 60 seconds | Batch fetches live equity prices with 400ms tick updates |
-| `/api/stock/chart` | `GET` | Yahoo Finance | Dynamic | Returns historical price candles (`1d`, `1w`, `1m`, `6m`, `1y`, `5y`, `max`) |
+| `/api/stock/quote` | `GET` | Yahoo Finance | 2 seconds (Fresh) | Batch fetches live equity prices with 400ms tick updates |
+| `/api/stock/chart` | `GET` | Yahoo Finance | 15 seconds (1d view) | Syncs interactive price candles with indicators overlays |
 | `/api/stock/mutualfund/[code]` | `GET` | AMFI / MFAPI | 1 hour | Resolves mutual fund NAVs, historical trends, and AMC details |
 | `/api/ai/chat` | `POST` | AI Intelligence Engine | Real-time | Analyzes stock technicals, fundamentals, and risk ratios |
 
@@ -199,4 +212,4 @@ The optimized production server will be running on `http://localhost:3000`.
 
 ---
 
-Designed and built with ❤️ by **DHAVAL PANCHAL** in collaboration with **Antigravity AI (Google DeepMind Team)**.
+Designed and built with ❤️ by **[DHAVAL PANCHAL](https://panchal-portfolio-072.vercel.app/)** in collaboration with **Antigravity AI (Google DeepMind Team)**.

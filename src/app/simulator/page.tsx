@@ -171,11 +171,9 @@ export default function SimulatorPage() {
 
         {showAnalysis && state.holdings.length > 0 && (
           <SimulatorAnalytics
-            holdingsCount={state.holdings.length}
-            holdingsSegments={holdingsSegments}
-            totalHoldingVal={totalHoldingVal}
-            overallPnL={overallPnL}
-            netWorth={netWorth}
+            holdings={state.holdings}
+            livePrices={livePrices}
+            history={state.history}
           />
         )}
 

@@ -47,6 +47,7 @@ export default function SearchCommandCenter({ isOpen, onClose }: SearchCommandCe
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const activeItemRef = useRef<HTMLButtonElement>(null);
+  const searchCacheRef = useRef<Record<string, ResultItem[]>>({});
 
   // Focus input & reset pagination when opened
   useEffect(() => {
@@ -79,10 +80,16 @@ export default function SearchCommandCenter({ isOpen, onClose }: SearchCommandCe
   // Dynamic filter for Local Baskets, Local Stocks, and Local MFs as typing occurs
   const queryClean = query.trim().toLowerCase();
 
-  // Fetch API results with a debounce to capture long-tail entries
+  // Fetch API results with a cache-first approach and ultra-low 80ms debounce
   useEffect(() => {
     if (queryClean.length < 2) {
       setApiResults([]);
+      return;
+    }
+
+    // Return cached results instantly
+    if (searchCacheRef.current[queryClean]) {
+      setApiResults(searchCacheRef.current[queryClean]);
       return;
     }
 
@@ -107,13 +114,16 @@ export default function SearchCommandCenter({ isOpen, onClose }: SearchCommandCe
             )
           };
         });
+
+        // Store in cache
+        searchCacheRef.current[queryClean] = mapped;
         setApiResults(mapped);
       } catch (err) {
         console.error('API search failure in command center', err);
       } finally {
         setLoading(false);
       }
-    }, 250);
+    }, 80);
 
     return () => clearTimeout(timer);
   }, [queryClean]);
@@ -160,7 +170,7 @@ export default function SearchCommandCenter({ isOpen, onClose }: SearchCommandCe
           f.name.toLowerCase().includes(queryClean) || 
           f.code.toLowerCase().includes(queryClean) ||
           f.categoryLabel.toLowerCase().includes(queryClean)
-        ).slice(0, 4).map(f => ({
+        ).slice(0, 10).map(f => ({
           id: f.code,
           name: f.name.replace(' - Growth', ''),
           type: 'MUTUALFUND',
@@ -174,7 +184,7 @@ export default function SearchCommandCenter({ isOpen, onClose }: SearchCommandCe
       ? Object.keys(MOCK_STOCK_INFO).filter(sym => 
           sym.toLowerCase().includes(queryClean) || 
           MOCK_STOCK_INFO[sym].name.toLowerCase().includes(queryClean)
-        ).slice(0, 4).map(sym => ({
+        ).slice(0, 15).map(sym => ({
           id: sym,
           name: cleanStockName(MOCK_STOCK_INFO[sym].name),
           type: 'STOCK',

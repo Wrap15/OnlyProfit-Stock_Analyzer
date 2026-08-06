@@ -93,16 +93,25 @@ export function useDashboardQuotes(activeTab: string, foUnderlying: string) {
     }
   };
 
-  // Staggered Chunk Fetcher (polls every 24s, sliced to prevent HTTP 414/431 URI limits)
-  const fetchSymbolsChunk = async (symbols: string[]) => {
-    if (!symbols || symbols.length === 0) return;
-    const chunkSize = 20;
-    const chunks: string[][] = [];
-    for (let i = 0; i < symbols.length; i += chunkSize) {
-      chunks.push(symbols.slice(i, i + chunkSize));
-    }
-
+  // Batch Fetcher for all background symbols
+  const fetchAllSymbolsData = async (showLoading = false) => {
+    if (showLoading) setLoading(true);
     try {
+      const allSyms = [
+        ...LARGE_CAP_SYMBOLS,
+        ...MID_CAP_SYMBOLS,
+        ...SMALL_CAP_SYMBOLS,
+        ...TRENDING_SYMBOLS,
+        ...MOST_SEARCHED_SYMBOLS
+      ];
+      const uniqueSyms = Array.from(new Set(allSyms));
+      
+      const chunkSize = 40;
+      const chunks: string[][] = [];
+      for (let i = 0; i < uniqueSyms.length; i += chunkSize) {
+        chunks.push(uniqueSyms.slice(i, i + chunkSize));
+      }
+
       await Promise.all(
         chunks.map(async (chunk) => {
           const symbolsParam = chunk.join(',');
@@ -110,12 +119,7 @@ export function useDashboardQuotes(activeTab: string, foUnderlying: string) {
           const fresh = (res.data || []).map((q: any) => ({ ...q, isRealUpdate: true }));
           
           setMarketQuotes((prev) => {
-            const map = new Map();
-            for (const q of prev) {
-              if (q && q.symbol) {
-                map.set(q.symbol.toUpperCase(), q);
-              }
-            }
+            const map = new Map(prev.map(item => [item.symbol.toUpperCase(), item]));
             for (const q of fresh) {
               if (q && q.symbol) {
                 map.set(q.symbol.toUpperCase(), q);
@@ -126,7 +130,9 @@ export function useDashboardQuotes(activeTab: string, foUnderlying: string) {
         })
       );
     } catch (err) {
-      console.error('useDashboardQuotes: Chunk fetch failed', err);
+      console.error('useDashboardQuotes: fetchAllSymbolsData failed', err);
+    } finally {
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -143,40 +149,17 @@ export function useDashboardQuotes(activeTab: string, foUnderlying: string) {
     return () => clearInterval(interval);
   }, [activeSymbolsToFetch]);
 
-  // 2. Setup Staggered Chunk Loading & Polling
+  // 2. Setup Full Batch Loading & Polling
   useEffect(() => {
-    // Initial staggered loads
-    fetchSymbolsChunk([...LARGE_CAP_SYMBOLS, ...TRENDING_SYMBOLS, ...MOST_SEARCHED_SYMBOLS])
-      .then(() => setLoading(false));
+    fetchAllSymbolsData(true);
 
-    const midTimeout = setTimeout(() => {
-      fetchSymbolsChunk(MID_CAP_SYMBOLS);
-    }, 3000);
-
-    const smallTimeout = setTimeout(() => {
-      fetchSymbolsChunk(SMALL_CAP_SYMBOLS);
-    }, 6000);
-
-    // Staggered polling interval (every 24s)
     const pollInterval = setInterval(() => {
       if (isIndianMarketOpen()) {
-        fetchSymbolsChunk([...LARGE_CAP_SYMBOLS, ...TRENDING_SYMBOLS, ...MOST_SEARCHED_SYMBOLS]);
-        
-        setTimeout(() => {
-          fetchSymbolsChunk(MID_CAP_SYMBOLS);
-        }, 4000);
-
-        setTimeout(() => {
-          fetchSymbolsChunk(SMALL_CAP_SYMBOLS);
-        }, 8000);
+        fetchAllSymbolsData(false);
       }
     }, 24000);
 
-    return () => {
-      clearTimeout(midTimeout);
-      clearTimeout(smallTimeout);
-      clearInterval(pollInterval);
-    };
+    return () => clearInterval(pollInterval);
   }, []);
 
   // 3. Client-side price micro-fluctuations (every 400ms for ultra-fast 60 FPS updates)

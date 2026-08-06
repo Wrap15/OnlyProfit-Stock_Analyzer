@@ -53,21 +53,28 @@ type CapType = 'all' | 'large' | 'mid' | 'small';
 
 export default function TodaysStocksSection({ marketQuotes, onTrade }: TodaysStocksSectionProps) {
   const [activeTab, setActiveTab] = useState<TabType>('gainers');
-  const [activeCap, setActiveCap] = useState<CapType>('large');
+  const [activeIndex, setActiveIndex] = useState<'nifty100' | 'nifty50' | 'largecap' | 'midcap' | 'smallcap'>('nifty100');
 
   const processedList = useMemo(() => {
     try {
-      const filteredCapQuotes = [...marketQuotes]
+      const filteredQuotes = [...marketQuotes]
         .filter((q) => q && q.symbol && !q.symbol.startsWith('^'))
         .filter((q) => {
           const cleanSymbol = q.symbol.trim().toUpperCase();
-          if (activeCap === 'large') {
+          if (activeIndex === 'nifty50') {
+            return LARGE_CAP_SYMBOLS.slice(0, 50).map(s => s.trim().toUpperCase()).includes(cleanSymbol);
+          }
+          if (activeIndex === 'nifty100') {
+            const nifty100List = [...LARGE_CAP_SYMBOLS, ...MID_CAP_SYMBOLS.slice(0, 25)];
+            return nifty100List.map(s => s.trim().toUpperCase()).includes(cleanSymbol);
+          }
+          if (activeIndex === 'largecap') {
             return LARGE_CAP_SYMBOLS.map(s => s.trim().toUpperCase()).includes(cleanSymbol);
           }
-          if (activeCap === 'mid') {
+          if (activeIndex === 'midcap') {
             return MID_CAP_SYMBOLS.map(s => s.trim().toUpperCase()).includes(cleanSymbol);
           }
-          if (activeCap === 'small') {
+          if (activeIndex === 'smallcap') {
             return SMALL_CAP_SYMBOLS.map(s => s.trim().toUpperCase()).includes(cleanSymbol);
           }
           return true;
@@ -76,23 +83,23 @@ export default function TodaysStocksSection({ marketQuotes, onTrade }: TodaysSto
       let list: any[] = [];
 
       if (activeTab === 'gainers') {
-        list = filteredCapQuotes
+        list = filteredQuotes
           .sort((a, b) => {
             const valA = typeof a.regularMarketChangePercent === 'number' ? a.regularMarketChangePercent : 0;
             const valB = typeof b.regularMarketChangePercent === 'number' ? b.regularMarketChangePercent : 0;
             return valB - valA;
           });
       } else if (activeTab === 'losers') {
-        list = filteredCapQuotes
+        list = filteredQuotes
           .sort((a, b) => {
             const valA = typeof a.regularMarketChangePercent === 'number' ? a.regularMarketChangePercent : 0;
             const valB = typeof b.regularMarketChangePercent === 'number' ? b.regularMarketChangePercent : 0;
             return valA - valB;
           });
       } else if (activeTab === 'mostactive') {
-        list = filteredCapQuotes.sort((a, b) => (b.regularMarketVolume || 0) - (a.regularMarketVolume || 0));
+        list = filteredQuotes.sort((a, b) => (b.regularMarketVolume || 0) - (a.regularMarketVolume || 0));
       } else if (activeTab === 'high52w') {
-        list = filteredCapQuotes
+        list = filteredQuotes
           .filter((q) => q.fiftyTwoWeekHigh)
           .sort((a, b) => {
             const ratioA = a.regularMarketPrice / a.fiftyTwoWeekHigh;
@@ -100,7 +107,7 @@ export default function TodaysStocksSection({ marketQuotes, onTrade }: TodaysSto
             return ratioB - ratioA;
           });
       } else if (activeTab === 'low52w') {
-        list = filteredCapQuotes
+        list = filteredQuotes
           .filter((q) => q.fiftyTwoWeekLow)
           .sort((a, b) => {
             const ratioA = a.regularMarketPrice / a.fiftyTwoWeekLow;
@@ -109,11 +116,14 @@ export default function TodaysStocksSection({ marketQuotes, onTrade }: TodaysSto
           });
       }
 
-      // Emergency fallback if final list is empty (guarantees data display under all conditions)
+      // Emergency fallback if final list is empty
       if (list.length === 0) {
         let fallbackSymbols: string[] = LARGE_CAP_SYMBOLS.slice(0, 5);
-        if (activeCap === 'mid') fallbackSymbols = MID_CAP_SYMBOLS.slice(0, 5);
-        if (activeCap === 'small') fallbackSymbols = SMALL_CAP_SYMBOLS.slice(0, 5);
+        if (activeIndex === 'nifty50') fallbackSymbols = LARGE_CAP_SYMBOLS.slice(0, 5);
+        if (activeIndex === 'nifty100') fallbackSymbols = LARGE_CAP_SYMBOLS.slice(0, 8);
+        if (activeIndex === 'largecap') fallbackSymbols = LARGE_CAP_SYMBOLS.slice(0, 5);
+        if (activeIndex === 'midcap') fallbackSymbols = MID_CAP_SYMBOLS.slice(0, 5);
+        if (activeIndex === 'smallcap') fallbackSymbols = SMALL_CAP_SYMBOLS.slice(0, 5);
         
         list = fallbackSymbols.map((sym, idx) => {
           const seed = sym.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) + idx;
@@ -153,8 +163,7 @@ export default function TodaysStocksSection({ marketQuotes, onTrade }: TodaysSto
       });
     } catch (err) {
       console.error('TodaysStocksSection: processedList error caught safely:', err);
-      // Hard fallback with guaranteed static structure
-      const fallbackSyms = activeCap === 'small' ? SMALL_CAP_SYMBOLS.slice(0, 5) : activeCap === 'mid' ? MID_CAP_SYMBOLS.slice(0, 5) : LARGE_CAP_SYMBOLS.slice(0, 5);
+      const fallbackSyms = activeIndex === 'smallcap' ? SMALL_CAP_SYMBOLS.slice(0, 5) : activeIndex === 'midcap' ? MID_CAP_SYMBOLS.slice(0, 5) : LARGE_CAP_SYMBOLS.slice(0, 5);
       return fallbackSyms.map((sym, idx) => {
         const isPos = activeTab !== 'losers';
         const price = 150 + idx * 45;
@@ -172,7 +181,7 @@ export default function TodaysStocksSection({ marketQuotes, onTrade }: TodaysSto
         };
       });
     }
-  }, [marketQuotes, activeTab, activeCap]);
+  }, [marketQuotes, activeTab, activeIndex]);
 
   const { watchlist, toggleWatchlist } = useStockStore();
 
@@ -193,19 +202,25 @@ export default function TodaysStocksSection({ marketQuotes, onTrade }: TodaysSto
           </p>
         </div>
 
-        {/* Cap Filter segmented pill buttons */}
+        {/* Index Filter segmented pill buttons */}
         <div className="flex p-0.5 rounded-xl bg-card border border-border/60 self-start sm:self-auto shadow-inner">
-          {(['large', 'mid', 'small', 'all'] as CapType[]).map((cap) => (
+          {[
+            { id: 'nifty100', label: 'Nifty 100' },
+            { id: 'nifty50', label: 'Nifty 50' },
+            { id: 'largecap', label: 'Largecap' },
+            { id: 'midcap', label: 'Midcap' },
+            { id: 'smallcap', label: 'Smallcap' }
+          ].map((idxObj) => (
             <button
-              key={cap}
-              onClick={() => setActiveCap(cap)}
+              key={idxObj.id}
+              onClick={() => setActiveIndex(idxObj.id as any)}
               className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                activeCap === cap
+                activeIndex === idxObj.id
                   ? 'bg-background text-profit shadow-xs border border-border/60'
                   : 'text-text-secondary hover:text-text-primary'
               }`}
             >
-              {cap}
+              {idxObj.label}
             </button>
           ))}
         </div>

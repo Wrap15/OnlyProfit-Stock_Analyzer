@@ -102,9 +102,10 @@ export default function Home() {
     }
   }, []);
 
-  // 2. React to browser back/forward history navigation
+  // 2. React to browser back/forward and custom bottom-nav clicks
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    
     const handlePopState = () => {
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get('tab') || 'trending';
@@ -112,8 +113,21 @@ export default function Home() {
         setActiveTab(tabParam as TabType);
       }
     };
+
+    const handleCustomTab = (e: Event) => {
+      const tab = (e as CustomEvent).detail;
+      if (tab && ['watchlist', 'trending', 'mostsearched', 'explore', 'ipo', 'fo'].includes(tab)) {
+        setActiveTab(tab as TabType);
+      }
+    };
+
     window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+    window.addEventListener('onlyprofit-tab-change', handleCustomTab);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('onlyprofit-tab-change', handleCustomTab);
+    };
   }, []);
 
   // 3. Tab switching action that updates URL query params natively
@@ -123,6 +137,8 @@ export default function Home() {
       const url = new URL(window.location.href);
       url.searchParams.set('tab', tab);
       window.history.pushState(null, '', url.pathname + url.search);
+      // Dispatch tab sync notification to BottomNav
+      window.dispatchEvent(new CustomEvent('onlyprofit-tab-change', { detail: tab }));
     }
   };
 

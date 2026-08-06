@@ -184,36 +184,138 @@ Here are the top active technical setups scanned by our OnlyProfit AI Agents:
       return NextResponse.json({ role: 'assistant', content });
     }
 
-    // 5. Handle educational topics
-    if (cleanMsg.includes('rsi') || cleanMsg.includes('relative strength')) {
-      const content = `### AI Educational Guide: Relative Strength Index (RSI)
+    // 5. Handle index queries
+    if (cleanMsg.includes('nifty') || cleanMsg.includes('sensex') || cleanMsg.includes('index') || cleanMsg.includes('bse') || cleanMsg.includes('nse')) {
+      const content = `### Indian Stock Market Benchmarks
       
-The **Relative Strength Index (RSI)** is a momentum oscillator that measures the speed and change of price movements. 
+Here is the real-time scan for the major Indian stock indexes:
 
-**Key Ranges:**
-- **RSI > 70**: Asset is considered **Overbought**. Indicates a potential pullback or trend reversal.
-- **RSI < 30**: Asset is considered **Oversold**. Indicates a potential undervaluation or rebound opportunity.
-- **RSI 40 - 60**: Sideways consolidation range.
+- **BSE SENSEX (\`^BSESN\`):** ~**78,830.00** 
+  - Represents the weighted average of 30 well-established and financially sound companies listed on the Bombay Stock Exchange (BSE).
+- **NSE Nifty 50 (\`^NSEI\`):** ~**24,660.00**
+  - Represents the weighted average of the top 50 largest Indian companies listed on the National Stock Exchange (NSE).
+- **Nifty Bank (\`^NSEBANK\`):** ~**57,740.00**
+  - Tracks the capital performance of the 12 most liquid and large-capitalized Indian banking stocks.
 
-*In OnlyProfit, we use a 14-period RSI to generate dynamic BUY/SELL technical breakout signals.*`;
+**AI Outlook:**
+Market indicators suggest a stable range-bound trading channel. Technical support for Nifty 50 is established at **24,400** while overhead resistance sits at **24,800**.`;
       return NextResponse.json({ role: 'assistant', content });
     }
 
-    if (cleanMsg.includes('stop loss') || cleanMsg.includes('sl') || cleanMsg.includes('risk management')) {
-      const content = `### AI Educational Guide: Stop Loss (SL)
+    // 6. Handle CAGR and Returns
+    if (cleanMsg.includes('cagr') || cleanMsg.includes('return') || cleanMsg.includes('performance') || cleanMsg.includes('yield')) {
+      const content = `### CAGR vs Absolute Returns Guide
       
-A **Stop Loss** is a pre-scheduled trading order designed to limit an investor's loss on a security position.
+When analyzing stocks and mutual funds, understanding CAGR (Compound Annual Growth Rate) is key:
 
-**Risk Management Principles:**
-1. **1% Rule**: Never risk more than 1% of your total trading capital on any single trade.
-2. **Risk-to-Reward Ratio**: Maintain a minimum ratio of **1:2** (e.g., if risking ₹10 stop loss, set target at ₹20).
-3. **ATR Stop Loss**: Position stop losses slightly below the Average True Range (ATR) support boundary to avoid noise triggers.
+$$CAGR = \\left( \\frac{\\text{Ending Value}}{\\text{Beginning Value}} \\right)^{\\frac{1}{n}} - 1$$
 
-*All OnlyProfit AI Signals compute automatic Stop-Loss boundaries based on live market volatility.*`;
+- **CAGR:** Shows the smoothed annual rate of return as if your investment grew at a steady compounding rate. It is the gold standard for investments held over 1 year (e.g. mutual funds' 3Y and 5Y returns).
+- **Absolute Return:** The simple percentage increase/decrease from start to finish:
+  $$\\text{Absolute Return} = \\left( \\frac{\\text{Ending Value} - \\text{Beginning Value}}{\\text{Beginning Value}} \\right) \\times 100$$
+  Suitable for short-term trades (e.g., today's wiggling wiggles!).
+
+**AI Recommendation:**
+Always prioritize funds with a stable **3-year CAGR exceeding 15%** and a healthy risk-to-reward Sharpe ratio.`;
       return NextResponse.json({ role: 'assistant', content });
     }
 
-    // 6. Default helpful chat response
+    // 7. Handle Valuation Metrics (PE / PB Ratio)
+    if (cleanMsg.includes('pe ratio') || cleanMsg.includes('p/e') || cleanMsg.includes('valuation') || cleanMsg.includes('pb ratio') || cleanMsg.includes('p/b')) {
+      const content = `### Valuation Analysis: P/E and P/B Ratios
+      
+OnlyProfit AI scanners check valuation ratios to detect underpriced gems:
+
+1. **P/E (Price-to-Earnings) Ratio:**
+   $$\\text{P/E} = \\frac{\\text{Market Share Price}}{\\text{EPS (Earnings Per Share)}}$$
+   - Measures how much investors are willing to pay per rupee of earnings.
+   - Low P/E relative to peers (e.g. IT sector PE vs Wipro PE) suggests undervaluation, whereas high P/E indicates high growth expectations.
+2. **P/B (Price-to-Book) Ratio:**
+   $$\\text{P/B} = \\frac{\\text{Market Share Price}}{\\text{Book Value Per Share}}$$
+   - Compares market value to book value. Very useful for banking stocks (like HDFC Bank or SBI).
+
+**Scan tip:** Look for stocks where current P/E is **lower than the historical 5-year average** or sector P/E while earnings growth remains strong.`;
+      return NextResponse.json({ role: 'assistant', content });
+    }
+
+    // 8. Handle Mutual Fund Category Overview / Recommendations
+    if (cleanMsg.includes('recommend') || cleanMsg.includes('best fund') || cleanMsg.includes('top fund') || cleanMsg.includes('mutual fund list')) {
+      const content = `### Curated Top Mutual Funds (AI Scanner Picks)
+      
+Here are the top-rated Indian mutual funds based on 3-year performance and asset quality:
+
+1. **Flexi Cap Schemes (Best for General Equity Diversification):**
+   - **Parag Parikh Flexi Cap Fund** (\`Code: 122639\`)
+     - NAV: ₹85.60 | 3Y Return: **+24.8% CAGR** (High risk, premium quality)
+2. **Bluechip / Large Cap Schemes (Best for Stable Bluechip Assets):**
+   - **SBI Bluechip Fund** (\`Code: 103004\`)
+     - NAV: ₹92.15 | 3Y Return: **+18.4% CAGR** (Moderate risk)
+3. **Small Cap Schemes (Best for Aggressive Long-Term Growth):**
+   - **Nippon India Small Cap Fund** (\`Code: 119598\`)
+     - NAV: ₹162.30 | 3Y Return: **+34.2% CAGR** (Very high risk, explosive returns)
+
+*Type any fund name or code (e.g. "analyze 122639" or "SBI Bluechip") to pull a detailed scheme breakdown.*`;
+      return NextResponse.json({ role: 'assistant', content });
+    }
+
+    // 9. Handle general Technical Indicators guide
+    if (cleanMsg.includes('rsi') || cleanMsg.includes('macd') || cleanMsg.includes('bollinger') || cleanMsg.includes('indicator') || cleanMsg.includes('technical')) {
+      const content = `### AI Guide: Key Charting Indicators
+      
+Our OnlyProfit real-time wiggler and scanners parse three primary indicators:
+
+- **RSI (Relative Strength Index):** A momentum oscillator ranging 0-100. RSI > 70 is **overbought** (potential sell), and RSI < 30 is **oversold** (potential buy).
+- **MACD (Moving Average Convergence Divergence):** Highlights trend crossovers. A MACD line crossing above the Signal line triggers a **bullish breakout (BUY)**.
+- **Bollinger Bands:** Measures volatility. Prices hitting the **lower band** indicate a potential support bounce, while hitting the **upper band** suggests overextension.
+
+*You can toggle RSI and MACD overlays directly on our fullscreen stock trajectory chart!*`;
+      return NextResponse.json({ role: 'assistant', content });
+    }
+
+    // 10. Handle stock vs mutual fund comparison
+    if (cleanMsg.includes('compare') || cleanMsg.includes('difference') || cleanMsg.includes('vs') || cleanMsg.includes('stock or fund')) {
+      const content = `### Comparison Guide: Stocks vs. Mutual Funds
+      
+Here is the AI comparison checklist to guide your asset allocation:
+
+| Feature | Direct Stock Investing | Mutual Fund Investing |
+| :--- | :--- | :--- |
+| **Control** | Full control (you choose the exact shares) | Entrusted to professional Fund Managers |
+| **Diversification** | Self-managed (requires high capital to diversify) | Auto-diversified across 40+ stocks instantly |
+| **Risk Boundary** | High (subject to single-stock volatility/shocks) | Diversified (lower relative shock risk) |
+| **Required Effort**| High (requires daily chart reviews/LTP wiggles) | Low (set-and-forget SIP model) |
+| **Ideal for** | Active traders / Alpha seekers | Long-term wealth builders |
+
+**AI Advice:** Real-world broker portfolios (Groww/Angel One) typically balance capital with **70% diversified mutual funds** and **30% active tactical stocks**.`;
+      return NextResponse.json({ role: 'assistant', content });
+    }
+
+    // 11. Dynamic NLP Keyword Parser (discussed anything not matched above)
+    // Extract keywords
+    const keywords = cleanMsg
+      .replace(/[^a-z0-9\s]/g, '')
+      .split(' ')
+      .filter(w => w.length > 3 && !['what', 'how', 'why', 'where', 'should', 'about', 'stock', 'fund', 'invest', 'please', 'analyze'].includes(w));
+    
+    if (keywords.length > 0) {
+      const parsedTopic = keywords.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      const content = `### AI Agent Scanning Report: **${parsedTopic}**
+      
+I've scanned the simulated market registers and financial databases for your query regarding **${parsedTopic}**. Here is the AI Copilot analysis:
+
+1. **Market Context & Relevance:**
+   The topic **${parsedTopic}** falls under our simulated wealth creation scanning model. Based on live NSE data wiggles, associated stock and fund assets are experiencing stable correlation coefficients.
+2. **Tactical Strategy Suggestion:**
+   - If this is a stock asset: Check current P/E valuations and 50 SMA crossover indicators before building a position.
+   - If this is a mutual fund concept: Ensure the historical CAGR over 3 years beats its benchmark category.
+3. **Risk Profile:**
+   Always manage risk limits carefully. For active trading, establish a strict **2% stop loss** and do not over-leverage intraday MIS positions.
+
+*If you were asking about a specific stock or mutual fund, please type its exact ticker name (e.g. "Reliance" or "SBI Bluechip") for a live quote.*`;
+      return NextResponse.json({ role: 'assistant', content });
+    }
+
+    // 12. Default helpful chat response
     const content = `Hello! I am your **OnlyProfit AI Copilot**. I can run dynamic technical scans, fund performance analysis, and risk estimations for over 200 NSE stocks and mutual funds.
 
 Try asking me:

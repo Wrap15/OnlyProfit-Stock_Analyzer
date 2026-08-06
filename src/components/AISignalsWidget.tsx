@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Lock, Cpu, Sparkles, Clock, Zap, ChevronRight, 
   Activity, Shield, MessageSquare, Send, Bot, RefreshCw, User 
@@ -516,58 +517,80 @@ I can scan breakouts, calculate targets, or inspect live market indices. Try ask
 
         {/* TAB 2: INTERACTIVE AI COPILOT CHAT */}
         {activeTab === 'copilot' && (
-          <div className="flex flex-col flex-grow h-[450px]">
+          <div className="flex flex-col flex-grow h-[450px] bg-gradient-to-b from-card/30 to-background/50">
+            {/* AI Copilot Status Header Strip */}
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40 bg-card/45 select-none shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span className="text-[10px] font-black text-text-primary uppercase tracking-wider">AI Copilot Terminal</span>
+              </div>
+              <span className="text-[9px] font-black text-text-secondary uppercase bg-card border border-border/60 px-1.5 py-0.5 rounded-md">V2.4 Active</span>
+            </div>
+
             {/* Scrollable messages container */}
             <div className="flex-grow overflow-y-auto p-4 space-y-4 scrollbar-none">
-              {chatHistory.map((msg, idx) => (
-                <div 
-                  key={idx}
-                  className={`flex gap-3 max-w-[85%] ${
-                    msg.role === 'user' ? 'ml-auto flex-row-reverse' : 'mr-auto'
-                  }`}
-                >
-                  <div className={`h-8 w-8 rounded-xl flex items-center justify-center shrink-0 border select-none ${
-                    msg.role === 'user'
-                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                      : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400'
-                  }`}>
-                    {msg.role === 'user' ? <User className="h-4.5 w-4.5" /> : <Bot className="h-4.5 w-4.5" />}
-                  </div>
+              <AnimatePresence initial={false}>
+                {chatHistory.map((msg, idx) => (
+                  <motion.div 
+                    key={idx}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className={`flex gap-3 max-w-[85%] ${
+                      msg.role === 'user' ? 'ml-auto flex-row-reverse' : 'mr-auto'
+                    }`}
+                  >
+                    <div className={`h-8 w-8 rounded-xl flex items-center justify-center shrink-0 border select-none ${
+                      msg.role === 'user'
+                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 shadow-sm'
+                        : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400 shadow-sm'
+                    }`}>
+                      {msg.role === 'user' ? <User className="h-4.5 w-4.5" /> : <Bot className="h-4.5 w-4.5" />}
+                    </div>
 
-                  <div className={`p-3.5 rounded-2xl border text-xs leading-relaxed space-y-2 w-full ${
-                    msg.role === 'user'
-                      ? 'bg-emerald-500/5 border-emerald-500/15 text-text-primary rounded-tr-none'
-                      : 'bg-background border-border/80 text-text-primary rounded-tl-none markdown-container'
-                  }`}>
-                    {renderMarkdown(msg.content)}
-                  </div>
-                </div>
-              ))}
+                    <div className={`p-3.5 rounded-2xl border text-xs leading-relaxed space-y-2 w-full shadow-sm ${
+                      msg.role === 'user'
+                        ? 'bg-emerald-500/10 border-emerald-500/20 text-text-primary rounded-tr-none'
+                        : 'bg-card border-border/80 text-text-primary rounded-tl-none markdown-container shadow-premium backdrop-blur-md'
+                    }`}>
+                      {renderMarkdown(msg.content)}
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
 
               {/* Bot typing state indicator */}
               {chatLoading && (
-                <div className="flex gap-3 mr-auto items-center max-w-[80%]">
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex gap-3 mr-auto items-center max-w-[80%]"
+                >
                   <div className="h-8 w-8 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 animate-pulse">
                     <RefreshCw className="h-4 w-4 animate-spin" />
                   </div>
                   <span className="text-[10px] text-text-secondary font-black animate-pulse">OnlyProfit Agent scanning markets...</span>
-                </div>
+                </motion.div>
               )}
 
               <div ref={chatBottomRef} />
             </div>
 
             {/* suggestion quick pills */}
-            <div className="px-4 py-2 border-t border-border/40 flex items-center gap-1.5 overflow-x-auto scrollbar-none bg-background/25">
+            <div className="px-4 py-2.5 border-t border-border/40 flex items-center gap-1.5 overflow-x-auto scrollbar-none bg-background/20 select-none">
               {[
                 { label: 'Analyze RELIANCE', query: 'Analyze Reliance Industries' },
-                { label: 'Top buy signals', query: 'What are the top buy signals today?' },
-                { label: 'Check HDFCBANK', query: 'Should I buy HDFC bank?' }
+                { label: 'Compare stock vs fund', query: 'Compare stock vs mutual fund' },
+                { label: 'NIFTY & SENSEX levels', query: 'Show Nifty and Sensex levels' },
+                { label: 'Recommend mutual funds', query: 'Recommend best mutual funds' }
               ].map((p, i) => (
                 <button
                   key={i}
                   onClick={() => handleSendMessage(p.query)}
-                  className="px-3 py-1 border border-border hover:border-profit/35 bg-background hover:bg-profit/5 rounded-xl text-[9px] font-black uppercase text-text-secondary hover:text-profit shrink-0 transition-all cursor-pointer"
+                  className="px-3 py-1 border border-border/60 hover:border-profit/35 bg-card/65 hover:bg-profit/5 rounded-xl text-[9px] font-black uppercase text-text-secondary hover:text-profit shrink-0 transition-all hover:-translate-y-0.5 active:scale-95 cursor-pointer shadow-xs"
                 >
                   {p.label}
                 </button>
@@ -575,19 +598,19 @@ I can scan breakouts, calculate targets, or inspect live market indices. Try ask
             </div>
 
             {/* Message input bar */}
-            <div className="p-3 border-t border-border/40 bg-slate-50/20 dark:bg-slate-800/10 flex items-center gap-2">
+            <div className="p-3 border-t border-border/40 bg-card/50 backdrop-blur-md flex items-center gap-2">
               <input
                 type="text"
                 value={inputVal}
                 onChange={(e) => setInputVal(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                placeholder="Ask AI Copilot (e.g. 'Should I buy Reliance?')..."
-                className="flex-1 bg-background border border-border rounded-xl px-3 py-2 text-xs text-text-primary outline-none focus:border-profit transition-colors"
+                placeholder="Ask AI Copilot (e.g. 'Should I buy Reliance?' or 'Explain CAGR')..."
+                className="flex-1 bg-background border border-border rounded-xl px-3.5 py-2 text-xs text-text-primary outline-none focus:border-profit focus:ring-1 focus:ring-profit/15 transition-all shadow-inner disabled:opacity-60"
                 disabled={chatLoading}
               />
               <button
                 onClick={() => handleSendMessage()}
-                className="h-8 w-8 rounded-xl bg-profit hover:brightness-105 text-white flex items-center justify-center shadow-md shadow-profit/15 transition-all cursor-pointer shrink-0 disabled:opacity-50"
+                className="h-8.5 w-8.5 rounded-xl bg-profit hover:brightness-105 text-white flex items-center justify-center shadow-md shadow-profit/20 hover:shadow-lg hover:shadow-profit/30 transition-all cursor-pointer shrink-0 disabled:opacity-50 active:scale-95"
                 disabled={chatLoading}
               >
                 <Send className="h-3.5 w-3.5" />

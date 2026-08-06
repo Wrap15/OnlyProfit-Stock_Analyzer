@@ -198,7 +198,11 @@ export async function placeOrder(
   // Calculate fees
   const { brokerage, taxes } = calculateFees(activePrice, quantity);
   const tradeValue = activePrice * quantity;
-  const estimatedCost = orderParams.side === 'BUY' ? tradeValue + brokerage + taxes : tradeValue - brokerage - taxes;
+  
+  // Real-life Groww / Angel One style 5x leverage rule (20% margin) for MIS intraday orders
+  const marginMultiplier = orderParams.productType === 'MIS' ? 0.20 : 1.0;
+  const requiredMargin = tradeValue * marginMultiplier;
+  const estimatedCost = orderParams.side === 'BUY' ? requiredMargin + brokerage + taxes : requiredMargin - brokerage - taxes;
 
   const newOrder: SimulatorOrder = {
     id: userId ? '' : `local-order-${timestamp}`,
@@ -238,12 +242,30 @@ export async function placeOrder(
     }
   }
 
-  // 3. Validate sufficient funds for BUY
+  // 3. Validate sufficient funds for BUY (applying 5x leverage if MIS)
   if (orderParams.side === 'BUY' && state.cash < estimatedCost) {
+    const marginStr = orderParams.productType === 'MIS' ? 'Margin required (5x Leverage)' : 'Required funds';
     newOrder.status = 'REJECTED';
-    newOrder.rejectionReason = `Insufficient funds. Required: ₹${estimatedCost.toLocaleString('en-IN', { maximumFractionDigits: 2 })}, Available: ₹${state.cash.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+    newOrder.rejectionReason = `Insufficient funds. ${marginStr}: ₹${estimatedCost.toLocaleString('en-IN', { maximumFractionDigits: 2 })}, Available: ₹${state.cash.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
     await recordOrderInDB(userId, newOrder);
     return { success: false, reason: newOrder.rejectionReason, order: newOrder };
+  }
+
+  // 3b. Validate sufficient funds for Short SELL (MIS - opening new short position requires margin)
+  if (orderParams.side === 'SELL' && orderParams.productType === 'MIS') {
+    const position = state.positions.find(p => p.symbol === orderParams.symbol);
+    const activeQty = position ? position.quantity : 0;
+    
+    // Only check margin if they are opening a new short position (or adding to short), not squaring off a long position
+    if (activeQty <= 0) {
+      const marginNeeded = requiredMargin + brokerage + taxes;
+      if (state.cash < marginNeeded) {
+        newOrder.status = 'REJECTED';
+        newOrder.rejectionReason = `Insufficient margin to open short position. Required (5x Leverage): ₹${marginNeeded.toLocaleString('en-IN', { maximumFractionDigits: 2 })}, Available Cash: ₹${state.cash.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+        await recordOrderInDB(userId, newOrder);
+        return { success: false, reason: newOrder.rejectionReason, order: newOrder };
+      }
+    }
   }
 
   // 4. Validate sufficient holdings/positions for SELL
@@ -348,8 +370,11 @@ async function recordOrderInDB(userId: string | null, order: SimulatorOrder): Pr
   }
 
   try {
-    const orderCollection = collection(db, 'users', userId, 'simulator_orders');
-    const docRef = await withTimeout(addDoc(orderCollection, {
+    const docRef = order.id && !order.id.startsWith('local-')
+      ? doc(db, 'users', userId, 'simulator_orders', order.id)
+      : doc(collection(db, 'users', userId, 'simulator_orders'));
+
+    const orderData = {
       symbol: order.symbol,
       side: order.side,
       type: order.type,
@@ -363,15 +388,19 @@ async function recordOrderInDB(userId: string | null, order: SimulatorOrder): Pr
       taxes: order.taxes,
       rejectionReason: order.rejectionReason ?? null,
       executionPrice: order.executionPrice ?? null,
-    }), 1500);
+    };
 
-    order.id = docRef.id;
-    // Update local cache with firestore document ID
-    const freshState = getLocalState(userId);
-    const localOrder = freshState.orders.find(o => o.timestamp === order.timestamp && o.symbol === order.symbol);
-    if (localOrder) {
-      localOrder.id = docRef.id;
-      saveLocalState(userId, freshState);
+    await withTimeout(setDoc(docRef, orderData, { merge: true }), 1500);
+
+    if (!order.id || order.id.startsWith('local-')) {
+      order.id = docRef.id;
+      // Update local cache with firestore document ID
+      const freshState = getLocalState(userId);
+      const localOrder = freshState.orders.find(o => o.timestamp === order.timestamp && o.symbol === order.symbol);
+      if (localOrder) {
+        localOrder.id = docRef.id;
+        saveLocalState(userId, freshState);
+      }
     }
     return order;
   } catch (err) {

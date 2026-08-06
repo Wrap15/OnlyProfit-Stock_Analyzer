@@ -12,7 +12,11 @@ function getMockQuote(symbol: string) {
   };
 
   const seed = symbol.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const randomPrice = 100 + (seed % 900) + (seed % 10) * 0.1;
+  let randomPrice = 100 + (seed % 900) + (seed % 10) * 0.1;
+  if (symbol === '^BSESN') randomPrice = 78830.00;
+  else if (symbol === '^NSEI') randomPrice = 24660.00;
+  else if (symbol === '^NSEBANK') randomPrice = 57740.00;
+  else if (symbol === '^CNXIT') randomPrice = 31400.00;
   const randomChangePercent = ((seed % 15) - 7) / 2; // e.g. -3.5% to +3.5%
   const change = (randomPrice * randomChangePercent) / 100;
 

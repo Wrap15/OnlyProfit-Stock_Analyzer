@@ -37,9 +37,35 @@ export default function BottomNav() {
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [currentTab, setCurrentTab] = useState('trending');
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  // Listen to tab events and popstate for reactive query updates
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const params = new URLSearchParams(window.location.search);
+    setCurrentTab(params.get('tab') || 'trending');
+
+    const handleTabSync = (e: Event) => {
+      const tab = (e as CustomEvent).detail;
+      if (tab) setCurrentTab(tab);
+    };
+    window.addEventListener('onlyprofit-tab-change', handleTabSync);
+
+    const handlePop = () => {
+      const p = new URLSearchParams(window.location.search);
+      setCurrentTab(p.get('tab') || 'trending');
+    };
+    window.addEventListener('popstate', handlePop);
+
+    return () => {
+      window.removeEventListener('onlyprofit-tab-change', handleTabSync);
+      window.removeEventListener('popstate', handlePop);
+    };
   }, []);
 
   // Sync custom input field on userName changes
@@ -106,11 +132,15 @@ export default function BottomNav() {
             let isActive = false;
             if (isProfileTab) {
               isActive = isProfileDrawerOpen;
-            } else if (typeof window !== 'undefined') {
-              const url = new URL(tab.href, window.location.origin);
+            } else {
+              const url = new URL(tab.href, 'http://localhost');
               const pathnameMatch = pathname === url.pathname;
-              const searchParamsMatch = !url.search || window.location.search.includes(url.searchParams.get('tab') || '');
-              isActive = pathnameMatch && searchParamsMatch;
+              if (url.pathname === '/') {
+                const tabVal = url.searchParams.get('tab') || 'trending';
+                isActive = pathnameMatch && currentTab === tabVal;
+              } else {
+                isActive = pathnameMatch;
+              }
             }
 
             const content = (
@@ -148,12 +178,30 @@ export default function BottomNav() {
               );
             }
 
+            const handleLinkClick = (e: React.MouseEvent) => {
+              setIsProfileDrawerOpen(false);
+              
+              if (pathname === '/' && tab.href.startsWith('/?tab=')) {
+                e.preventDefault();
+                const targetTab = tab.href.split('tab=')[1];
+                if (targetTab) {
+                  // Dispatch custom event to let page.tsx switch tabs instantly
+                  window.dispatchEvent(new CustomEvent('onlyprofit-tab-change', { detail: targetTab }));
+                  
+                  // Also update address bar query param
+                  const url = new URL(window.location.href);
+                  url.searchParams.set('tab', targetTab);
+                  window.history.pushState(null, '', url.pathname + url.search);
+                }
+              }
+            };
+
             return (
               <Link
                 key={tab.label}
                 href={tab.href}
                 className={className}
-                onClick={() => setIsProfileDrawerOpen(false)}
+                onClick={handleLinkClick}
               >
                 {content}
               </Link>

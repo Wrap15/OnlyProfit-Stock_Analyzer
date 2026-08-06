@@ -13,7 +13,7 @@ import {
 import { useStockStore } from '@/store/useStockStore';
 import { apiClient as axios } from '@/lib/apiClient';
 import { isIndianMarketOpen } from '@/lib/marketHours';
-import { AreaChart, BarChart3, Activity, Layers, Compass, LineChart, TrendingUp } from 'lucide-react';
+import { AreaChart, BarChart3, Maximize2, Minimize2, X, Sun, Moon } from 'lucide-react';
 
 interface ChartPoint {
   time: number;
@@ -27,7 +27,7 @@ interface ChartPoint {
 
 interface StockChartProps {
   symbol: string;
-  range: string;
+  range?: string;
   isPositive: boolean;
 }
 
@@ -55,9 +55,18 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
   const macdChartContainerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
 
-  const { theme } = useStockStore();
+  const mainSeriesRef = useRef<any>(null);
+  const lastQuotePriceRef = useRef<number>(0);
+  const lastTimestampRef = useRef<number>(0);
+  const chartTypeRef = useRef<'area' | 'candlestick'>('area');
+
+  const { theme, toggleTheme } = useStockStore();
   const [data, setData] = useState<ChartPoint[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Range and Fullscreen States
+  const [activeRange, setActiveRange] = useState(range);
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
   // Overlay Indicator Toggles (Main Pane)
   const [showSMA, setShowSMA] = useState(false);
@@ -70,13 +79,48 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
 
   const [chartType, setChartType] = useState<'area' | 'candlestick'>('area');
 
-  // Fetch chart data on symbol or range changes
+  // Synchronize range prop changes with activeRange state
+  useEffect(() => {
+    setActiveRange(range);
+  }, [range]);
+
+  // Listen to Escape keypress to exit fullscreen, and lock scrolling
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setIsFullScreen(false);
+      }
+    }
+    if (isFullScreen) {
+      window.addEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = '';
+    };
+  }, [isFullScreen]);
+
+  // Keep chartType ref updated
+  useEffect(() => {
+    chartTypeRef.current = chartType;
+  }, [chartType]);
+
+  // Fetch chart data on symbol or activeRange changes
   useEffect(() => {
     async function fetchChartData() {
       try {
         setLoading(true);
-        const res = await axios.get(`/api/stock/chart?symbol=${encodeURIComponent(symbol)}&range=${range}`);
-        setData(res.data || []);
+        const res = await axios.get(`/api/stock/chart?symbol=${encodeURIComponent(symbol)}&range=${activeRange}`);
+        const chartPoints = res.data || [];
+        setData(chartPoints);
+        
+        // Sync starting price & timestamp refs
+        if (chartPoints.length > 0) {
+          const lastPoint = chartPoints[chartPoints.length - 1];
+          lastQuotePriceRef.current = lastPoint.close || lastPoint.value || 0;
+          lastTimestampRef.current = lastPoint.time;
+        }
       } catch (err) {
         console.error('Failed to load chart data', err);
       } finally {
@@ -84,27 +128,95 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
       }
     }
     fetchChartData();
-  }, [symbol, range]);
+  }, [symbol, activeRange]);
 
-  // Real-time background polling for chart updates (every 15s) during market hours
+  // Poll quote API every 3s during market hours to get actual live price updates
   useEffect(() => {
-    if (loading || range !== '1d') return;
+    if (loading || activeRange !== '1d') return;
 
-    const interval = setInterval(async () => {
-      if (!isIndianMarketOpen()) return;
-
+    let active = true;
+    async function fetchLiveQuote() {
       try {
-        const res = await axios.get(`/api/stock/chart?symbol=${encodeURIComponent(symbol)}&range=${range}`);
-        if (res.data && res.data.length > 0) {
-          setData(res.data);
+        const res = await axios.get(`/api/stock/quote?symbols=${encodeURIComponent(symbol)}`);
+        if (active && res.data && res.data.length > 0) {
+          const q = res.data[0];
+          lastQuotePriceRef.current = q.regularMarketPrice;
         }
       } catch (err) {
-        console.error('Failed to update live chart data:', err);
+        console.warn('Live quote polling failed for chart:', err);
       }
-    }, 15000);
+    }
 
-    return () => clearInterval(interval);
-  }, [symbol, range, loading]);
+    fetchLiveQuote();
+    const interval = setInterval(() => {
+      if (isIndianMarketOpen()) {
+        fetchLiveQuote();
+      }
+    }, 3000);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [symbol, activeRange, loading]);
+
+  // High-speed 400ms wiggler loop for wiggling & candle updates
+  useEffect(() => {
+    if (loading || activeRange !== '1d') return;
+
+    const wiggler = setInterval(() => {
+      if (!isIndianMarketOpen() || !mainSeriesRef.current || lastQuotePriceRef.current === 0) return;
+
+      // 1. Simulate a tiny micro-fluctuation (random walk ±0.015%)
+      const pct = (Math.random() - 0.495) * 0.00015;
+      lastQuotePriceRef.current = lastQuotePriceRef.current * (1 + pct);
+      const livePrice = parseFloat(lastQuotePriceRef.current.toFixed(2));
+
+      // 2. Fetch current time and calculate if it is a new minute
+      const nowSec = Math.floor(Date.now() / 1000);
+      const lastPointTime = lastTimestampRef.current;
+      const isNewMinute = nowSec - lastPointTime >= 60;
+
+      if (isNewMinute) {
+        // Roll over to next minute timestamp (standardized to 60s boundaries)
+        const nextMinTime = lastPointTime + 60;
+        lastTimestampRef.current = nextMinTime;
+        
+        if (chartTypeRef.current === 'candlestick') {
+          mainSeriesRef.current.update({
+            time: nextMinTime as UTCTimestamp,
+            open: livePrice,
+            high: livePrice,
+            low: livePrice,
+            close: livePrice
+          });
+        } else {
+          mainSeriesRef.current.update({
+            time: nextMinTime as UTCTimestamp,
+            value: livePrice
+          });
+        }
+      } else {
+        // Update the current wiggling bar
+        if (chartTypeRef.current === 'candlestick') {
+          mainSeriesRef.current.update({
+            time: lastPointTime as UTCTimestamp,
+            open: livePrice, 
+            high: livePrice, 
+            low: livePrice,
+            close: livePrice
+          });
+        } else {
+          mainSeriesRef.current.update({
+            time: lastPointTime as UTCTimestamp,
+            value: livePrice
+          });
+        }
+      }
+    }, 400);
+
+    return () => clearInterval(wiggler);
+  }, [activeRange, loading]);
 
   // Handle instantiation & synchronization of all charts
   useEffect(() => {
@@ -145,8 +257,7 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
         textColor: isDark ? '#94a3b8' : '#64748b',
       },
       timeScale: {
-        borderVisible: false,
-        timeVisible: range === '1d' || range === '1w',
+        timeVisible: activeRange === '1d' || activeRange === '5d' || activeRange === '1w',
         secondsVisible: false,
       },
       crosshair: {
@@ -206,6 +317,9 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
       }));
       mainSeries.setData(formattedData);
     }
+
+    // Set series reference for high-speed updates
+    mainSeriesRef.current = mainSeries;
 
     // Volume Overlay inside Main Chart
     const volumeSeries = mainChart.addSeries(HistogramSeries, {
@@ -527,7 +641,7 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
           tooltip.style.opacity = '0';
         } else {
           const timestamp = param.time as number;
-          const dateStr = range === '1d' || range === '1w'
+          const dateStr = activeRange === '1d' || activeRange === '5d' || activeRange === '1w'
             ? new Date(timestamp * 1000).toLocaleString('en-IN', {
                 day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
               })
@@ -673,7 +787,7 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
       if (rsiChart) rsiChart.remove();
       if (macdChart) macdChart.remove();
     };
-  }, [data, theme, isPositive, loading, range, showSMA, showBB, showST, showRSI, showMACD, chartType]);
+  }, [data, theme, isPositive, loading, activeRange, showSMA, showBB, showST, showRSI, showMACD, chartType]);
 
   if (loading) {
     return (
@@ -695,110 +809,182 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
   }
 
   return (
-    <div className="w-full flex flex-col gap-4 bg-card/25 border border-border/80 p-4 sm:p-5 rounded-3xl backdrop-blur-md shadow-premium">
+    <div className={`w-full flex flex-col gap-4 bg-card/25 border border-border/80 p-4 sm:p-5 rounded-3xl backdrop-blur-md shadow-premium ${
+      isFullScreen 
+        ? 'fixed inset-0 bg-[#0b0c10] border-none rounded-none z-50 p-6 flex flex-col gap-6 overflow-y-auto' 
+        : ''
+    }`}>
       
-      {/* Chart toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 select-none z-10">
-        
-        {/* Chart Type Toggle */}
-        <div className="flex items-center gap-1.5 p-0.5 bg-background border border-border rounded-xl">
-          <button
-            onClick={() => setChartType('area')}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              chartType === 'area'
-                ? 'bg-card text-profit shadow-sm font-black'
-                : 'text-text-secondary hover:text-text-primary'
-            }`}
-          >
-            <AreaChart className="h-3.5 w-3.5" />
-            <span>Line</span>
-          </button>
-          <button
-            onClick={() => setChartType('candlestick')}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              chartType === 'candlestick'
-                ? 'bg-card text-profit shadow-sm font-black'
-                : 'text-text-secondary hover:text-text-primary'
-            }`}
-          >
-            <BarChart3 className="h-3.5 w-3.5" />
-            <span>Candle</span>
-          </button>
-        </div>
-
-        {/* Technical Indicators Toggle Group */}
-        {!symbol.startsWith('^') && (
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Overlays */}
+      {/* Immersive Header inside Fullscreen Mode */}
+      {isFullScreen && (
+        <div className="flex items-center justify-between border-b border-border/40 pb-3 gap-4 select-none">
+          <div className="flex items-center gap-3">
+            <span className="px-3 py-1 bg-profit/10 border border-profit/25 text-profit rounded-xl font-black text-xs uppercase tracking-wider animate-pulse">
+              LIVE FEED
+            </span>
+            <div>
+              <h1 className="text-base font-extrabold text-text-primary uppercase tracking-tight flex items-center gap-1.5">
+                {symbol.split('.')[0]} Trajectory Chart
+              </h1>
+              <p className="text-[10px] text-text-secondary font-bold flex items-center gap-1">
+                <span>Power by OnlyProfit Data Feed • Press</span>
+                <kbd className="px-1 py-0.5 rounded bg-card border border-border text-[9px] font-mono">ESC</kbd>
+                <span>or click Close to exit</span>
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => setShowSMA(!showSMA)}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                showSMA
-                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-500 shadow-sm'
-                  : 'border-border/85 text-text-secondary bg-card/60 hover:text-text-primary'
-              }`}
+              onClick={toggleTheme}
+              className="p-2 border border-border bg-card/60 text-text-secondary hover:text-text-primary rounded-xl transition-all cursor-pointer flex items-center justify-center"
+              title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             >
-              <Activity className="h-3.5 w-3.5" />
-              <span>SMA (20)</span>
+              {theme === 'dark' ? <Sun className="h-4.5 w-4.5 text-amber-500" /> : <Moon className="h-4.5 w-4.5 text-indigo-500" />}
             </button>
-
             <button
-              onClick={() => setShowBB(!showBB)}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                showBB
-                  ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400 shadow-sm'
-                  : 'border-border/85 text-text-secondary bg-card/60 hover:text-text-primary'
-              }`}
+              onClick={() => setIsFullScreen(false)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 hover:text-rose-400 rounded-xl transition-all cursor-pointer text-xs font-black uppercase tracking-wider border border-rose-500/20 shadow-sm"
             >
-              <Layers className="h-3.5 w-3.5" />
-              <span>BB (20, 2)</span>
-            </button>
-
-            <button
-              onClick={() => setShowST(!showST)}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                showST
-                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-450 shadow-sm'
-                  : 'border-border/85 text-text-secondary bg-card/60 hover:text-text-primary'
-              }`}
-            >
-              <TrendingUp className="h-3.5 w-3.5" />
-              <span>SuperTrend</span>
-            </button>
-
-            {/* Subpanels */}
-            <button
-              onClick={() => setShowRSI(!showRSI)}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                showRSI
-                  ? 'bg-purple-500/10 border-purple-500/30 text-purple-400 shadow-sm'
-                  : 'border-border/85 text-text-secondary bg-card/60 hover:text-text-primary'
-              }`}
-            >
-              <Compass className="h-3.5 w-3.5" />
-              <span>RSI (14)</span>
-            </button>
-
-            <button
-              onClick={() => setShowMACD(!showMACD)}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                showMACD
-                  ? 'bg-blue-500/10 border-blue-500/30 text-blue-400 shadow-sm'
-                  : 'border-border/85 text-text-secondary bg-card/60 hover:text-text-primary'
-              }`}
-            >
-              <LineChart className="h-3.5 w-3.5" />
-              <span>MACD</span>
+              <X className="h-4 w-4" />
+              <span>Close</span>
             </button>
           </div>
-        )}
+        </div>
+      )}
+
+      {/* Chart toolbar containing internal range bar and fullscreen controls */}
+      <div className="flex flex-wrap items-center justify-between gap-4 select-none z-10 border-b border-border/40 pb-3">
+        
+        {/* Left Side: Standardized intervals separated directly inside the chart */}
+        <div className="flex items-center gap-1.5 p-0.5 bg-background border border-border rounded-xl">
+          {[
+            { label: '1D', value: '1d' },
+            { label: '5D', value: '5d' },
+            { label: '1M', value: '1m' },
+            { label: '6M', value: '6m' },
+            { label: '1Y', value: '1y' },
+            { label: '5Y', value: '5y' },
+            { label: 'MAX', value: 'max' }
+          ].map((r) => (
+            <button
+              key={r.value}
+              onClick={() => setActiveRange(r.value)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 active:scale-95 cursor-pointer ${
+                activeRange === r.value
+                  ? 'bg-card text-profit shadow-sm font-extrabold border border-border'
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Right Side: Type, Indicators overlays and Full Screen control button */}
+        <div className="flex flex-wrap items-center gap-3">
+          
+          {/* Chart Type Toggle */}
+          <div className="flex items-center gap-1.5 p-0.5 bg-background border border-border rounded-xl">
+            <button
+              onClick={() => setChartType('area')}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                chartType === 'area'
+                  ? 'bg-card text-profit shadow-sm font-black'
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              <AreaChart className="h-3.5 w-3.5" />
+              <span>Line</span>
+            </button>
+            <button
+              onClick={() => setChartType('candlestick')}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                chartType === 'candlestick'
+                  ? 'bg-card text-profit shadow-sm font-black'
+                  : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              <BarChart3 className="h-3.5 w-3.5" />
+              <span>Candle</span>
+            </button>
+          </div>
+
+          {/* Technical Overlay Indicators */}
+          {!symbol.startsWith('^') && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button
+                onClick={() => setShowSMA(!showSMA)}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  showSMA
+                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-500'
+                    : 'border-border/85 text-text-secondary bg-card/60 hover:text-text-primary'
+                }`}
+              >
+                <span>SMA</span>
+              </button>
+              <button
+                onClick={() => setShowBB(!showBB)}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  showBB
+                    ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400'
+                    : 'border-border/85 text-text-secondary bg-card/60 hover:text-text-primary'
+                }`}
+              >
+                <span>BB</span>
+              </button>
+              <button
+                onClick={() => setShowST(!showST)}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  showST
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-450'
+                    : 'border-border/85 text-text-secondary bg-card/60 hover:text-text-primary'
+                }`}
+              >
+                <span>ST</span>
+              </button>
+              <button
+                onClick={() => setShowRSI(!showRSI)}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  showRSI
+                    ? 'bg-purple-500/10 border-purple-500/30 text-purple-400'
+                    : 'border-border/85 text-text-secondary bg-card/60 hover:text-text-primary'
+                }`}
+              >
+                <span>RSI</span>
+              </button>
+              <button
+                onClick={() => setShowMACD(!showMACD)}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  showMACD
+                    ? 'bg-blue-500/10 border-blue-500/30 text-blue-400'
+                    : 'border-border/85 text-text-secondary bg-card/60 hover:text-text-primary'
+                }`}
+              >
+                <span>MACD</span>
+              </button>
+            </div>
+          )}
+
+          {/* Full Screen Toggle button */}
+          <button
+            onClick={() => setIsFullScreen(!isFullScreen)}
+            className="p-2 border border-border bg-card/60 text-text-secondary hover:text-text-primary rounded-xl transition-all cursor-pointer flex items-center justify-center"
+            title={isFullScreen ? 'Exit Full Screen' : 'View Full Chart'}
+          >
+            {isFullScreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+          </button>
+        </div>
       </div>
 
-      {/* Synchronized Multi-Pane Layout Grid */}
+      {/* Main Chart Canvas Panels */}
       <div className="w-full relative flex flex-col gap-2">
-        {/* Main Panel */}
+        {/* Main Price Panel */}
         <div className="w-full relative">
-          <div ref={mainChartContainerRef} className="w-full h-[240px] sm:h-[340px]" />
+          <div 
+            ref={mainChartContainerRef} 
+            style={{ height: isFullScreen ? '520px' : '340px' }} 
+            className="w-full" 
+          />
           
           {/* Floating Custom HTML Tooltip */}
           <div
@@ -811,14 +997,22 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
         {/* RSI Panel */}
         {showRSI && (
           <div className="w-full relative border-t border-border/40 pt-2 animate-slide-down">
-            <div ref={rsiChartContainerRef} className="w-full h-[100px]" />
+            <div 
+              ref={rsiChartContainerRef} 
+              style={{ height: isFullScreen ? '130px' : '100px' }} 
+              className="w-full" 
+            />
           </div>
         )}
 
         {/* MACD Panel */}
         {showMACD && (
           <div className="w-full relative border-t border-border/40 pt-2 animate-slide-down">
-            <div ref={macdChartContainerRef} className="w-full h-[110px]" />
+            <div 
+              ref={macdChartContainerRef} 
+              style={{ height: isFullScreen ? '140px' : '110px' }} 
+              className="w-full" 
+            />
           </div>
         )}
       </div>

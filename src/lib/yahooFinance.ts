@@ -1412,10 +1412,10 @@ const MOCK_BASE_PRICES: Record<string, number> = {
   'BFUTILITIE.NS': 720.00,
 
   // Indices
-  '^NSEI': 23215.15,
-  '^BSESN': 76435.35,
-  '^NSEBANK': 49650.50,
-  '^CNXIT': 35080.20
+  '^NSEI': 24660.00,
+  '^BSESN': 78830.00,
+  '^NSEBANK': 57740.00,
+  '^CNXIT': 31400.00
 };
 
 // Seeded random number generator for stable mock data

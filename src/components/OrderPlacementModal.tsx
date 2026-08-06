@@ -64,7 +64,8 @@ export default function OrderPlacementModal({
   const activeQuantity = Math.max(1, quantity);
   const { brokerage, taxes, total: totalFees } = calculateFees(inputPrice, activeQuantity);
   const grossValue = inputPrice * activeQuantity;
-  const totalCost = side === 'BUY' ? grossValue + totalFees : grossValue - totalFees;
+  const marginRequired = productType === 'MIS' ? grossValue * 0.20 : grossValue;
+  const totalCost = side === 'BUY' ? marginRequired + totalFees : marginRequired - totalFees;
 
   // Stepper Handlers for premium click inputs
   const adjustQty = (amount: number) => {
@@ -449,8 +450,14 @@ export default function OrderPlacementModal({
                   </span>
                   <span className="text-text-primary font-mono font-extrabold">₹{totalFees.toFixed(2)}</span>
                 </div>
+                {productType === 'MIS' && (
+                  <div className="flex items-center justify-between text-[10px] font-black text-emerald-450 bg-emerald-500/5 px-2.5 py-1.5 rounded-xl border border-emerald-500/10 select-none">
+                    <span>MIS Intraday 5x Leverage:</span>
+                    <span>20% margin blocked</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between text-xs font-black border-t border-border/60 pt-2.5 text-text-primary">
-                  <span>Estimated Total Margin:</span>
+                  <span>{productType === 'MIS' ? 'Estimated Margin Required:' : 'Estimated Total Cost:'}</span>
                   <span className={side === 'BUY' ? 'text-emerald-400 font-mono font-black' : 'text-rose-400 font-mono font-black'}>
                     ₹{totalCost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </span>

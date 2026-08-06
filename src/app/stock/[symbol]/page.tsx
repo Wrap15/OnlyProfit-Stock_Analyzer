@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useStockStore } from '@/store/useStockStore';
-import { ChevronLeft, Bell } from 'lucide-react';
+import { ChevronLeft, Bell, Activity } from 'lucide-react';
 import nextDynamic from 'next/dynamic';
 import NiftyTracker from '@/components/NiftyTracker';
 import SensexTracker from '@/components/SensexTracker';
@@ -241,7 +241,6 @@ export default function StockDetailPage() {
   } = useStockDetails(symbol);
 
   // Layout configurations
-  const [activeRange, setActiveRange] = useState('1d');
   const [activeTab, setActiveTab] = useState<ActiveTabType>('overview');
 
   // Modals & triggers
@@ -392,34 +391,17 @@ export default function StockDetailPage() {
         <div className="lg:col-span-2 space-y-6">
           
           {/* Interactive Chart Container */}
-          <div className="bg-card border border-border rounded-2xl p-5 md:p-6 shadow-soft dark:shadow-soft-dark space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/40 pb-4">
+          <div className="bg-card border border-border rounded-3xl p-4 sm:p-6 space-y-4">
+            <div className="flex items-center justify-between gap-4 flex-wrap border-b border-border/40 pb-3">
               <div>
-                <h2 className="font-extrabold text-sm text-text-primary uppercase tracking-wider">
-                  Interactive Price Chart
+                <h2 className="text-sm font-black text-text-primary uppercase tracking-wider flex items-center gap-1.5">
+                  <Activity className="h-4.5 w-4.5 text-profit" /> Technical Chart Feed
                 </h2>
-                <p className="text-[10px] text-text-secondary font-medium mt-0.5">Live stock price trajectory mapped across custom intervals.</p>
-              </div>
-              
-              {/* Range Filters */}
-              <div className="flex p-0.5 rounded-xl bg-background border border-border self-stretch sm:self-start justify-between sm:justify-start overflow-x-auto scrollbar-none w-full sm:w-auto gap-1">
-                {RANGES.map((r) => (
-                  <button
-                    key={r.value}
-                    onClick={() => setActiveRange(r.value)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 active:scale-95 cursor-pointer ${
-                      activeRange === r.value
-                        ? 'bg-card text-profit shadow-sm font-extrabold'
-                        : 'text-text-secondary hover:text-text-primary'
-                    }`}
-                  >
-                    {r.label}
-                  </button>
-                ))}
+                <p className="text-[10px] text-text-secondary font-semibold mt-0.5">Live stock price trajectory mapped across custom intervals.</p>
               </div>
             </div>
 
-            <StockChart symbol={symbol} range={activeRange} isPositive={isPositive} />
+            <StockChart symbol={symbol} isPositive={isPositive} />
           </div>
 
           {/* Sticky Tabbed Navigation strip */}

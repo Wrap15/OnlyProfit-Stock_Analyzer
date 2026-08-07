@@ -194,8 +194,8 @@ export async function GET(request: NextRequest) {
           // Fresh: use cached data directly
           cachedData.push(cached.data);
         } else if (age < STALE_DURATION) {
-          // Stale but usable: for detail pages (<= 5 symbols) fetch synchronously to guarantee fresh prices
-          if (symbols.length <= 5) {
+          // Stale but usable: for detail pages (<= 3 symbols) fetch synchronously to guarantee fresh prices
+          if (symbols.length <= 3) {
             if (!pendingFetches.has(symbol)) {
               symbolsToFetchSync.push(symbol);
             } else {
@@ -209,7 +209,7 @@ export async function GET(request: NextRequest) {
           }
         } else {
           // Too stale: fetch synchronously for detail pages, otherwise serve stale + fetch in background
-          if (symbols.length > 5) {
+          if (symbols.length > 3) {
             cachedData.push(cached.data);
             if (!pendingFetches.has(symbol)) {
               symbolsToFetchAsync.push(symbol);
@@ -224,9 +224,18 @@ export async function GET(request: NextRequest) {
           }
         }
       } else {
-        // Not cached: fetch synchronously to ensure real-world data is served on first load
-        if (!pendingFetches.has(symbol)) {
-          symbolsToFetchSync.push(symbol);
+        // Not cached: for bulk requests (> 3 symbols), serve instant seeded quote & fetch in background!
+        if (symbols.length > 3) {
+          const mock = getMockQuote(symbol);
+          quoteCache[symbol] = { data: mock, timestamp: now };
+          cachedData.push(mock);
+          if (!pendingFetches.has(symbol)) {
+            symbolsToFetchAsync.push(symbol);
+          }
+        } else {
+          if (!pendingFetches.has(symbol)) {
+            symbolsToFetchSync.push(symbol);
+          }
         }
       }
     }

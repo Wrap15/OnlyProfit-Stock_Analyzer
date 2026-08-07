@@ -12,14 +12,45 @@ import {
 
 function getInitialSeededQuotes(): any[] {
   const allSymbols = Array.from(new Set([
-    ...LARGE_CAP_SYMBOLS.slice(0, 15),
-    ...MID_CAP_SYMBOLS.slice(0, 15),
-    ...SMALL_CAP_SYMBOLS.slice(0, 15),
+    '^NSEI',
+    '^BSESN',
+    '^NSEBANK',
+    ...LARGE_CAP_SYMBOLS,
+    ...MID_CAP_SYMBOLS,
+    ...SMALL_CAP_SYMBOLS,
     ...TRENDING_SYMBOLS,
     ...MOST_SEARCHED_SYMBOLS
   ]));
 
   return allSymbols.map(symbol => {
+    if (symbol === '^BSESN') {
+      return {
+        symbol: '^BSESN',
+        regularMarketPrice: 78954.76,
+        regularMarketChange: 120.45,
+        regularMarketChangePercent: 0.15,
+        regularMarketVolume: 0
+      };
+    }
+    if (symbol === '^NSEI') {
+      return {
+        symbol: '^NSEI',
+        regularMarketPrice: 24636.10,
+        regularMarketChange: 45.20,
+        regularMarketChangePercent: 0.18,
+        regularMarketVolume: 0
+      };
+    }
+    if (symbol === '^NSEBANK') {
+      return {
+        symbol: '^NSEBANK',
+        regularMarketPrice: 57740.00,
+        regularMarketChange: 85.10,
+        regularMarketChangePercent: 0.15,
+        regularMarketVolume: 0
+      };
+    }
+
     const seed = symbol.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
     const price = 150 + (seed % 800) + (seed % 10) * 0.15;
     const changePct = ((seed % 12) - 6) / 2.5; // e.g. -2.4% to +2.4%

@@ -51,7 +51,7 @@ export default function StockOverviewTab({
     <div className="space-y-6 animate-fade-in pb-12">
       
       {/* Sub-Navigation Pill Strip */}
-      <div className="sticky top-[125px] sm:top-[125px] z-10 bg-background/95 backdrop-blur-md py-2 border-b border-border/40 flex items-center gap-1.5 overflow-x-auto scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0">
+      <div className="sticky top-0 sm:top-[120px] z-20 bg-background/95 backdrop-blur-md py-2 border-b border-border/40 flex items-center gap-1.5 overflow-x-auto scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0">
         {[
           { id: 'all', label: 'All Details' },
           { id: 'activity', label: 'Activity' },
@@ -78,7 +78,7 @@ export default function StockOverviewTab({
       {/* SECTION 1: ACTIVITY */}
       {/* ---------------------------------------------------- */}
       {shouldShow('activity') && (
-        <div className="bg-card border border-border/80 rounded-2xl p-5 sm:p-6 space-y-6 shadow-sm">
+        <div className="bg-card border border-border/80 rounded-2xl p-4 sm:p-6 space-y-6 shadow-sm">
           <div className="flex justify-between items-center border-b border-border/40 pb-3">
             <h3 className="text-xs font-black text-text-primary uppercase tracking-wider flex items-center gap-2">
               <Activity className="h-4.5 w-4.5 text-profit" /> Market Activity & Targets
@@ -200,7 +200,7 @@ export default function StockOverviewTab({
       {/* SECTION 2: FUNDAMENTAL RATIOS */}
       {/* ---------------------------------------------------- */}
       {shouldShow('ratios') && (
-        <div className="bg-card border border-border/80 rounded-2xl p-5 sm:p-6 space-y-5 shadow-sm">
+        <div className="bg-card border border-border/80 rounded-2xl p-4 sm:p-6 space-y-5 shadow-sm">
           <div className="flex justify-between items-center border-b border-border/40 pb-3">
             <h3 className="text-xs font-black text-text-primary uppercase tracking-wider flex items-center gap-2">
               <Landmark className="h-4.5 w-4.5 text-profit" /> Fundamental Ratios
@@ -209,7 +209,7 @@ export default function StockOverviewTab({
           </div>
 
           {/* Sub tabs inside Ratios */}
-          <div className="flex gap-1.5 p-0.5 rounded-lg bg-background border border-border/60 self-start">
+          <div className="flex gap-1.5 p-0.5 rounded-lg bg-background border border-border/60 self-start overflow-x-auto max-w-full scrollbar-none">
             {[
               { id: 'valuation', label: 'Valuation Ratio' },
               { id: 'growth', label: 'Growth' },

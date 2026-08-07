@@ -40,9 +40,9 @@ function getMockQuote(symbol: string) {
       }
     });
 
-    const liveChange = totalWeight > 0 ? (weightedChange / totalWeight) : 0;
-    const basePrice = 78451.00;
-    randomPrice = basePrice * (1 + liveChange / 100);
+    const liveChange = totalWeight > 0 ? (weightedChange / totalWeight) : -0.638;
+    const prevClose = 78954.76;
+    randomPrice = prevClose * (1 + liveChange / 100);
     randomChangePercent = liveChange;
   }
   else if (symbol === '^NSEI') {
@@ -70,18 +70,20 @@ function getMockQuote(symbol: string) {
       }
     });
 
-    const liveChange = totalWeight > 0 ? (weightedChange / totalWeight) : 0;
-    const basePrice = 24557.00;
-    randomPrice = basePrice * (1 + liveChange / 100);
+    const liveChange = totalWeight > 0 ? (weightedChange / totalWeight) : -0.32;
+    const prevClose = 24636.10;
+    randomPrice = prevClose * (1 + liveChange / 100);
     randomChangePercent = liveChange;
   }
   else if (symbol === '^NSEBANK') {
-    randomPrice = 57801.15;
-    randomChangePercent = -0.45;
+    const prevClose = 58063.65;
+    randomChangePercent = -0.452;
+    randomPrice = prevClose * (1 + randomChangePercent / 100);
   }
   else if (symbol === '^CNXIT') {
-    randomPrice = 31548.10;
-    randomChangePercent = 1.42;
+    const prevClose = 31106.20;
+    randomChangePercent = 1.421;
+    randomPrice = prevClose * (1 + randomChangePercent / 100);
   }
 
   const change = (randomPrice * randomChangePercent) / 100;
@@ -222,18 +224,9 @@ export async function GET(request: NextRequest) {
           }
         }
       } else {
-        // Not cached: for bulk requests (> 3 symbols), serve instant seeded quote & fetch in background!
-        if (symbols.length > 3) {
-          const mock = getMockQuote(symbol);
-          quoteCache[symbol] = { data: mock, timestamp: now };
-          cachedData.push(mock);
-          if (!pendingFetches.has(symbol)) {
-            symbolsToFetchAsync.push(symbol);
-          }
-        } else {
-          if (!pendingFetches.has(symbol)) {
-            symbolsToFetchSync.push(symbol);
-          }
+        // Not cached: fetch synchronously so true real market values are served on the very first load!
+        if (!pendingFetches.has(symbol)) {
+          symbolsToFetchSync.push(symbol);
         }
       }
     }

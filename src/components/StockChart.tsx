@@ -853,10 +853,10 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
       )}
 
       {/* Chart toolbar containing internal range bar and fullscreen controls */}
-      <div className="flex flex-wrap items-center justify-between gap-4 select-none z-10 border-b border-border/40 pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 select-none z-10 border-b border-border/40 pb-3">
         
         {/* Left Side: Standardized intervals separated directly inside the chart */}
-        <div className="flex items-center gap-1.5 p-0.5 bg-background border border-border rounded-xl">
+        <div className="flex items-center gap-1 sm:gap-1.5 p-0.5 bg-background border border-border rounded-xl overflow-x-auto max-w-full scrollbar-none">
           {[
             { label: '1D', value: '1d' },
             { label: '5D', value: '5d' },
@@ -869,9 +869,9 @@ export default function StockChart({ symbol, range, isPositive }: StockChartProp
             <button
               key={r.value}
               onClick={() => setActiveRange(r.value)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 active:scale-95 cursor-pointer ${
+              className={`px-2 sm:px-3 py-0.5 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all shrink-0 active:scale-95 cursor-pointer ${
                 activeRange === r.value
-                  ? 'bg-card text-profit shadow-sm font-extrabold border border-border'
+                  ? 'bg-card text-profit shadow-sm font-black border border-border'
                   : 'text-text-secondary hover:text-text-primary'
               }`}
             >

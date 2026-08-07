@@ -334,12 +334,12 @@ export default function NiftyTracker({ symbol: _symbol, indexQuote, onBack }: Ni
           </div>
           
           {/* Time range selection pills */}
-          <div className="flex gap-1.5 p-1 bg-background border border-border/80 rounded-xl self-start sm:self-auto">
+          <div className="flex gap-1 sm:gap-1.5 p-0.5 sm:p-1 bg-background border border-border/80 rounded-xl self-start sm:self-auto overflow-x-auto max-w-full scrollbar-none">
             {RANGES.map((r) => (
               <button
                 key={r.value}
                 onClick={() => setActiveRange(r.value)}
-                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all duration-200 ${
+                className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-lg text-[9px] sm:text-[10px] font-black uppercase tracking-wider transition-all duration-200 shrink-0 ${
                   activeRange === r.value
                     ? 'bg-profit text-white shadow-sm'
                     : 'text-text-secondary hover:text-text-primary'

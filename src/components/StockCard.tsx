@@ -305,9 +305,10 @@ export default function StockCard({ symbol, initialQuote }: StockCardProps) {
               {holdingInfo && (
                 <span 
                   title={`Bought on ${holdingInfo.date}`}
-                  className="inline-flex items-center gap-0.5 text-[8px] font-black text-text-secondary bg-background/80 border border-border px-1 py-0.2 rounded shrink-0 shadow-xs"
+                  className="inline-flex items-center gap-[1.5px] text-[5.5px] font-black text-text-secondary bg-background/90 border border-border/80 px-[2.5px] py-[0.5px] rounded-[2px] shrink-0 select-none shadow-xs"
                 >
-                  <Folder className="h-2.2 w-2.2 text-profit" /> {holdingInfo.quantity}
+                  <Folder className="h-[6.5px] w-[6.5px] text-profit shrink-0" />
+                  <span>{holdingInfo.quantity}</span>
                 </span>
               )}
               {!symbol.startsWith('^') && (
@@ -388,10 +389,11 @@ export default function StockCard({ symbol, initialQuote }: StockCardProps) {
                 {holdingInfo && (
                   <span 
                     title={`Bought on ${holdingInfo.date}`}
-                    className="inline-flex items-center gap-1 text-[8.5px] font-black text-text-secondary bg-background border border-border/60 px-1.5 py-0.2 rounded-md shadow-xs shrink-0"
+                    className="inline-flex items-center gap-[2px] text-[7px] font-black text-text-secondary bg-background border border-border/70 px-1 py-[0.5px] rounded-[3px] shadow-xs shrink-0 select-none"
                   >
-                    <Folder className="h-2.5 w-2.5 text-profit" /> {holdingInfo.quantity}
-                    <span className="text-[7px] text-text-secondary/60 ml-0.5 font-normal">({holdingInfo.date})</span>
+                    <Folder className="h-2 w-2 text-profit shrink-0" />
+                    <span>{holdingInfo.quantity}</span>
+                    <span className="text-[6px] text-text-secondary/60 ml-0.5 font-normal">({holdingInfo.date})</span>
                   </span>
                 )}
                 {!symbol.startsWith('^') && (

@@ -91,35 +91,9 @@ export default function TopIndexStrip() {
     return () => clearInterval(interval);
   }, []);
 
-  // Real-time client-side fluctuations for indices (every 400ms like live NSE ticker)
+  // Real-time server sync polling for indices
   useEffect(() => {
     if (!hasLoaded) return;
-
-    const interval = setInterval(() => {
-      // Do not fluctuate prices client-side when the market is closed
-      if (!isIndianMarketOpen()) return;
-
-      setIndices(prev => {
-        if (prev.length === 0) return prev;
-        return prev.map(ind => {
-          // Low volatility fluctuation for indices per tick (max ±0.003%)
-          const pct = (Math.random() - 0.495) * 0.00006; 
-          const newPrice = ind.price * (1 + pct);
-          const basePrice = ind.price - ind.change;
-          const newChange = newPrice - basePrice;
-          const newChangePercent = basePrice > 0 ? (newChange / basePrice) * 100 : 0;
-
-          return {
-            ...ind,
-            price: parseFloat(newPrice.toFixed(2)),
-            change: parseFloat(newChange.toFixed(2)),
-            changePercent: parseFloat(newChangePercent.toFixed(2)),
-          };
-        });
-      });
-    }, 400);
-
-    return () => clearInterval(interval);
   }, [hasLoaded]);
 
   return (

@@ -190,11 +190,11 @@ Here are the top active technical setups scanned by our OnlyProfit AI Agents:
       
 Here is the real-time scan for the major Indian stock indexes:
 
-- **BSE SENSEX (\`^BSESN\`):** ~**78,830.00** 
+- **BSE SENSEX (\`^BSESN\`):** ~**78,451.00** 
   - Represents the weighted average of 30 well-established and financially sound companies listed on the Bombay Stock Exchange (BSE).
-- **NSE Nifty 50 (\`^NSEI\`):** ~**24,660.00**
+- **NSE Nifty 50 (\`^NSEI\`):** ~**24,557.00**
   - Represents the weighted average of the top 50 largest Indian companies listed on the National Stock Exchange (NSE).
-- **Nifty Bank (\`^NSEBANK\`):** ~**57,740.00**
+- **Nifty Bank (\`^NSEBANK\`):** ~**57,801.15**
   - Tracks the capital performance of the 12 most liquid and large-capitalized Indian banking stocks.
 
 **AI Outlook:**

@@ -17,6 +17,10 @@ const HEADERS = {
 };
 
 export const TICKERTAPE_SID_MAP: Record<string, string> = {
+  '^NSEI': '.NSEI',
+  '^BSESN': '.BSESN',
+  '^NSEBANK': '.NSEBANK',
+  '^CNXIT': '.NIFTYIT',
   'HDFCBANK.NS': 'HDBK',
   'ICICIBANK.NS': 'ICBK',
   'SBIN.NS': 'SBI',
@@ -1412,10 +1416,10 @@ const MOCK_BASE_PRICES: Record<string, number> = {
   'BFUTILITIE.NS': 720.00,
 
   // Indices
-  '^NSEI': 24636.10,
-  '^BSESN': 78954.76,
-  '^NSEBANK': 57740.00,
-  '^CNXIT': 31400.00
+  '^NSEI': 24557.00,
+  '^BSESN': 78451.00,
+  '^NSEBANK': 57801.15,
+  '^CNXIT': 31548.10
 };
 
 // Seeded random number generator for stable mock data
@@ -2153,11 +2157,11 @@ function buildQuoteObject(
 }
 
 export async function fetchStockQuotesFromTickertape(symbols: string[]): Promise<any[] | null> {
-  const indianEquities = symbols.filter(s => s.endsWith('.NS') || s.endsWith('.BO'));
-  if (indianEquities.length === 0) return null;
+  const fetchableSymbols = symbols.filter(s => s.endsWith('.NS') || s.endsWith('.BO') || s.startsWith('^'));
+  if (fetchableSymbols.length === 0) return null;
 
   try {
-    const sids = indianEquities.map(s => getTickertapeSid(s));
+    const sids = fetchableSymbols.map(s => getTickertapeSid(s));
     const url = `https://api.tickertape.in/stocks/quotes?sids=${encodeURIComponent(sids.join(','))}`;
     const response = await axios.get(url, { headers: HEADERS, timeout: 4000 });
     
@@ -2173,8 +2177,28 @@ export async function fetchStockQuotesFromTickertape(symbols: string[]): Promise
         
         const price = item.price || 0;
         const prevClose = item.close || price;
-        const change = item.change || (price - prevClose);
+        const change = item.change !== undefined ? item.change : (price - prevClose);
         const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
+
+        if (origSymbol.startsWith('^')) {
+          mappedQuotes.push({
+            symbol: origSymbol,
+            shortName: customMeta.name || origSymbol.replace('^', ''),
+            longName: customMeta.name || origSymbol.replace('^', ''),
+            regularMarketPrice: parseFloat(price.toFixed(2)),
+            regularMarketChange: parseFloat(change.toFixed(2)),
+            regularMarketChangePercent: parseFloat(changePercent.toFixed(2)),
+            regularMarketVolume: item.volume || 0,
+            regularMarketDayHigh: item.high || price,
+            regularMarketDayLow: item.low || price,
+            fiftyTwoWeekHigh: item.high || price * 1.1,
+            fiftyTwoWeekLow: item.low || price * 0.9,
+            sector: customMeta.sector || 'Indian Index',
+            industry: 'Market Benchmark Index',
+            longBusinessSummary: customMeta.desc || 'Market Index'
+          });
+          continue;
+        }
 
         const pe = parseFloat((18 + rand() * 22).toFixed(2));
         const eps = parseFloat((price / pe).toFixed(2));

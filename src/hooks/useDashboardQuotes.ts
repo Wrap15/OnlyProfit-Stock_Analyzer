@@ -26,27 +26,27 @@ function getInitialSeededQuotes(): any[] {
     if (symbol === '^BSESN') {
       return {
         symbol: '^BSESN',
-        regularMarketPrice: 78954.76,
-        regularMarketChange: 120.45,
-        regularMarketChangePercent: 0.15,
+        regularMarketPrice: 78451.00,
+        regularMarketChange: -503.76,
+        regularMarketChangePercent: -0.64,
         regularMarketVolume: 0
       };
     }
     if (symbol === '^NSEI') {
       return {
         symbol: '^NSEI',
-        regularMarketPrice: 24636.10,
-        regularMarketChange: 45.20,
-        regularMarketChangePercent: 0.18,
+        regularMarketPrice: 24557.00,
+        regularMarketChange: -79.00,
+        regularMarketChangePercent: -0.32,
         regularMarketVolume: 0
       };
     }
     if (symbol === '^NSEBANK') {
       return {
         symbol: '^NSEBANK',
-        regularMarketPrice: 57740.00,
-        regularMarketChange: 85.10,
-        regularMarketChangePercent: 0.15,
+        regularMarketPrice: 57801.15,
+        regularMarketChange: -262.50,
+        regularMarketChangePercent: -0.45,
         regularMarketVolume: 0
       };
     }

@@ -40,8 +40,8 @@ function getMockQuote(symbol: string) {
       }
     });
 
-    const liveChange = totalWeight > 0 ? (weightedChange / totalWeight) : (Math.sin(Date.now() / 90000) * 0.45);
-    const basePrice = 78954.76;
+    const liveChange = totalWeight > 0 ? (weightedChange / totalWeight) : 0;
+    const basePrice = 78451.00;
     randomPrice = basePrice * (1 + liveChange / 100);
     randomChangePercent = liveChange;
   }
@@ -70,20 +70,18 @@ function getMockQuote(symbol: string) {
       }
     });
 
-    const liveChange = totalWeight > 0 ? (weightedChange / totalWeight) : (Math.sin(Date.now() / 85000) * 0.42);
-    const basePrice = 24636.10;
+    const liveChange = totalWeight > 0 ? (weightedChange / totalWeight) : 0;
+    const basePrice = 24557.00;
     randomPrice = basePrice * (1 + liveChange / 100);
     randomChangePercent = liveChange;
   }
   else if (symbol === '^NSEBANK') {
-    const drift = Math.sin(Date.now() / 80000) * 0.35;
-    randomPrice = 57740.00 * (1 + drift / 100);
-    randomChangePercent = drift;
+    randomPrice = 57801.15;
+    randomChangePercent = -0.45;
   }
   else if (symbol === '^CNXIT') {
-    const drift = Math.sin(Date.now() / 110000) * 0.28;
-    randomPrice = 31400.00 * (1 + drift / 100);
-    randomChangePercent = drift;
+    randomPrice = 31548.10;
+    randomChangePercent = 1.42;
   }
 
   const change = (randomPrice * randomChangePercent) / 100;

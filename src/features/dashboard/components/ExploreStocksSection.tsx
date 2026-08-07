@@ -79,11 +79,21 @@ export default function ExploreStocksSection({ marketQuotes }: ExploreStocksSect
     setExploreLoading(true);
     const delayDebounce = setTimeout(async () => {
       try {
-        const res = await apiClient.get<any[]>(`/api/stock/search?q=${encodeURIComponent(searchFilter)}`);
+        const res = await apiClient.get<any[]>(`/api/stock/search?q=${encodeURIComponent(searchFilter)}&type=equity`);
         const searchResults = res.data || [];
-        const symbols = searchResults
+        let symbols = searchResults
           .filter((r) => r.type !== 'MUTUALFUND' && r.exchange !== 'MF')
           .map((r) => r.symbol);
+
+        // Offline / empty search results fallback
+        if (symbols.length === 0) {
+          const cleanQuery = searchFilter.toUpperCase().trim();
+          symbols = Object.keys(MOCK_STOCK_INFO).filter((sym) => {
+            const cleanSym = sym.toUpperCase().replace('.NS', '').replace('.BO', '');
+            const companyName = (MOCK_STOCK_INFO[sym]?.name || '').toUpperCase();
+            return cleanSym.includes(cleanQuery) || companyName.includes(cleanQuery);
+          });
+        }
 
         // Apply filters to dynamic API search results too
         const filtered = symbols.filter((sym) => {

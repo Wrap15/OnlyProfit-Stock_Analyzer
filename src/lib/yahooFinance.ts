@@ -1412,8 +1412,8 @@ const MOCK_BASE_PRICES: Record<string, number> = {
   'BFUTILITIE.NS': 720.00,
 
   // Indices
-  '^NSEI': 24660.00,
-  '^BSESN': 78830.00,
+  '^NSEI': 24636.10,
+  '^BSESN': 78954.76,
   '^NSEBANK': 57740.00,
   '^CNXIT': 31400.00
 };

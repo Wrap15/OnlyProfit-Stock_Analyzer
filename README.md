@@ -23,45 +23,38 @@ Built on Next.js 14, OnlyProfit incorporates hardware-accelerated 60 FPS animati
 - **Exact 3:30:00 PM IST Market Close Enforcement**: Evaluates market hours with second precision (`09:15:00 AM` to `15:30:00 PM IST`). At 3:30 PM sharp, live tick updates freeze instantly, and market badges flip to "Market Closed".
 - **Color-Coded Dynamic Prices**: Green font color highlight on price increases and red on price decreases with smooth CSS transitions.
 
-### 2. 📊 Advanced Synchronized Trading Charts & Indicators
-- **High-Fidelity Candlestick/Area Views**: Seamless toggle between Line/Area charts and standard Candlestick series.
-- **1-Minute Chart Resolution**: Intraday `1d` chart interval upgraded from `5m` to `1m` (1-minute candles) to match real-world trading configurations.
-- **Technical Overlay Indicators**: Toggle overlay lines on the main price pane:
-  - **SMA-20** (Simple Moving Average)
-  - **Bollinger Bands (20, 2)**: Plots upper, lower, and middle basis lines dynamically.
-  - **SuperTrend (10, 1.5)**: Employs Average True Range (ATR) to draw green/red trend-following step lines.
-- **Synchronized Oscillator Panels**:
-  - **RSI (14)** sub-panel featuring overbought (70) and oversold (30) boundary highlights.
-  - **MACD (12, 26, 9)** sub-panel charting MACD line, Signal line, and colored volume histograms (green/red).
-- **Time-Axis and Scroll Sync**: Zooming or panning on any chart pane automatically synchronizes the scroll timeline across all active indicators.
-- **Cache-Busting Data Feeds**: Chart data updates in real-time every **15 seconds** with background API calls utilizing a custom `&nocache=${Date.now()}` query parameter to bypass CDN caching.
-- **Integrated Floating HTML Tooltip**: Tracks crosshairs dynamically, presenting Open, High, Low, Close, Volume, and active technical indicator values simultaneously.
+### 2. 📊 Groww-Style Stock Overview Page Integration
+- **Condensed Tab Controls**: Simplified stock details page tabs to: **Charts** (default), **Overview**, and **Option Chain** for a clean, modern interface.
+- **Scrollspy Sub-Navigation**: Segmented sub-navigation filter pills inside the **Overview** tab: `Activity`, `Fundamental Ratios`, `Performance Overview`, `Shareholding Patterns`, and `Price Summary`.
+- **Detailed Sub-Sections**:
+  - **Activity**: Shows volume, average price, bid/ask spreads, dynamic upper/lower circuit limits, 52-week sliders, and buy/hold/sell analyst consensus.
+  - **Fundamental Ratios**: Displays PE ratio, PB ratio, PEG, and ROE in nested sub-tabs (*Valuation, Growth, Financial, Dividend*).
+  - **Performance**: Displays sector standing, annual returns, quality/valuation/financial health meters, and strategic insights.
+  - **Shareholding Patterns**: Visualizes Jun 26 vs Mar 26 shareholding comparisons across promoters, FIIs, DIIs, and retail investors with change indicators.
+  - **Price Summary**: Bulleted highlight cards illustrating performance today, moving average trends, trend reversals, and rising delivery indicators.
 
-### 3. 💼 Virtual Equity Paper Trading Simulator & Auth Protection
-- **₹10,00,000 Starting Virtual Capital**: Trade 30+ top Indian equities risk-free in a virtual paper trading environment.
-- **Enforced Authentication Guards**: Enforces strict user sign-in before executing or submitting orders. Unauthenticated guest users are blocked from trading and automatically prompted with the Sign-In / Register Modal.
-- **Order Placement Modal**: Supports Market, Limit, and Stop-Loss (SL) orders for CNC (Delivery) and MIS (Intraday) product types with auto square-off indicators and fee breakdowns (brokerage, STT, exchange charges).
-- **Portfolio & P&L Tracker**: Calculates real-time 1D Returns, Total P&L, holdings, executed order history, and net portfolio value with direct **Buy** and **Sell** action buttons.
+### 3. 📁 Portfolio Folder Badges & Purchase Date Metadata
+- **Ticker Row Badges**: Displays a reactive folder icon next to stock ticker symbols (e.g., `[folder] 5`) in both mobile list views and desktop cards.
+- **Interactive Tooltip**: Hovering or tapping on the folder badge displays a custom tooltip indicating the first transaction date: **`Bought on [Purchase Date]`**.
+- **0ms Reactive Updates**: Synchronized with the Zustand local storage and Firestore holdings. Whenever a paper trade is completed, folder states update instantly.
 
-### 4. 🎯 Mutual Fund Hub & Interactive Returns Calculator
-- **AMFI Integration**: Direct-growth mutual funds (Small-Cap, Mid-Cap, Flexi-Cap, Index Funds) fetched with live NAV rates.
-- **Interactive Returns Calculator**: Toggle between **Monthly SIP** and **Lumpsum** modes with:
-  - **Quick Amount Chips**: Instant selection (`₹1k`, `₹2.5k`, `₹5k`, `₹10k`, `₹25k`, `₹50k` for SIP; `₹10k`, `₹25k`, `₹50k`, `₹1L`, `₹5L`, `₹10L` for Lumpsum).
-  - **Timeframe Presets**: 1-tap duration pills (`1Y`, `3Y`, `5Y`, `10Y`, `15Y`, `20Y`, `30Y`).
-  - **Reactive Visualizations**: SVG Doughnut chart and dual-color progress breakdown bars separating Invested Amount vs Est. Returns.
-  - **Wealth Growth Badge**: Dynamic multiplier display (e.g., `2.4x Growth`).
+### 4. ⚡ 10x Fast Search & Local Fuzzy Fallbacks
+- **Bypassed AMFI Latency**: Passing `type=equity` to the search API bypasses the slow external AMFI mutual fund search, speeding up equity autocompletes by 10x (~50ms).
+- **Fuzzy Local Search Fallback**: Automatically performs in-memory matching on symbols and company names in `MOCK_STOCK_INFO` when endpoints return empty results or are offline, preventing search freezes.
 
-### 5. 🔥 Today's Market Drivers (NSE Index Filters)
-- **Groww-Style Segmented Trackers**: Swapped capitalization filter pills with actual Indian Market indices filters (**Nifty 100**, **Nifty 50**, **Largecap**, **Midcap**, and **Smallcap**) for gainers, losers, and volume movers.
-- **Crash-Proof Responsive Sidebar**: Displays movers in a 60 FPS hardware-accelerated card list format optimized for narrow sidebar columns (~340px) as well as full-width mobile viewports.
+### 5. 🏛️ Glitch-Free Sensex & Nifty Index Calculations
+- **Dynamic Constituent-Weighted Fallback**: Implemented a weighted calculation fallback that computes BSE Sensex (`^BSESN`) and Nifty 50 (`^NSEI`) index changes dynamically using the top 10 heaviest constituents.
+- **Self-Correcting Data Feeds**: Since constituents are loaded directly from the rate-limit free Tickertape API, index valuations remain highly accurate even if Yahoo Finance endpoints are temporarily blocked.
 
-### 6. 🤖 Premium AI Copilot Stock & Fund Analyst
-- **Real-World Conversational Brain**: Upgraded backend processor to analyze and discuss CAGR calculations, P/E & P/B metrics, risk stats (standard deviation), indices details, and direct equity vs. mutual fund allocations.
-- **Dynamic NLP Keyword Parser**: Resolves off-topic or general queries in real-time by extracting context nouns and constructing tailored strategy scan reviews.
-- **Premium Chat Interface UI**: Refactored layout featuring an "Online" glowing status strip, smooth Framer Motion message load animations, styled card bubbles, and a floating pill input box.
+### 6. 📊 Synced Trading Charts & overlay Indicators
+- **Overlay Indicators**: Toggle overlay lines on the main price pane: SMA-20, Bollinger Bands (20, 2), and SuperTrend (10, 1.5).
+- **Oscillator Panels**: Synchronized RSI (14) and MACD (12, 26, 9) sub-panels with unified scroll, zoom, and crosshair sync.
+- **Floating Crosshair Tooltip**: Displays Open, High, Low, Close, Volume, and active indicator values simultaneously.
 
-### 7. 📱 Reactive Mobile Navigation
-- **0ms Navigation Latency**: Intercepts same-page clicks in the mobile bottom navigation bar and dispatches custom global notifications to render dashboard tabs instantly without router delays or dead presses.
+### 7. 💼 Virtual Equity Paper Trading Simulator & Auth Protection
+- **₹10,00,000 Starting Virtual Capital**: Trade 30+ top Indian equities risk-free.
+- **Authentication Guards**: Prompts auth guards before executing orders to secure simulator trades.
+- **Order Placement Modal**: Supports Market, Limit, and Stop-Loss (SL) orders for CNC and MIS Intraday with detailed fee breakdowns.
 
 ---
 
@@ -179,9 +172,8 @@ Any changes saved to `src/` will instantly update in the browser.
 ### Step 5: Test Production Build
 To run TypeScript validation, ESLint checks, and compile the optimized production bundle:
 ```bash
-Remove-Item -Recurse -Force .next; npm run build
+npm run build
 ```
-*(On Linux/Mac bash: `rm -rf .next && npm run build`)*
 
 Expected terminal output upon successful compilation:
 ```text

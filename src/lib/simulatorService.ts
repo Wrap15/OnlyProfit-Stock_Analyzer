@@ -77,6 +77,7 @@ function saveLocalState(userId: string | null, state: SimulatorState) {
   if (typeof window !== 'undefined') {
     const key = userId ? `onlyprofit_simulator_user_${userId}` : 'onlyprofit_simulator_guest';
     localStorage.setItem(key, JSON.stringify(state));
+    window.dispatchEvent(new CustomEvent('onlyprofit-portfolio-update'));
   }
 }
 

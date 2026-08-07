@@ -20,6 +20,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 
   const [isOffline, setIsOffline] = useState(false);
 
+  // 1. Connection status listeners
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setIsOffline(!window.navigator.onLine);

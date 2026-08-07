@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Star, ChevronRight } from 'lucide-react';
+import { Star, ChevronRight, Folder } from 'lucide-react';
 import { useStockStore } from '@/store/useStockStore';
 import MiniSparkline from './MiniSparkline';
 import { apiClient as axios } from '@/lib/apiClient';
@@ -66,7 +66,7 @@ interface StockCardProps {
 }
 
 export default function StockCard({ symbol, initialQuote }: StockCardProps) {
-  const { watchlist, toggleWatchlist } = useStockStore();
+  const { watchlist, toggleWatchlist, userId } = useStockStore();
   
   const [data, setData] = useState<{
     name: string;
@@ -93,6 +93,61 @@ export default function StockCard({ symbol, initialQuote }: StockCardProps) {
   const containerRef = React.useRef<HTMLDivElement>(null);
 
   const isFavorited = watchlist.includes(symbol);
+
+  const [holdingInfo, setHoldingInfo] = useState<{ quantity: number; date: string } | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const loadHoldingData = () => {
+      try {
+        const key = userId ? `onlyprofit_simulator_user_${userId}` : 'onlyprofit_simulator_guest';
+        const stored = localStorage.getItem(key);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && Array.isArray(parsed.holdings)) {
+            const cleanSym = symbol.toUpperCase().replace('.NS', '').replace('.BO', '');
+            const matched = parsed.holdings.find((h: any) => 
+              h.symbol.toUpperCase().replace('.NS', '').replace('.BO', '') === cleanSym
+            );
+            if (matched && matched.quantity > 0) {
+              let purchaseDate = 'N/A';
+              if (Array.isArray(parsed.history)) {
+                const buys = parsed.history.filter((h: any) => 
+                  h.symbol.toUpperCase().replace('.NS', '').replace('.BO', '') === cleanSym && 
+                  h.side === 'BUY'
+                );
+                if (buys.length > 0) {
+                  const sorted = buys.sort((a: any, b: any) => {
+                    const timeA = typeof a.timestamp === 'number' ? a.timestamp : new Date(a.timestamp).getTime();
+                    const timeB = typeof b.timestamp === 'number' ? b.timestamp : new Date(b.timestamp).getTime();
+                    return timeA - timeB;
+                  });
+                  purchaseDate = new Date(sorted[0].timestamp).toLocaleDateString('en-IN', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric'
+                  });
+                }
+              }
+              setHoldingInfo({ quantity: matched.quantity, date: purchaseDate });
+              return;
+            }
+          }
+        }
+        setHoldingInfo(null);
+      } catch (err) {
+        console.warn('Failed to load holding info in StockCard', err);
+      }
+    };
+
+    loadHoldingData();
+
+    window.addEventListener('onlyprofit-portfolio-update', loadHoldingData);
+    return () => {
+      window.removeEventListener('onlyprofit-portfolio-update', loadHoldingData);
+    };
+  }, [userId, symbol]);
 
 
 
@@ -265,6 +320,14 @@ export default function StockCard({ symbol, initialQuote }: StockCardProps) {
           <div className="flex flex-col min-w-0">
             <div className="flex flex-wrap items-center gap-1">
               <span className="font-extrabold text-[11px] text-text-primary truncate">{symbol.split('.')[0]}</span>
+              {holdingInfo && (
+                <span 
+                  title={`Bought on ${holdingInfo.date}`}
+                  className="inline-flex items-center gap-0.5 text-[8px] font-black text-text-secondary bg-background/80 border border-border px-1 py-0.2 rounded shrink-0 shadow-xs"
+                >
+                  <Folder className="h-2.2 w-2.2 text-profit" /> {holdingInfo.quantity}
+                </span>
+              )}
               {!symbol.startsWith('^') && (
                 <span className="text-[6.5px] font-bold px-0.5 rounded bg-background border border-border text-text-secondary uppercase select-none">
                   EQ
@@ -336,10 +399,19 @@ export default function StockCard({ symbol, initialQuote }: StockCardProps) {
           <div className="flex items-center gap-3 min-w-0">
             <StockLogo symbol={symbol} size="md" />
             <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <h3 className="font-extrabold text-sm text-text-primary tracking-tight truncate">
                   {symbol.split('.')[0]}
                 </h3>
+                {holdingInfo && (
+                  <span 
+                    title={`Bought on ${holdingInfo.date}`}
+                    className="inline-flex items-center gap-1 text-[8.5px] font-black text-text-secondary bg-background border border-border/60 px-1.5 py-0.2 rounded-md shadow-xs shrink-0"
+                  >
+                    <Folder className="h-2.5 w-2.5 text-profit" /> {holdingInfo.quantity}
+                    <span className="text-[7px] text-text-secondary/60 ml-0.5 font-normal">({holdingInfo.date})</span>
+                  </span>
+                )}
                 {!symbol.startsWith('^') && (
                   <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-background border border-border/80 text-text-secondary select-none uppercase tracking-wider">
                     EQ

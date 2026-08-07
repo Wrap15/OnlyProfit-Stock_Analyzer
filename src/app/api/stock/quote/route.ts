@@ -13,11 +13,79 @@ function getMockQuote(symbol: string) {
 
   const seed = symbol.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   let randomPrice = 100 + (seed % 900) + (seed % 10) * 0.1;
-  if (symbol === '^BSESN') randomPrice = 78830.00;
-  else if (symbol === '^NSEI') randomPrice = 24660.00;
-  else if (symbol === '^NSEBANK') randomPrice = 57740.00;
-  else if (symbol === '^CNXIT') randomPrice = 31400.00;
-  const randomChangePercent = ((seed % 15) - 7) / 2; // e.g. -3.5% to +3.5%
+  let randomChangePercent = ((seed % 15) - 7) / 2; // default fallback
+
+  if (symbol === '^BSESN') {
+    // Dynamically calculate from constituent quotes in cache
+    const SENSEX_CONSTITUENTS = [
+      { symbol: 'HDFCBANK.NS', weight: 14.00 },
+      { symbol: 'RELIANCE.NS', weight: 10.70 },
+      { symbol: 'ICICIBANK.NS', weight: 10.20 },
+      { symbol: 'BHARTIARTL.NS', weight: 6.50 },
+      { symbol: 'INFY.NS', weight: 5.50 },
+      { symbol: 'LT.NS', weight: 5.00 },
+      { symbol: 'SBIN.NS', weight: 4.80 },
+      { symbol: 'TCS.NS', weight: 4.20 },
+      { symbol: 'AXISBANK.NS', weight: 3.80 },
+      { symbol: 'ITC.NS', weight: 3.50 }
+    ];
+    let totalWeight = 0;
+    let weightedChange = 0;
+    SENSEX_CONSTITUENTS.forEach(c => {
+      const cached = quoteCache[c.symbol];
+      if (cached && cached.data) {
+        const pct = cached.data.regularMarketChangePercent ?? 0;
+        weightedChange += pct * c.weight;
+        totalWeight += c.weight;
+      }
+    });
+
+    const liveChange = totalWeight > 0 ? (weightedChange / totalWeight) : (Math.sin(Date.now() / 90000) * 0.45);
+    const basePrice = 78954.76;
+    randomPrice = basePrice * (1 + liveChange / 100);
+    randomChangePercent = liveChange;
+  }
+  else if (symbol === '^NSEI') {
+    // Dynamically calculate from Nifty constituents in cache
+    const NIFTY_CONSTITUENTS = [
+      { symbol: 'HDFCBANK.NS', weight: 11.72 },
+      { symbol: 'RELIANCE.NS', weight: 9.39 },
+      { symbol: 'ICICIBANK.NS', weight: 8.32 },
+      { symbol: 'BHARTIARTL.NS', weight: 5.20 },
+      { symbol: 'LT.NS', weight: 4.43 },
+      { symbol: 'INFY.NS', weight: 4.12 },
+      { symbol: 'TCS.NS', weight: 3.77 },
+      { symbol: 'SBIN.NS', weight: 3.71 },
+      { symbol: 'AXISBANK.NS', weight: 3.42 },
+      { symbol: 'KOTAKBANK.NS', weight: 2.62 }
+    ];
+    let totalWeight = 0;
+    let weightedChange = 0;
+    NIFTY_CONSTITUENTS.forEach(c => {
+      const cached = quoteCache[c.symbol];
+      if (cached && cached.data) {
+        const pct = cached.data.regularMarketChangePercent ?? 0;
+        weightedChange += pct * c.weight;
+        totalWeight += c.weight;
+      }
+    });
+
+    const liveChange = totalWeight > 0 ? (weightedChange / totalWeight) : (Math.sin(Date.now() / 85000) * 0.42);
+    const basePrice = 24636.10;
+    randomPrice = basePrice * (1 + liveChange / 100);
+    randomChangePercent = liveChange;
+  }
+  else if (symbol === '^NSEBANK') {
+    const drift = Math.sin(Date.now() / 80000) * 0.35;
+    randomPrice = 57740.00 * (1 + drift / 100);
+    randomChangePercent = drift;
+  }
+  else if (symbol === '^CNXIT') {
+    const drift = Math.sin(Date.now() / 110000) * 0.28;
+    randomPrice = 31400.00 * (1 + drift / 100);
+    randomChangePercent = drift;
+  }
+
   const change = (randomPrice * randomChangePercent) / 100;
 
   return {

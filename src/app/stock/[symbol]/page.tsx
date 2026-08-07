@@ -50,15 +50,9 @@ const RANGES = [
 ];
 
 const TABS = [
+  { id: 'charts', label: 'Charts' },
   { id: 'overview', label: 'Overview' },
-  { id: 'options', label: 'Option Chain' },
-  { id: 'financials', label: 'Financials' },
-  { id: 'fundamentals', label: 'Fundamentals' },
-  { id: 'technicals', label: 'Technicals' },
-  { id: 'shareholding', label: 'Shareholding' },
-  { id: 'peers', label: 'Peers' },
-  { id: 'news', label: 'News & Events' },
-  { id: 'profile', label: 'Company Profile' }
+  { id: 'options', label: 'Option Chain' }
 ] as const;
 
 type ActiveTabType = (typeof TABS)[number]['id'];
@@ -241,7 +235,7 @@ export default function StockDetailPage() {
   } = useStockDetails(symbol);
 
   // Layout configurations
-  const [activeTab, setActiveTab] = useState<ActiveTabType>('overview');
+  const [activeTab, setActiveTab] = useState<ActiveTabType>('charts');
 
   // Modals & triggers
   const [showAlertModal, setShowAlertModal] = useState(false);
@@ -388,41 +382,59 @@ export default function StockDetailPage() {
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3 items-start">
         
         {/* Left Column (2/3 width) */}
+        {/* Left Column (2/3 width) */}
         <div className="lg:col-span-2 space-y-6">
-          
-          {/* Interactive Chart Container */}
-          <div className="bg-card border border-border rounded-3xl p-4 sm:p-6 space-y-4">
-            <div className="flex items-center justify-between gap-4 flex-wrap border-b border-border/40 pb-3">
-              <div>
-                <h2 className="text-sm font-black text-text-primary uppercase tracking-wider flex items-center gap-1.5">
-                  <Activity className="h-4.5 w-4.5 text-profit" /> Technical Chart Feed
-                </h2>
-                <p className="text-[10px] text-text-secondary font-semibold mt-0.5">Live stock price trajectory mapped across custom intervals.</p>
-              </div>
-            </div>
-
-            <StockChart symbol={symbol} isPositive={isPositive} />
-          </div>
 
           {/* Sticky Tabbed Navigation strip */}
-          <div className="sticky top-[68px] z-20 bg-background/95 backdrop-blur-md py-2.5 border-b border-border/80 flex items-center gap-1.5 overflow-x-auto scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`px-4 py-2 text-xs font-black rounded-xl transition-all whitespace-nowrap border shrink-0 cursor-pointer ${
-                  activeTab === tab.id
-                    ? 'bg-profit/10 border-profit/25 text-profit'
-                    : 'border-transparent text-text-secondary hover:text-text-primary hover:bg-background/40'
-                }`}
+          <div className="sticky top-[68px] z-20 bg-background/95 backdrop-blur-md py-2.5 border-b border-border/80 flex items-center justify-between gap-4 -mx-4 px-4 sm:mx-0 sm:px-0">
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+              {TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`px-4 py-2 text-xs font-black rounded-xl transition-all whitespace-nowrap border shrink-0 cursor-pointer ${
+                    activeTab === tab.id
+                      ? 'bg-profit/10 border-profit/25 text-profit'
+                      : 'border-transparent text-text-secondary hover:text-text-primary hover:bg-background/40'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="hidden md:flex items-center gap-3 shrink-0 text-[10px] font-black uppercase tracking-wider text-indigo-400">
+              <button 
+                onClick={() => { setActiveTab('overview'); setTimeout(() => { window.scrollTo({ top: 380, behavior: 'smooth' }); }, 50); }}
+                className="hover:text-indigo-300 transition-colors cursor-pointer flex items-center gap-0.5"
               >
-                {tab.label}
+                Technicals &gt;
               </button>
-            ))}
+              <button 
+                onClick={() => { setActiveTab('overview'); setTimeout(() => { window.scrollTo({ top: 880, behavior: 'smooth' }); }, 50); }}
+                className="hover:text-indigo-300 transition-colors cursor-pointer flex items-center gap-0.5"
+              >
+                Security Details &gt;
+              </button>
+            </div>
           </div>
 
           {/* Active Tab Panel Content Switches */}
           <div className="transition-all duration-200">
+            {activeTab === 'charts' && (
+              <div className="bg-card border border-border rounded-3xl p-4 sm:p-6 space-y-4">
+                <div className="flex items-center justify-between gap-4 flex-wrap border-b border-border/40 pb-3">
+                  <div>
+                    <h2 className="text-sm font-black text-text-primary uppercase tracking-wider flex items-center gap-1.5">
+                      <Activity className="h-4.5 w-4.5 text-profit" /> Technical Chart Feed
+                    </h2>
+                    <p className="text-[10px] text-text-secondary font-semibold mt-0.5">Live stock price trajectory mapped across custom intervals.</p>
+                  </div>
+                </div>
+                <StockChart symbol={symbol} isPositive={isPositive} />
+              </div>
+            )}
+
             {activeTab === 'overview' && (
               <StockOverviewTab 
                 quote={quote}
@@ -448,62 +460,6 @@ export default function StockDetailPage() {
                 setSelectedExpiry={setSelectedExpiry}
                 onTrade={handleOpenTradeModal}
               />
-            )}
-
-            {activeTab === 'financials' && (
-              <StockFinancialsTab 
-                financialsData={financialsData}
-                isPositive={isPositive}
-                formatIndianNumber={formatIndianNumber}
-              />
-            )}
-
-            {activeTab === 'fundamentals' && (
-              <StockFundamentalsTab 
-                quote={quote}
-                roe={roe}
-                debtToEquity={debtToEquity}
-                bookValue={bookValue}
-              />
-            )}
-
-            {activeTab === 'technicals' && (
-              <StockTechnicalsTab 
-                quote={quote}
-                technicals={technicals}
-              />
-            )}
-
-            {activeTab === 'shareholding' && (
-              <StockShareholdingTab 
-                promoter={promoter}
-                fii={fii}
-                dii={dii}
-                mf={mf}
-                otherDii={otherDii}
-                retail={retail}
-              />
-            )}
-
-            {activeTab === 'peers' && (
-              <StockPeersTab 
-                peerQuotes={peerQuotes}
-                peersLoading={peersLoading}
-                formatIndianNumber={formatIndianNumber}
-                onAnalyze={(sym) => router.push(`/stock/${sym}`)}
-              />
-            )}
-
-            {activeTab === 'news' && (
-              <StockNewsTab 
-                newsList={liveNews}
-                newsLoading={newsLoading}
-                eventsList={eventsList}
-              />
-            )}
-
-            {activeTab === 'profile' && (
-              <StockProfileTab quote={quote} />
             )}
           </div>
 

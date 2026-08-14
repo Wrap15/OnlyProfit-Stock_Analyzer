@@ -53,7 +53,7 @@ type CapType = 'all' | 'large' | 'mid' | 'small';
 
 export default function TodaysStocksSection({ marketQuotes, onTrade }: TodaysStocksSectionProps) {
   const [activeTab, setActiveTab] = useState<TabType>('gainers');
-  const [activeIndex, setActiveIndex] = useState<'nifty100' | 'nifty50' | 'largecap' | 'midcap' | 'smallcap'>('nifty100');
+  const [activeIndex, setActiveIndex] = useState<'largecap' | 'midcap' | 'smallcap'>('largecap');
 
   const processedList = useMemo(() => {
     try {
@@ -61,13 +61,6 @@ export default function TodaysStocksSection({ marketQuotes, onTrade }: TodaysSto
         .filter((q) => q && q.symbol && !q.symbol.startsWith('^'))
         .filter((q) => {
           const cleanSymbol = q.symbol.trim().toUpperCase();
-          if (activeIndex === 'nifty50') {
-            return LARGE_CAP_SYMBOLS.slice(0, 50).map(s => s.trim().toUpperCase()).includes(cleanSymbol);
-          }
-          if (activeIndex === 'nifty100') {
-            const nifty100List = [...LARGE_CAP_SYMBOLS, ...MID_CAP_SYMBOLS.slice(0, 25)];
-            return nifty100List.map(s => s.trim().toUpperCase()).includes(cleanSymbol);
-          }
           if (activeIndex === 'largecap') {
             return LARGE_CAP_SYMBOLS.map(s => s.trim().toUpperCase()).includes(cleanSymbol);
           }
@@ -119,8 +112,6 @@ export default function TodaysStocksSection({ marketQuotes, onTrade }: TodaysSto
       // Emergency fallback if final list is empty
       if (list.length === 0) {
         let fallbackSymbols: string[] = LARGE_CAP_SYMBOLS.slice(0, 5);
-        if (activeIndex === 'nifty50') fallbackSymbols = LARGE_CAP_SYMBOLS.slice(0, 5);
-        if (activeIndex === 'nifty100') fallbackSymbols = LARGE_CAP_SYMBOLS.slice(0, 8);
         if (activeIndex === 'largecap') fallbackSymbols = LARGE_CAP_SYMBOLS.slice(0, 5);
         if (activeIndex === 'midcap') fallbackSymbols = MID_CAP_SYMBOLS.slice(0, 5);
         if (activeIndex === 'smallcap') fallbackSymbols = SMALL_CAP_SYMBOLS.slice(0, 5);
@@ -205,8 +196,6 @@ export default function TodaysStocksSection({ marketQuotes, onTrade }: TodaysSto
         {/* Index Filter segmented pill buttons */}
         <div className="flex p-0.5 rounded-xl bg-card border border-border/60 self-start sm:self-auto shadow-inner">
           {[
-            { id: 'nifty100', label: 'Nifty 100' },
-            { id: 'nifty50', label: 'Nifty 50' },
             { id: 'largecap', label: 'Largecap' },
             { id: 'midcap', label: 'Midcap' },
             { id: 'smallcap', label: 'Smallcap' }

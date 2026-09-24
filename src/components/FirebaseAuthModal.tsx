@@ -71,6 +71,10 @@ export default function FirebaseAuthModal({ isOpen, onClose, onSuccess }: Fireba
     if (isPro) {
       activatePro();
     }
+    // Automatically migrate local trades into user's Gmail Firestore account
+    import('@/lib/simulatorService').then(({ syncLocalDataToFirestore }) => {
+      syncLocalDataToFirestore(user.uid).catch(() => {});
+    });
   };
 
   // Check redirect result on mount (when returning from Google Sign-In redirect)

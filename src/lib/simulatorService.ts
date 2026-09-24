@@ -1,9 +1,9 @@
-import { doc, getDoc, setDoc, collection, getDocs, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { isIndianMarketOpen } from './marketHours';
 
-// Helper to wrap a promise with a timeout
-function withTimeout<T>(promise: Promise<T>, ms = 1500): Promise<T> {
+// Helper to wrap a promise with a timeout (8000ms for stable Firestore sync)
+function withTimeout<T>(promise: Promise<T>, ms = 8000): Promise<T> {
   return Promise.race([
     promise,
     new Promise<never>((_, reject) =>
@@ -152,7 +152,7 @@ export async function getSimulatorState(userId: string | null): Promise<Simulato
       saveLocalState(userId, localState);
 
       return localState;
-    })(), 1500);
+    })(), 8000);
   } catch (err) {
     console.error('Failed to load Firestore simulator state, falling back to LocalStorage:', err);
     return getLocalState(userId);
@@ -171,7 +171,7 @@ export async function saveCashBalance(userId: string | null, cash: number) {
   }
   try {
     const walletRef = doc(db, 'users', userId, 'simulator', 'wallet');
-    await withTimeout(setDoc(walletRef, { cash }, { merge: true }), 1500);
+    await withTimeout(setDoc(walletRef, { cash }, { merge: true }), 8000);
   } catch (err) {
     console.warn('saveCashBalance Firestore write failed/timed out, saved locally:', err);
   }
@@ -391,7 +391,7 @@ async function recordOrderInDB(userId: string | null, order: SimulatorOrder): Pr
       executionPrice: order.executionPrice ?? null,
     };
 
-    await withTimeout(setDoc(docRef, orderData, { merge: true }), 1500);
+    await withTimeout(setDoc(docRef, orderData, { merge: true }), 8000);
 
     if (!order.id || order.id.startsWith('local-')) {
       order.id = docRef.id;
@@ -431,7 +431,7 @@ export async function cancelOrder(userId: string | null, orderId: string): Promi
 
   try {
     const orderRef = doc(db, 'users', userId, 'simulator_orders', orderId);
-    await withTimeout(updateDoc(orderRef, { status: 'CANCELLED' }), 1500);
+    await withTimeout(updateDoc(orderRef, { status: 'CANCELLED' }), 8000);
     return true;
   } catch (err) {
     console.warn('Failed to cancel order in Firestore, local cache is primary:', err);
@@ -541,7 +541,7 @@ async function saveHoldingInDB(userId: string | null, holding: SimulatorHolding)
   if (!userId) return;
   try {
     const holdingRef = doc(db, 'users', userId, 'simulator_holdings', holding.symbol);
-    await withTimeout(setDoc(holdingRef, holding), 1500);
+    await withTimeout(setDoc(holdingRef, holding), 8000);
   } catch (err) {
     console.warn(`saveHoldingInDB Firestore write failed/timed out for ${holding.symbol}:`, err);
   }
@@ -551,7 +551,7 @@ async function deleteHoldingInDB(userId: string | null, symbol: string) {
   if (!userId) return;
   try {
     const holdingRef = doc(db, 'users', userId, 'simulator_holdings', symbol);
-    await withTimeout(deleteDoc(holdingRef), 1500);
+    await withTimeout(deleteDoc(holdingRef), 8000);
   } catch (err) {
     console.warn(`deleteHoldingInDB Firestore write failed/timed out for ${symbol}:`, err);
   }
@@ -626,7 +626,7 @@ async function savePositionInDB(userId: string | null, position: SimulatorPositi
   if (!userId) return;
   try {
     const positionRef = doc(db, 'users', userId, 'simulator_positions', position.symbol);
-    await withTimeout(setDoc(positionRef, position), 1500);
+    await withTimeout(setDoc(positionRef, position), 8000);
   } catch (err) {
     console.warn(`savePositionInDB Firestore write failed/timed out for ${position.symbol}:`, err);
   }
@@ -779,7 +779,7 @@ export async function syncLocalDataToFirestore(userId: string): Promise<void> {
       saveLocalState(null, clearedState);
       
       console.log('Successfully synced guest simulator data to user Firestore database.');
-    })(), 3000);
+    })(), 12000);
   } catch (err) {
     console.error('Failed to sync guest simulator data to Firestore:', err);
   }

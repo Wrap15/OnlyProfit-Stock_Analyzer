@@ -98,6 +98,11 @@ export default function Navbar() {
             deactivatePro();
           }
 
+          // Automatically sync local trades to user's cloud Gmail Firestore account
+          import('@/lib/simulatorService').then(({ syncLocalDataToFirestore }) => {
+            syncLocalDataToFirestore(user.uid).catch(() => {});
+          });
+
           // Subscribe to database changes. Log out instantly if a different session ID overwrites ours.
           unsubSession = onSnapshot(userRef, (snap) => {
             if (snap.exists()) {

@@ -37,6 +37,17 @@ interface StockState {
   toggleMobileMenu: (open?: boolean) => void;
   isAuthModalOpen: boolean;
   toggleAuthModal: (open?: boolean) => void;
+  userMpin: string | null;
+  isSimulatorUnlocked: boolean;
+  mpinFailedAttempts: number;
+  mpinLockoutUntil: number | null;
+  setUserMpin: (mpin: string | null) => void;
+  unlockSimulator: () => void;
+  lockSimulator: () => void;
+  registerFailedMpinAttempt: () => number;
+  resetFailedMpinAttempts: () => void;
+  setMpinLockout: (untilTimestamp: number) => void;
+  clearMpinLockout: () => void;
 }
 
 export const useStockStore = create<StockState>()(
@@ -131,6 +142,30 @@ export const useStockStore = create<StockState>()(
       toggleAuthModal: (open) => set((state) => ({
         isAuthModalOpen: open !== undefined ? open : !state.isAuthModalOpen
       })),
+      userMpin: null,
+      isSimulatorUnlocked: false,
+      mpinFailedAttempts: 0,
+      mpinLockoutUntil: null,
+      setUserMpin: (userMpin) => set({ userMpin }),
+      unlockSimulator: () => set({ isSimulatorUnlocked: true, mpinFailedAttempts: 0 }),
+      lockSimulator: () => set({ isSimulatorUnlocked: false }),
+      registerFailedMpinAttempt: () => {
+        let currentAttempts = 0;
+        set((state) => {
+          currentAttempts = (state.mpinFailedAttempts || 0) + 1;
+          const isLockoutTriggered = currentAttempts >= 3;
+          // 24 hours in milliseconds = 24 * 60 * 60 * 1000 = 86,400,000 ms
+          const lockoutUntil = isLockoutTriggered ? Date.now() + 86400000 : state.mpinLockoutUntil;
+          return {
+            mpinFailedAttempts: currentAttempts,
+            mpinLockoutUntil: lockoutUntil,
+          };
+        });
+        return currentAttempts;
+      },
+      resetFailedMpinAttempts: () => set({ mpinFailedAttempts: 0 }),
+      setMpinLockout: (untilTimestamp) => set({ mpinLockoutUntil: untilTimestamp }),
+      clearMpinLockout: () => set({ mpinLockoutUntil: null, mpinFailedAttempts: 0 }),
     }),
     {
       name: 'onlyprofit-storage', // local storage key
@@ -143,6 +178,9 @@ export const useStockStore = create<StockState>()(
         userId: state.userId,
         userEmail: state.userEmail,
         userName: state.userName,
+        userMpin: state.userMpin,
+        mpinFailedAttempts: state.mpinFailedAttempts,
+        mpinLockoutUntil: state.mpinLockoutUntil,
       }),
     }
   )

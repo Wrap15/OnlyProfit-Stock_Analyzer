@@ -4,9 +4,10 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { 
   TrendingUp, Wallet, ArrowLeft, RefreshCw, 
-  ChevronRight, PlayCircle, BarChart3, Plus
+  ChevronRight, PlayCircle, BarChart3, Plus, Lock 
 } from 'lucide-react';
 import { useStockStore } from '@/store/useStockStore';
+import SimulatorMpinGate from '@/components/SimulatorMpinGate';
 
 // Modular Sub-components
 import SimulatorHero from '@/features/simulator/components/SimulatorHero';
@@ -19,7 +20,7 @@ import OrderPlacementModal from '@/components/OrderPlacementModal';
 import { useSimulatorDetails } from '@/hooks/useSimulatorDetails';
 
 export default function SimulatorPage() {
-  const { userId, toggleAuthModal } = useStockStore();
+  const { userId, toggleAuthModal, isSimulatorUnlocked, lockSimulator } = useStockStore();
   const [activeTab, setActiveTab] = useState<'holdings' | 'history'>('holdings');
   const [isMasked, setIsMasked] = useState(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
@@ -127,6 +128,11 @@ export default function SimulatorPage() {
     );
   }
 
+  // Security MPIN Check: Must unlock with 4-digit MPIN linked to Gmail
+  if (!isSimulatorUnlocked) {
+    return <SimulatorMpinGate />;
+  }
+
   return (
     <main className="min-h-screen bg-background text-text-primary selection:bg-emerald-500/20 pb-20">
       
@@ -135,7 +141,17 @@ export default function SimulatorPage() {
         <Link href="/" className="flex items-center gap-2 text-xs font-bold text-text-secondary hover:text-text-primary transition-colors group">
           <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" /> Back to Dashboard
         </Link>
-        <span className="text-sm font-black tracking-tight select-none bg-gradient-to-r from-profit to-indigo-500 bg-clip-text text-transparent">OnlyProfit Simulator</span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-black tracking-tight select-none bg-gradient-to-r from-profit to-indigo-500 bg-clip-text text-transparent">OnlyProfit Simulator</span>
+          <button
+            onClick={() => lockSimulator()}
+            className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-extrabold uppercase rounded-xl border border-border/80 bg-card hover:bg-card-hover text-text-secondary hover:text-text-primary transition-colors cursor-pointer shadow-sm active:scale-95"
+            title="Lock Simulator with MPIN"
+          >
+            <Lock className="w-3 h-3 text-emerald-400" />
+            <span>Lock</span>
+          </button>
+        </div>
       </nav>
 
       <div className="mx-auto max-w-7xl px-4 sm:px-8 py-8 space-y-6">

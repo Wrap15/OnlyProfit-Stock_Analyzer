@@ -1,9 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, ShieldCheck, Info, Calculator, Wallet, Plus, Minus } from 'lucide-react';
+import { X, ShieldCheck, Info, Calculator, Plus, Minus, Lock, Shield, Share2, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { useStockStore } from '@/store/useStockStore';
 import { calculateFees, placeOrder } from '@/lib/simulatorService';
+import SwipeToTrade from '@/components/SwipeToTrade';
+import ConfettiEffect from '@/components/ConfettiEffect';
+import ShareTradeModal from '@/components/ShareTradeModal';
 
 interface OrderPlacementModalProps {
   isOpen: boolean;
@@ -22,12 +25,14 @@ export default function OrderPlacementModal({
   livePrice,
   onOrderExecuted
 }: OrderPlacementModalProps) {
-  const { userId, toggleAuthModal } = useStockStore();
+  const { userId, toggleAuthModal, userMpin, setUserMpin } = useStockStore();
   const [productType, setProductType] = useState<'CNC' | 'MIS'>('CNC');
-  const [orderType, setOrderType] = useState<'MARKET' | 'LIMIT' | 'SL'>('MARKET');
+  const [orderType, setOrderType] = useState<'MARKET' | 'LIMIT' | 'SL' | 'GTT'>('MARKET');
   const [quantity, setQuantity] = useState<number>(1);
   const [priceInput, setPriceInput] = useState<string>(livePrice.toFixed(2));
   const [stopPriceInput, setStopPriceInput] = useState<string>((livePrice * 0.95).toFixed(2));
+  const [mpin, setMpin] = useState<string>('');
+  const [showMpin, setShowMpin] = useState<boolean>(false);
   const [side, setSide] = useState<'BUY' | 'SELL'>('BUY');
   const [availableHoldingQty, setAvailableHoldingQty] = useState<number>(0);
   const [isConfirmScreen, setIsConfirmScreen] = useState(false);
@@ -35,6 +40,18 @@ export default function OrderPlacementModal({
   const [loading, setLoading] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
   const [successText, setSuccessText] = useState<string | null>(null);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [executedTrade, setExecutedTrade] = useState<any>(null);
+
+  // Reset security state on modal open/close
+  useEffect(() => {
+    if (!isOpen) {
+      setMpin('');
+      setIsConfirmScreen(false);
+      setErrorText(null);
+    }
+  }, [isOpen]);
 
   // Sync price input on mount & fetch available holdings
   useEffect(() => {
@@ -101,28 +118,82 @@ export default function OrderPlacementModal({
       setErrorText('Limit price must be greater than 0');
       return;
     }
-    if (orderType === 'SL' && (!stopPriceInput || parseFloat(stopPriceInput) <= 0)) {
-      setErrorText('Stop price must be greater than 0');
+    if ((orderType === 'SL' || orderType === 'GTT') && (!stopPriceInput || parseFloat(stopPriceInput) <= 0)) {
+      setErrorText('Trigger / Stop price must be greater than 0');
       return;
     }
     setIsConfirmScreen(true);
   };
 
   const handleConfirmSubmit = async () => {
+    // 0. Strict 4-Digit MPIN Authorization (SEBI & Broker Standard)
+    if (!mpin || !/^\d{4}$/.test(mpin)) {
+      setErrorText('Please enter your 4-digit Security MPIN to authorize trade');
+      return;
+    }
+
+    if (userMpin && mpin !== userMpin) {
+      setErrorText('Security Verification Failed: Incorrect 4-Digit MPIN');
+      return;
+    }
+
+    // If user has not yet established an MPIN in their profile, configure it now
+    if (!userMpin) {
+      setUserMpin(mpin);
+      if (userId) {
+        import('@/lib/firebase').then(({ db }) => {
+          import('firebase/firestore').then(({ doc, setDoc }) => {
+            setDoc(doc(db, 'users', userId, 'security', 'mpin'), {
+              hasMpin: true,
+              failedAttempts: 0,
+              lockoutUntil: null,
+              updatedAt: new Date().toISOString()
+            }, { merge: true }).catch(() => {});
+          });
+        });
+      }
+    }
+
     setLoading(true);
     setErrorText(null);
     setSuccessText(null);
 
-    const limitPriceVal = orderType === 'LIMIT' ? parseFloat(priceInput) : undefined;
-    const stopPriceVal = orderType === 'SL' ? parseFloat(stopPriceInput) : undefined;
+    const limitPriceVal = (orderType === 'LIMIT' || orderType === 'GTT') ? parseFloat(priceInput) : undefined;
+    const stopPriceVal = (orderType === 'SL' || orderType === 'GTT') ? parseFloat(stopPriceInput) : undefined;
 
     try {
+      // 1. Server-side Risk Management System (RMS) & Security Verification
+      const response = await fetch('/api/trade/place', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          symbol,
+          side,
+          type: orderType,
+          productType,
+          quantity: activeQuantity,
+          limitPrice: limitPriceVal,
+          stopPrice: stopPriceVal,
+          mpin: mpin
+        })
+      });
+
+      const serverResult = await response.json();
+
+      if (!response.ok) {
+        setErrorText(serverResult.error || 'Order rejected by Risk Management System (RMS)');
+        setLoading(false);
+        return;
+      }
+
+      // 2. Synchronize with local simulator portfolio
       const res = await placeOrder(
         userId,
         {
           symbol,
           side,
-          type: orderType,
+          type: orderType === 'GTT' ? 'LIMIT' : orderType,
           productType,
           quantity: activeQuantity,
           limitPrice: limitPriceVal,
@@ -132,26 +203,38 @@ export default function OrderPlacementModal({
       );
 
       if (res.success) {
-        const actionStr = orderType === 'MARKET' ? 'executed' : 'placed successfully';
+        const actionStr = orderType === 'MARKET' ? 'executed' : `placed successfully as ${orderType}`;
         setSuccessText(`Order ${actionStr}! ${side === 'BUY' ? 'Bought' : 'Sold'} ${activeQuantity} shares of ${symbol}`);
+        setShowConfetti(true);
+        setExecutedTrade({
+          symbol,
+          stockName,
+          side,
+          quantity: activeQuantity,
+          price: inputPrice,
+          pnl: parseFloat((inputPrice * activeQuantity * 0.048).toFixed(2)),
+          pnlPercent: 4.80,
+          totalInvested: parseFloat((inputPrice * activeQuantity).toFixed(2))
+        });
         
         if (onOrderExecuted) {
           onOrderExecuted();
         }
 
         setTimeout(() => {
-          onClose();
-          setIsConfirmScreen(false);
-          setSuccessText(null);
-        }, 2000);
+          if (!showShareModal) {
+            onClose();
+            setIsConfirmScreen(false);
+            setSuccessText(null);
+            setShowConfetti(false);
+          }
+        }, 3200);
       } else {
         setErrorText(res.reason || 'Failed to submit order');
-        setIsConfirmScreen(false);
       }
     } catch (err) {
       console.error('Order placement failed:', err);
       setErrorText('Server timeout. Failed to record transaction.');
-      setIsConfirmScreen(false);
     } finally {
       setLoading(false);
     }
@@ -231,9 +314,21 @@ export default function OrderPlacementModal({
           )}
 
           {successText && (
-            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-450 rounded-2xl text-xs font-bold flex items-center gap-2 animate-fade-in">
-              <ShieldCheck className="w-4 h-4 shrink-0" />
-              <span>{successText}</span>
+            <div className="p-3.5 bg-emerald-500/15 border border-emerald-500/30 text-emerald-450 rounded-2xl text-xs font-bold space-y-2 animate-fade-in shadow-[0_0_20px_rgba(16,185,129,0.15)]">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 shrink-0 text-emerald-400" />
+                <span>{successText}</span>
+              </div>
+              {executedTrade && (
+                <button
+                  type="button"
+                  onClick={() => setShowShareModal(true)}
+                  className="w-full py-2 px-3 bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase text-[10px] tracking-wider rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>View & Share Trade Story Card</span>
+                </button>
+              )}
             </div>
           )}
 
@@ -314,8 +409,8 @@ export default function OrderPlacementModal({
                 <label className="text-[9px] font-black text-text-secondary uppercase tracking-widest block">
                   Order Type
                 </label>
-                <div className="grid grid-cols-3 gap-1.5 p-1 bg-background border border-border/80 rounded-xl">
-                  {['MARKET', 'LIMIT', 'SL'].map((t) => (
+                <div className="grid grid-cols-4 gap-1.5 p-1 bg-background border border-border/80 rounded-xl">
+                  {['MARKET', 'LIMIT', 'SL', 'GTT'].map((t) => (
                     <button
                       key={t}
                       type="button"
@@ -330,6 +425,11 @@ export default function OrderPlacementModal({
                     </button>
                   ))}
                 </div>
+                {orderType === 'GTT' && (
+                  <p className="text-[9px] text-profit font-bold bg-profit/10 p-2 rounded-xl border border-profit/20 animate-fade-in">
+                    ⚡ GTT (Good Till Triggered): Order is kept active for 365 days until your trigger price is reached.
+                  </p>
+                )}
               </div>
 
               {/* Quantity, Price, Trigger Price Input Fields */}
@@ -406,11 +506,11 @@ export default function OrderPlacementModal({
                     Trigger (₹)
                   </label>
                   <div className={`flex items-center bg-background border rounded-xl overflow-hidden ${
-                    orderType !== 'SL' ? 'border-border/40 opacity-60' : 'border-border'
+                    orderType !== 'SL' && orderType !== 'GTT' ? 'border-border/40 opacity-60' : 'border-border'
                   }`}>
                     <button 
                       type="button" 
-                      disabled={orderType !== 'SL'}
+                      disabled={orderType !== 'SL' && orderType !== 'GTT'}
                       onClick={() => adjustTriggerPrice(-0.05)}
                       className="px-2 py-2 text-text-secondary hover:text-text-primary disabled:hover:text-text-secondary bg-card-hover/20 hover:bg-card-hover/40 border-r border-border disabled:border-transparent transition-colors cursor-pointer"
                     >
@@ -419,14 +519,14 @@ export default function OrderPlacementModal({
                     <input
                       type="number"
                       step="0.05"
-                      disabled={orderType !== 'SL'}
+                      disabled={orderType !== 'SL' && orderType !== 'GTT'}
                       value={stopPriceInput}
                       onChange={(e) => setStopPriceInput(e.target.value)}
                       className="w-full bg-transparent text-center py-2 text-xs text-text-primary disabled:text-text-secondary outline-none font-bold font-mono focus:ring-0 border-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                     <button 
                       type="button" 
-                      disabled={orderType !== 'SL'}
+                      disabled={orderType !== 'SL' && orderType !== 'GTT'}
                       onClick={() => adjustTriggerPrice(0.05)}
                       className="px-2 py-2 text-text-secondary hover:text-text-primary disabled:hover:text-text-secondary bg-card-hover/20 hover:bg-card-hover/40 border-l border-border disabled:border-transparent transition-colors cursor-pointer"
                     >
@@ -469,7 +569,7 @@ export default function OrderPlacementModal({
                 type="submit"
                 className={`w-full py-3.5 rounded-2xl font-black text-xs tracking-wider uppercase transition-all duration-200 cursor-pointer active:scale-[0.99] ${
                   side === 'BUY'
-                    ? 'bg-emerald-50 hover:bg-emerald-600 text-black shadow-md shadow-emerald-500/20'
+                    ? 'bg-emerald-500 hover:bg-emerald-600 text-black shadow-md shadow-emerald-500/20'
                     : 'bg-red-500 hover:bg-red-600 text-black shadow-md shadow-red-500/20'
                 }`}
               >
@@ -478,61 +578,59 @@ export default function OrderPlacementModal({
             </form>
           ) : (
             /* Confirmation Details Screen */
-            <div className="space-y-6 animate-fade-in">
-              <div className="text-center p-5 bg-background border border-border/80 rounded-2xl space-y-1">
+            <div className="space-y-4 animate-fade-in">
+              <div className="text-center p-4 bg-background border border-border/80 rounded-2xl space-y-1">
                 <span className={`text-[9px] font-black tracking-widest uppercase px-2 py-0.5 rounded ${
                   side === 'BUY' ? 'bg-emerald-500/10 text-emerald-450' : 'bg-rose-500/10 text-rose-455'
                 }`}>
                   Verify Order Details
                 </span>
-                <div className="text-xl sm:text-2xl font-black text-text-primary">
+                <div className="text-lg sm:text-xl font-black text-text-primary">
                   {side === 'BUY' ? 'Buy' : 'Sell'} {activeQuantity} Shares
                 </div>
                 <div className="text-xs font-bold text-text-secondary">{stockName} ({symbol})</div>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <h4 className="text-[9px] font-black text-text-secondary uppercase tracking-widest">
                   Order Breakdown
                 </h4>
                 
-                <div className="bg-card-hover/20 border border-border/80 rounded-2xl p-4 space-y-2.5">
-                  <div className="flex justify-between text-xs font-bold text-text-secondary">
+                <div className="bg-card-hover/20 border border-border/80 rounded-2xl p-3.5 space-y-2 text-xs">
+                  <div className="flex justify-between font-bold text-text-secondary">
                     <span>Product:</span>
                     <span className="text-text-primary">{productType === 'CNC' ? 'CNC (Delivery)' : 'MIS (Intraday)'}</span>
                   </div>
-                  <div className="flex justify-between text-xs font-bold text-text-secondary">
+                  <div className="flex justify-between font-bold text-text-secondary">
                     <span>Order Type:</span>
                     <span className="text-text-primary uppercase">{orderType}</span>
                   </div>
-                  <div className="flex justify-between text-xs font-bold text-text-secondary">
-                    <span>Execution Price:</span>
+                  <div className="flex justify-between font-bold text-text-secondary">
+                    <span>Target Execution Price:</span>
                     <span className="text-text-primary font-mono">₹{inputPrice.toFixed(2)}</span>
                   </div>
+                  {orderType === 'GTT' && (
+                    <div className="flex justify-between font-bold text-text-secondary">
+                      <span>Trigger Price:</span>
+                      <span className="text-profit font-mono">₹{stopPriceInput}</span>
+                    </div>
+                  )}
                   
                   <div className="border-t border-border/60 my-1" />
 
                   <div className="flex justify-between text-[10px] font-semibold text-text-secondary">
-                    <span>Simulated Brokerage (0.03%):</span>
+                    <span>Brokerage & Exchange Fee:</span>
                     <span className="text-text-primary font-mono">₹{brokerage.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-[10px] font-semibold text-text-secondary">
-                    <span>Securities Transaction Tax (STT):</span>
-                    <span className="text-text-primary font-mono">₹{(inputPrice * activeQuantity * 0.001).toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-[10px] font-semibold text-text-secondary">
-                    <span>GST (18% on Brokerage):</span>
-                    <span className="text-text-primary font-mono">₹{(brokerage * 0.18).toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-[10px] font-semibold text-text-secondary">
-                    <span>Stamp Duty & exchange fees:</span>
-                    <span className="text-text-primary font-mono font-extrabold">₹{(taxes - parseFloat((inputPrice * activeQuantity * 0.001).toFixed(2)) - parseFloat((brokerage * 0.18).toFixed(2))).toFixed(2)}</span>
+                    <span>Statutory Taxes (STT + GST + Stamp):</span>
+                    <span className="text-text-primary font-mono">₹{taxes.toFixed(2)}</span>
                   </div>
 
                   <div className="border-t border-border/60 my-1" />
 
-                  <div className="flex justify-between text-xs font-black text-text-primary pt-1">
-                    <span>Total Cost / Margin Required:</span>
+                  <div className="flex justify-between text-xs font-black text-text-primary pt-0.5">
+                    <span>Total Margin / Capital:</span>
                     <span className={side === 'BUY' ? 'text-emerald-450 font-mono font-black text-sm' : 'text-rose-455 font-mono font-black text-sm'}>
                       ₹{totalCost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </span>
@@ -540,34 +638,65 @@ export default function OrderPlacementModal({
                 </div>
               </div>
 
-              {/* Confirm Actions */}
-              <div className="flex gap-4 pt-2">
+              {/* SEBI 2FA & 4-Digit MPIN Security Verification (Groww & Angel One Standard) */}
+              <div className="bg-background/90 border border-border/90 rounded-2xl p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-black text-text-primary">
+                    <Lock className="w-3.5 h-3.5 text-profit" />
+                    <span>Enter 4-Digit Security MPIN</span>
+                  </div>
+                  <span className="text-[9px] font-bold text-profit flex items-center gap-1 bg-profit/10 px-2 py-0.5 rounded-full">
+                    <Shield className="w-2.5 h-2.5" /> 2FA Mandatory
+                  </span>
+                </div>
+
+                <div className="relative">
+                  <input
+                    type={showMpin ? 'text' : 'password'}
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={4}
+                    value={mpin}
+                    onChange={(e) => {
+                      const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 4);
+                      setMpin(digitsOnly);
+                      if (errorText) setErrorText(null);
+                    }}
+                    placeholder="••••"
+                    autoFocus
+                    className="w-full bg-card border border-border rounded-xl px-4 py-2.5 text-center text-lg tracking-[0.5em] font-mono font-black text-text-primary focus:border-profit focus:outline-none transition-colors"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowMpin(!showMpin)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary p-1 cursor-pointer transition-colors"
+                    title={showMpin ? 'Hide MPIN' : 'Show MPIN'}
+                  >
+                    {showMpin ? <EyeOff className="w-4 h-4 text-profit" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <div className="flex items-center justify-between text-[9px] text-text-secondary px-0.5">
+                  <span>Enter your personal 4-digit trade MPIN</span>
+                  <span className="font-mono text-profit font-bold">4 Digits</span>
+                </div>
+              </div>
+
+              {/* Confirm Actions: Interactive Swipe-to-Trade Slider */}
+              <div className="space-y-3 pt-1">
+                <SwipeToTrade 
+                  side={side} 
+                  onConfirm={handleConfirmSubmit} 
+                  loading={loading} 
+                />
+
                 <button
                   type="button"
                   disabled={loading}
                   onClick={() => setIsConfirmScreen(false)}
-                  className="flex-1 py-3.5 bg-background hover:bg-card-hover border border-border text-text-primary rounded-2xl text-xs font-black tracking-wider uppercase transition-all cursor-pointer hover:border-border-dark active:scale-[0.98]"
+                  className="w-full py-2.5 bg-background hover:bg-card-hover border border-border text-text-secondary hover:text-text-primary rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.98]"
                 >
-                  Back
-                </button>
-                <button
-                  type="button"
-                  disabled={loading}
-                  onClick={handleConfirmSubmit}
-                  className={`flex-1 py-3.5 rounded-2xl text-xs font-black tracking-wider uppercase transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.98] ${
-                    side === 'BUY'
-                      ? 'bg-emerald-500 hover:bg-emerald-600 text-black shadow-md shadow-emerald-500/20'
-                      : 'bg-red-500 hover:bg-red-600 text-black shadow-md shadow-red-500/20'
-                  }`}
-                >
-                  {loading ? (
-                    <div className="w-4 h-4 border-2 border-black border-t-transparent animate-spin rounded-full" />
-                  ) : (
-                    <>
-                      <Wallet className="w-4 h-4" />
-                      <span>Confirm {side === 'BUY' ? 'Buy' : 'Sell'}</span>
-                    </>
-                  )}
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Back to modify order</span>
                 </button>
               </div>
             </div>
@@ -576,6 +705,20 @@ export default function OrderPlacementModal({
         </div>
 
       </div>
+
+      {/* Celebratory Particle Confetti on Order Execution */}
+      {showConfetti && (
+        <ConfettiEffect onComplete={() => setShowConfetti(false)} />
+      )}
+
+      {/* Shareable Glassmorphic P&L Story Card Modal */}
+      {executedTrade && (
+        <ShareTradeModal
+          isOpen={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          tradeData={executedTrade}
+        />
+      )}
     </div>
   );
 }

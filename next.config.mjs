@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   compress: true,
-  outputFileTracing: process.platform === 'win32' && !process.env.VERCEL ? false : true,
   async headers() {
     return [
       {
@@ -17,7 +16,15 @@ const nextConfig = {
           },
           {
             key: 'Referrer-Policy',
-            value: 'origin-when-cross-origin',
+            value: 'strict-origin-when-cross-origin',
+          },
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=63072000; includeSubDomains; preload',
+          },
+          {
+            key: 'X-XSS-Protection',
+            value: '1; mode=block',
           },
           {
             key: 'Permissions-Policy',

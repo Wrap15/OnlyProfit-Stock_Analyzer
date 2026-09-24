@@ -1,10 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Briefcase, ArrowUpRight, TrendingUp, TrendingDown, 
-  Clock, Eye, EyeOff, RefreshCw, Plus 
+  Clock, Eye, EyeOff, RefreshCw, Plus, Share2 
 } from 'lucide-react';
+import ShareTradeModal from '@/components/ShareTradeModal';
 
 interface SimulatorHeroProps {
   cash: number;
@@ -36,6 +37,7 @@ export default function SimulatorHero({
 
   const isOverallProfit = overallPnL >= 0;
   const isDayProfit = dayPnL >= 0;
+  const [showShareModal, setShowShareModal] = useState(false);
 
   return (
     <div className="w-full space-y-6">
@@ -59,6 +61,15 @@ export default function SimulatorHero({
             title={isMasked ? 'Show values' : 'Hide values'}
           >
             {isMasked ? <EyeOff className="h-4.5 w-4.5" /> : <Eye className="h-4.5 w-4.5" />}
+          </button>
+
+          {/* Share P&L Button */}
+          <button
+            onClick={() => setShowShareModal(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 border border-emerald-500/30 bg-card/80 hover:bg-emerald-500/10 text-emerald-450 font-black text-[10px] uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-sm active:scale-95"
+            title="Export & Share P&L Card"
+          >
+            <Share2 className="h-3.5 w-3.5" /> Share P&L
           </button>
           
           {/* Add Cash Button */}
@@ -171,6 +182,22 @@ export default function SimulatorHero({
           {isMasked ? '•••••' : `₹ ${cash.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
         </span>
       </div>
+
+      {/* Exportable Glassmorphic P&L Story Card Modal */}
+      <ShareTradeModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        tradeData={{
+          symbol: 'SIMULATOR PORTFOLIO',
+          stockName: 'Paper Trading Returns',
+          side: 'BUY',
+          quantity: 1,
+          price: holdingsCurrentValue,
+          pnl: overallPnL,
+          pnlPercent: overallPnLPct,
+          totalInvested
+        }}
+      />
 
     </div>
   );

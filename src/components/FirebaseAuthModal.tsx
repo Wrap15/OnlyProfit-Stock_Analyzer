@@ -7,7 +7,9 @@ import {
   createUserWithEmailAndPassword, 
   sendPasswordResetEmail,
   updateProfile,
-  signInWithPopup
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '@/lib/firebase';
@@ -36,38 +38,6 @@ export default function FirebaseAuthModal({ isOpen, onClose, onSuccess }: Fireba
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // Focus and fields reset on modal launch
-  useEffect(() => {
-    if (isOpen) {
-      setError(null);
-      setSuccessMsg(null);
-      setName('');
-      setEmail('');
-      setPassword('');
-      setConfirmPassword('');
-      setIsRegisterMode(false);
-      setIsResetMode(false);
-      setShowPassword(false);
-    }
-  }, [isOpen]);
-
-  // Click outside backdrop to close
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        onClose();
-      }
-    }
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isOpen, onClose]);
-
-  if (!isOpen) return null;
 
   const handleSyncUserProStatus = async (user: any, customName?: string) => {
     let isPro = false;
@@ -102,6 +72,65 @@ export default function FirebaseAuthModal({ isOpen, onClose, onSuccess }: Fireba
       activatePro();
     }
   };
+
+  // Check redirect result on mount (when returning from Google Sign-In redirect)
+  useEffect(() => {
+    let active = true;
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (!active || !result?.user) return;
+        await handleSyncUserProStatus(result.user);
+        setSuccessMsg(`Welcome, ${result.user.displayName || result.user.email}!`);
+        setTimeout(() => {
+          if (onSuccess) onSuccess();
+          onClose();
+        }, 1000);
+      })
+      .catch((err: any) => {
+        if (!active) return;
+        if (err.code === 'auth/unauthorized-domain') {
+          setError('Domain not authorized in Firebase: Please add your Vercel domain in Firebase Console > Authentication > Settings > Authorized domains.');
+        } else if (err.code) {
+          console.warn('Redirect auth result warning:', err);
+        }
+      });
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Focus and fields reset on modal launch
+  useEffect(() => {
+    if (isOpen) {
+      setError(null);
+      setSuccessMsg(null);
+      setName('');
+      setEmail('');
+      setPassword('');
+      setConfirmPassword('');
+      setIsRegisterMode(false);
+      setIsResetMode(false);
+      setShowPassword(false);
+    }
+  }, [isOpen]);
+
+  // Click outside backdrop to close
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
 
   const handleEmailAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -216,10 +245,27 @@ export default function FirebaseAuthModal({ isOpen, onClose, onSuccess }: Fireba
     }
   };
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignIn = async (forceRedirect: boolean = false) => {
     setError(null);
     setSuccessMsg(null);
     setLoading(true);
+
+    if (forceRedirect) {
+      try {
+        setSuccessMsg('Redirecting to Google Sign-In...');
+        await signInWithRedirect(auth, googleProvider);
+        return;
+      } catch (redirectErr: any) {
+        console.error('Google Redirect Error:', redirectErr);
+        if (redirectErr.code === 'auth/unauthorized-domain') {
+          setError('Domain unauthorized in Firebase: Please add your Vercel URL to Firebase Console > Authentication > Settings > Authorized domains.');
+        } else {
+          setError(redirectErr.message || 'Failed to redirect to Google.');
+        }
+        setLoading(false);
+        return;
+      }
+    }
 
     try {
       const result = await signInWithPopup(auth, googleProvider);
@@ -231,10 +277,25 @@ export default function FirebaseAuthModal({ isOpen, onClose, onSuccess }: Fireba
       }, 1000);
     } catch (err: any) {
       console.error('Google Sign-In Error:', err);
-      if (err.code === 'auth/popup-closed-by-user') {
-        setError('Google sign-in was closed before completing.');
+      if (err.code === 'auth/popup-blocked') {
+        // Automatically fallback to signInWithRedirect when the browser blocks the popup
+        try {
+          setSuccessMsg('Browser blocked popup window. Redirecting to Google Sign-In...');
+          await signInWithRedirect(auth, googleProvider);
+          return;
+        } catch (redirectErr: any) {
+          if (redirectErr.code === 'auth/unauthorized-domain') {
+            setError('This Vercel domain is not authorized in Firebase Console. Please add your Vercel domain to Firebase Console > Authentication > Settings > Authorized domains.');
+          } else {
+            setError('Browser blocked sign-in popup. Please click the direct sign-in button below.');
+          }
+        }
+      } else if (err.code === 'auth/popup-closed-by-user') {
+        setError('Google sign-in window was closed before completing.');
       } else if (err.code === 'auth/cancelled-popup-request') {
         // Ignored
+      } else if (err.code === 'auth/unauthorized-domain') {
+        setError('Domain not authorized: Please add your Vercel URL to Firebase Console > Authentication > Settings > Authorized domains.');
       } else {
         setError(err.message || 'Failed to sign in with Google.');
       }
@@ -307,9 +368,21 @@ export default function FirebaseAuthModal({ isOpen, onClose, onSuccess }: Fireba
           
           {/* Notification Banners */}
           {error && (
-            <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/25 flex gap-2.5 items-start text-xs text-rose-600 dark:text-rose-400 animate-fade-in font-semibold">
-              <ShieldAlert className="h-4.5 w-4.5 shrink-0 mt-0.5" />
-              <span>{error}</span>
+            <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/25 flex flex-col gap-2.5 text-xs text-rose-600 dark:text-rose-400 animate-fade-in font-semibold">
+              <div className="flex gap-2.5 items-start">
+                <ShieldAlert className="h-4.5 w-4.5 shrink-0 mt-0.5" />
+                <span className="leading-relaxed">{error}</span>
+              </div>
+              {(error.toLowerCase().includes('popup') || error.toLowerCase().includes('blocked')) && (
+                <button
+                  type="button"
+                  onClick={() => handleGoogleSignIn(true)}
+                  className="w-full py-2 px-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-md transition-all active:scale-[0.98]"
+                >
+                  <span>Sign In with Google (Direct Redirect)</span>
+                  <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
+                </button>
+              )}
             </div>
           )}
 
@@ -324,7 +397,7 @@ export default function FirebaseAuthModal({ isOpen, onClose, onSuccess }: Fireba
             <>
               <button
                 type="button"
-                onClick={handleGoogleSignIn}
+                onClick={() => handleGoogleSignIn(false)}
                 disabled={loading}
                 className="w-full h-11 rounded-xl border border-border bg-background hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors font-bold text-xs text-text-primary flex items-center justify-center gap-2.5 shadow-sm cursor-pointer disabled:opacity-50"
               >
